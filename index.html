@@ -3970,6 +3970,18 @@ const FAV_SEED=[
   {name:'Сэндвич с беконом', k:544, p:13, f:38, c:37, bad:1},
   {name:'Мега сыр', k:1050, p:55, f:75, c:39, bad:1}
 ];
+/* Фастфуд: цифры примерные, по данным сетей и типичным порциям */
+const FASTFOOD=[
+  {name:'Шаурма большая ~700 г', k:1400, p:70, f:70, c:120, bad:1},
+  {name:'Чизбургер', k:300, p:16, f:12, c:32},
+  {name:'Двойной чизбургер', k:430, p:25, f:21, c:33},
+  {name:'Картофель фри, средний', k:340, p:4, f:17, c:42, bad:1},
+  {name:'Наггетсы, 6 шт', k:280, p:15, f:17, c:16},
+  {name:'Наггетсы, 9 шт', k:420, p:23, f:26, c:24},
+  {name:'Чикен Премьер', k:500, p:22, f:24, c:48, bad:1},
+  {name:'Ролл (Ростикс)', k:580, p:25, f:28, c:55, bad:1},
+  {name:'Стрипсы, 3 шт', k:290, p:21, f:15, c:18}
+];
 let favEdit=false;
 const getFavs=()=>store.get('planFav', null) || FAV_SEED.slice();
 const setFavs=f=>store.set('planFav', f);
@@ -3992,6 +4004,9 @@ function renderCustom(){
     <h3>Съел ещё</h3>
     <div class="favhead"><span>Быстро добавить</span><button type="button" id="favEdit">${favEdit?'Готово':'Изменить'}</button></div>
     <div class="favs">${favs.map((x,i)=>`<button type="button" class="fav${x.bad?' bad':''}" data-i="${i}">${favEdit?'<span class="x">×</span>':''}${x.name} <small>${x.k}</small></button>`).join('')}</div>
+    <div class="favhead"><span>Фастфуд · цифры примерные</span></div>
+    <div class="favs">${FASTFOOD.map((x,i)=>`<button type="button" class="fav ff${x.bad?' bad':''}" data-i="${i}">${x.name} <small>${x.k}</small></button>`).join('')}</div>
+    <p style="font-size:12px;color:var(--muted);margin:-6px 0 14px">На сушке лучший выбор — двойной чизбургер и стрипсы: больше всего белка на калорию. Шаурма 700 г — больше половины дневной нормы: бери половину или без лишнего соуса, в этот день остальное — мясо и овощи. Фри и газировку заменяй на второй бургер или наггетсы.</p>
     ${favs.some(x=>x.bad)&&!favEdit?`<p style="font-size:12px;color:var(--muted);margin:-6px 0 14px">Оранжевая рамка — то, что план советует заменить: много жира или сахара и мало белка.</p>`:''}
     ${rows}
     <div class="cust-form">
@@ -4014,7 +4029,13 @@ function renderCustom(){
   });
 
   box.querySelector('#favEdit').addEventListener('click',()=>{ favEdit=!favEdit; renderCustom(); });
-  box.querySelectorAll('.fav').forEach(b=>b.addEventListener('click',()=>{
+  box.querySelectorAll('.fav.ff').forEach(b=>b.addEventListener('click',()=>{
+    const x=FASTFOOD[+b.dataset.i];
+    custom.push({name:x.name, k:x.k, p:x.p, f:x.f, c:x.c});
+    saveFood(); renderCustom(); renderSummary(); renderWeekStats(); renderFoodDays();
+    toast(`${x.name} — добавлено`);
+  }));
+  box.querySelectorAll('.fav:not(.ff)').forEach(b=>b.addEventListener('click',()=>{
     const f=getFavs(), x=f[+b.dataset.i];
     if(favEdit){ f.splice(+b.dataset.i,1); setFavs(f); renderCustom(); return; }
     custom.push({name:x.name, k:x.k, p:x.p, f:x.f, c:x.c});

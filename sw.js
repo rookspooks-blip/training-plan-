@@ -1,7 +1,7 @@
 /* Офлайн-режим. Страница: сначала сеть (чтобы обновления приходили сами),
    без сети — из кэша. Иконки и manifest: сначала кэш.
    При изменении файлов приложения увеличь VERSION. */
-const VERSION = 'v4';
+const VERSION = 'v5';
 const CACHE = 'tri-cikla-' + VERSION;
 const FILES = [
   './',
