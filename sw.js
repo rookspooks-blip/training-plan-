@@ -1,7 +1,7 @@
 /* Офлайн-режим. Страница: сначала сеть (чтобы обновления приходили сами),
    без сети — из кэша. Иконки и manifest: сначала кэш.
    При изменении файлов приложения увеличь VERSION. */
-const VERSION = 'v1';
+const VERSION = 'v2';
 const CACHE = 'tri-cikla-' + VERSION;
 const FILES = [
   './',
@@ -10,7 +10,8 @@ const FILES = [
   './icons/apple-touch-icon.png',
   './icons/icon-192.png',
   './icons/icon-512.png',
-  './icons/icon-maskable-512.png'
+  './icons/icon-maskable-512.png',
+  './plan.ics'
 ];
 
 self.addEventListener('install', e => {
