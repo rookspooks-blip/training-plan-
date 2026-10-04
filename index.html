@@ -5385,22 +5385,46 @@ function renderProgToday(){
       <label class="wide">Самочувствие после тренировки, 1–10
         <div class="scale" id="pfFeel">${Array.from({length:10},(_,i)=>`<button type="button" data-v="${i+1}" aria-pressed="${num(e.feel)===i+1}">${i+1}</button>`).join('')}</div></label>
     </div>
-    <p style="font-size:12.5px;color:var(--muted);margin:10px 0 0">${prev?`Прошлое взвешивание: ${fmt1(prev.w)} кг, ${shortDate(prev.d)}. `:''}Сохраняется сразу. Вес — 3 раза в неделю, колено — утром после прыжкового дня.</p>
+    <button type="button" class="btn btn-primary" id="pfSave" style="width:100%;margin-top:14px">Сохранить</button>
+    <div id="pfStatus" style="font-size:13px;margin-top:10px"></div>
+    <p style="font-size:12.5px;color:var(--muted);margin:8px 0 0">${prev?`Прошлое взвешивание: ${fmt1(prev.w)} кг, ${shortDate(prev.d)}. `:''}Вес — 3 раза в неделю, колено — утром после прыжкового дня.</p>
   </div>`;
+  /* Что уже записано сегодня — чтобы было видно, что сохранилось */
+  const status=()=>{
+    const x=body[t]||{}, parts=[];
+    if(num(x.w)!=null) parts.push(`вес ${String(num(x.w)).replace('.',',')} кг`);
+    if(num(x.hr)!=null) parts.push(`пульс ${x.hr}`);
+    if(num(x.knee)!=null) parts.push(`колено ${x.knee}/10`);
+    if(num(x.feel)!=null) parts.push(`самочувствие ${x.feel}/10`);
+    box.querySelector('#pfStatus').innerHTML = parts.length
+      ? `<span style="color:var(--carb)">✓ Записано сегодня:</span> ${parts.join(' · ')}`
+      : `<span style="color:var(--muted)">Сегодня ещё ничего не записано</span>`;
+  };
   const upd=(f,v)=>{
     const cur=body[t]||{};
     if(v===''||v==null) delete cur[f]; else cur[f]=v;
     if(Object.keys(cur).length) body[t]=cur; else delete body[t];
     saveBody();
   };
-  box.querySelector('#pfW').addEventListener('change',ev=>{ const v=num(ev.target.value); upd('w', v); toast(v!=null?'Вес записан':'Вес удалён'); renderProgressParts(); });
-  box.querySelector('#pfHR').addEventListener('change',ev=>{ upd('hr', num(ev.target.value)); toast('Пульс записан'); renderProgressParts(); });
+  const wIn=box.querySelector('#pfW'), hIn=box.querySelector('#pfHR');
+  /* пишем сразу при вводе, чтобы ничего не терялось, даже без кнопки */
+  wIn.addEventListener('input',()=>{ upd('w', num(wIn.value)); status(); });
+  hIn.addEventListener('input',()=>{ upd('hr', num(hIn.value)); status(); });
+  wIn.addEventListener('change',()=>renderProgressParts());
+  hIn.addEventListener('change',()=>renderProgressParts());
+  box.querySelector('#pfSave').addEventListener('click',()=>{
+    upd('w', num(wIn.value)); upd('hr', num(hIn.value));
+    wIn.blur(); hIn.blur();
+    status(); renderProgressParts(); renderDays();
+    toast(Object.keys(body[t]||{}).length ? 'Сохранено' : 'Нечего сохранять — впиши вес или отметь колено');
+  });
+  status();
   [['#pfKnee','knee'],['#pfFeel','feel']].forEach(([sel,f])=>{
     box.querySelectorAll(sel+' button').forEach(b=>b.addEventListener('click',()=>{
       const v=+b.dataset.v, same=num((body[t]||{})[f])===v;
       upd(f, same?null:v);
       box.querySelectorAll(sel+' button').forEach(x=>x.setAttribute('aria-pressed', String(!same && +x.dataset.v===v)));
-      renderProgressParts(); if(f==='knee') renderDays();
+      status(); renderProgressParts(); if(f==='knee') renderDays();
     }));
   });
 }
