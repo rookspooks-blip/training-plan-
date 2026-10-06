@@ -5350,6 +5350,8 @@ window.addEventListener('scroll',()=>{
 /* ############################################################
    17 · IPHONE: ЗАДАЧИ, РЕЗЕРВНАЯ КОПИЯ, УСТАНОВКА, ОФЛАЙН
    ############################################################ */
+/* Дата сборки — видна в «Справка → Данные», чтобы проверить, что обновление пришло */
+const APP_VERSION='06.10 · вес по выполненной работе';
 let toastTimer=0;
 function toast(msg){
   const t=document.getElementById('toast');
@@ -5468,6 +5470,7 @@ function renderBackup(){
       <a class="btn" style="text-align:center;text-decoration:none" id="icsSub" href="plan.ics">Подписаться</a>
       <a class="btn" style="text-align:center;text-decoration:none" href="plan.ics" download="plan.ics">Скачать .ics</a>
     </div>
+    <p style="font-size:12.5px;color:var(--muted);margin-top:10px">Версия приложения: <b>${APP_VERSION}</b>. Если я сказал, что обновил, а тут старая дата — закрой приложение смахиванием и открой через пару минут.</p>
     <p style="font-size:12.5px;color:var(--muted);margin-top:10px">«Подписаться» добавляет календарь, который обновляется сам. Если перенёс тренировку в приложении, в календаре она останется на старом месте — календарь только напоминает.</p>
     <p style="font-size:12.5px;color:var(--muted);margin-top:10px">«Сохранить копию» открывает меню iPhone: выбери «Сохранить в Файлы» или отправь себе в Telegram. «Восстановить» — выбери этот файл, текущие данные заменятся.</p>`;
   box.querySelector('#btnBackup').addEventListener('click', exportBackup);

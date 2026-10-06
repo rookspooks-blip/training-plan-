@@ -1,7 +1,7 @@
 /* Офлайн-режим. Страница: сначала сеть (чтобы обновления приходили сами),
    без сети — из кэша. Иконки и manifest: сначала кэш.
    При изменении файлов приложения увеличь VERSION. */
-const VERSION = 'v10';
+const VERSION = 'v11';
 const CACHE = 'tri-cikla-' + VERSION;
 const FILES = [
   './',
@@ -32,7 +32,9 @@ self.addEventListener('fetch', e => {
 
   if (req.mode === 'navigate') {
     e.respondWith(
-      fetch(req)
+      /* no-cache: всегда спрашиваем сервер, нет ли новой версии,
+         а не берём копию из кэша браузера (GitHub держит её 10 минут) */
+      fetch(req.url, { cache: 'no-cache', credentials: 'same-origin' })
         .then(res => {
           const copy = res.clone();
           caches.open(CACHE).then(c => c.put('./index.html', copy));
