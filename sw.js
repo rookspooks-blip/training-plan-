@@ -1,11 +1,27 @@
-/* Офлайн-режим. Страница: сначала сеть (чтобы обновления приходили сами),
-   без сети — из кэша. Иконки и manifest: сначала кэш.
-   При изменении файлов приложения увеличь VERSION. */
-const VERSION = 'v15';
+/* Офлайн-режим.
+   Код приложения (страница, js, css, календарь): сначала сеть, чтобы
+   обновления приходили сами, без сети — из кэша.
+   Иконки и картинки: сначала кэш.
+   При изменении списка файлов увеличь VERSION. */
+const VERSION = 'v16';
 const CACHE = 'tri-cikla-' + VERSION;
 const FILES = [
   './',
   './index.html',
+  './css/app.css',
+  './js/export.js',
+  './js/figures.js',
+  './js/food-data.js',
+  './js/food.js',
+  './js/iphone.js',
+  './js/main.js',
+  './js/plan-extra.js',
+  './js/plan.js',
+  './js/progress.js',
+  './js/store.js',
+  './js/tech.js',
+  './js/training.js',
+  './js/ui.js',
   './manifest.webmanifest',
   './icons/apple-touch-icon.png',
   './icons/icon-192.png',
@@ -26,29 +42,32 @@ self.addEventListener('activate', e => {
   );
 });
 
+const isCode = url => url.pathname.endsWith('/') || /\.(html|js|css|ics|webmanifest)$/.test(url.pathname);
+
 self.addEventListener('fetch', e => {
   const req = e.request;
-  if (req.method !== 'GET' || new URL(req.url).origin !== location.origin) return;
+  const url = new URL(req.url);
+  if (req.method !== 'GET' || url.origin !== location.origin) return;
 
-  if (req.mode === 'navigate') {
+  if (req.mode === 'navigate' || isCode(url)) {
+    /* страница всегда кладётся под одним ключом */
+    const key = req.mode === 'navigate' ? './index.html' : url.pathname;
     e.respondWith(
       /* no-cache: всегда спрашиваем сервер, нет ли новой версии,
          а не берём копию из кэша браузера (GitHub держит её 10 минут) */
       fetch(req.url, { cache: 'no-cache', credentials: 'same-origin' })
         .then(res => {
-          const copy = res.clone();
-          caches.open(CACHE).then(c => c.put('./index.html', copy));
+          if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(key, copy)); }
           return res;
         })
-        .catch(() => caches.match('./index.html'))
+        .catch(() => caches.match(key, { ignoreSearch: true }).then(hit => hit || caches.match(req, { ignoreSearch: true })))
     );
     return;
   }
 
   e.respondWith(
     caches.match(req).then(hit => hit || fetch(req).then(res => {
-      const copy = res.clone();
-      caches.open(CACHE).then(c => c.put(req, copy));
+      if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)); }
       return res;
     }))
   );
