@@ -3840,15 +3840,23 @@ function logBlock(day, ex, card, setDone){
   const box=document.createElement('div');
   box.className='log';
   const unit=P.timed?'сек':'повт.';
+  /* Что писать в поле «кг»: гантель, штанга, рюкзак или ничего (свой вес) */
+  const DB=['rdl','row','curl','triceps','ohp'].includes(ex.tech) && !/штанг/i.test(ex.name+ex.dose) && !(P.w!=null);
+  const wHint = P.w!=null ? 'кг — вес штанги (блины + гриф)'
+              : DB ? 'кг — вес <b>одной</b> гантели'
+              : /резин/.test(ex.dose) ? 'кг — оставь пустым: резина, вес не считаем'
+              : /рюкзак/.test(ex.dose) ? 'кг — вес рюкзака; без рюкзака оставь пустым'
+              : 'кг — оставь пустым: свой вес писать не нужно, только добавленный';
 
   const draw=()=>{
     box.innerHTML=`
       ${last?`<div class="log-last">${lastSummary(last,P)}</div>`:''}
       ${sg.t?`<div class="log-tip">Сегодня: ${sg.t}</div>`:''}
+      <div class="log-last" style="margin-bottom:8px">${wHint}</div>
       <div class="ls-head"><span>#</span><span>кг</span><span></span><span>${unit}</span><span>${rs?'отдых':''}</span></div>
       ${L.sets.map((x,i)=>`<div class="ls-row${num(x.r)!=null?' full':''}" data-i="${i}">
         <span class="ls-n">${i+1}</span>
-        <input class="ls-w" type="text" inputmode="decimal" enterkeyhint="next" value="${x.w??''}" placeholder="${sg.w!=null?fmtW(sg.w):'свой'}" aria-label="Вес, подход ${i+1}">
+        <input class="ls-w" type="text" inputmode="decimal" enterkeyhint="next" value="${x.w??''}" placeholder="${sg.w!=null?fmtW(sg.w):(DB?'гантель':'—')}" aria-label="Вес, подход ${i+1}">
         <span class="ls-x">×</span>
         <input class="ls-r" type="text" inputmode="numeric" enterkeyhint="done" value="${x.r??''}" placeholder="${sg.r!=null?sg.r:'—'}" aria-label="Повторы, подход ${i+1}">
         ${rs?`<button type="button" class="ls-rest" aria-label="Таймер отдыха">${TIMER_IC}</button>`:'<span></span>'}
