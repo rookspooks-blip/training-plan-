@@ -821,6 +821,18 @@ body.timing #toTop{ opacity:0; pointer-events:none; }
 .pick.weeks button.ss{ border-color:var(--cardc); color:var(--cardc); }
 .pick.weeks button.ss[aria-pressed="true"]{ background:var(--cardc); color:var(--ink); }
 
+/* Данные с часов */
+.watchbox{ background:var(--surface); border:1px solid var(--line); border-radius:var(--r-lg); padding:14px; margin:14px 0 4px; }
+.wb-h{ font-size:13px; font-weight:700; color:var(--muted); margin-bottom:10px; text-transform:uppercase; letter-spacing:.04em; }
+.wb-row{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px; }
+.wb-row.three{ grid-template-columns:repeat(3,1fr); }
+.wb-cell{ display:flex; flex-direction:column; gap:6px; align-items:stretch; }
+.wb-cell .tinp{ width:100%; }
+.wb-row label{ font-size:12px; color:var(--muted); display:flex; flex-direction:column; gap:5px; }
+.wb-row .app-field{ padding:9px 8px; font-weight:700; text-align:center; }
+.wb-sum{ font-size:13px; line-height:1.45; }
+.cday-body .watchbox{ margin-top:12px; }
+
 /* Выгрузка */
 .exnav{ display:grid; grid-template-columns:48px 1fr 48px; gap:8px; margin-bottom:10px; }
 .exnav .btn{ padding:10px 0; font-size:20px; }
@@ -3245,6 +3257,7 @@ function loadAll(){
   custom=store.get('planCustom',[]);
   foodLog=store.get('planFood',{});
   logs=store.get('planLog',{});
+  watch=store.get('planWatch',{});
   body=store.get('planBody',{});
   circ=store.get('planCirc',[]);
   tests=store.get('planTests',null) || SEED_TESTS.slice();
@@ -3266,6 +3279,8 @@ const saveSkips=()=>store.set('planSkips',skips);
 const saveCustom=()=>store.set('planFood',foodLog);
 const savePos=()=>store.set('planPos',state);
 const saveLogs=()=>store.set('planLog',logs);
+let watch={};   /* данные часов по тренировке: "цикл-неделя-id дня" → {s,e,hr,mx,kc} */
+const saveWatch=()=>store.set('planWatch',watch);
 const saveSettings=()=>store.set('planSet',settings);
 
 const maxWeek=c=>(c===3?24:(c===1?12+(settings.session|0):12));
@@ -3676,6 +3691,7 @@ function renderDays(){
           <div class="tech">${t.text}</div>
         </div></div></div>`;
       bindFold(c.querySelector('.cday-head'), c);
+      c.querySelector('.cday-body').appendChild(watchBlock(e.id));
       c.querySelector('.check').addEventListener('click',ev=>{
         ev.stopPropagation();
         const now=!marks[k];
@@ -3837,6 +3853,7 @@ function renderDays(){
 
     /* --- основные упражнения --- */
     day.ex.forEach(ex=>sec.appendChild(exCard(day, ex)));
+    sec.appendChild(watchBlock(day.id));
 
     root.appendChild(sec);
   });
@@ -4168,6 +4185,61 @@ function logBlock(day, ex, card, setDone){
     box.querySelector('.addset').addEventListener('click',()=>{ L.sets.push({w:'',r:''}); save(); draw(); });
   };
   draw();
+  return box;
+}
+
+/* ---------- Данные с часов ----------
+   Начало и конец тренировки, средний и максимальный пульс, калории.
+   Часы завышают калории на силовых — к еде прибавляется около 300 ккал, а не вся цифра. */
+const watchKey = id => `${state.cycle}-${state.week}-${id}`;
+const hm2min = t => { if(!t) return null; const [h,m]=t.split(':').map(Number); return h*60+m; };
+function watchMinutes(w){
+  const a=hm2min(w&&w.s), b=hm2min(w&&w.e);
+  if(a==null || b==null) return null;
+  return (b-a+1440)%1440;
+}
+const fmtDur = m => m==null ? '' : `${Math.floor(m/60)}:${String(m%60).padStart(2,'0')}`;
+function watchBlock(id){
+  const k=watchKey(id);
+  const W=watch[k]||{};
+  const box=document.createElement('div');
+  box.className='watchbox';
+  box.innerHTML=`
+    <div class="wb-h">Данные с часов</div>
+    <div class="wb-row">
+      <div class="wb-cell"><button type="button" class="tbtn" data-t="s">Начал сейчас</button>
+        <input type="time" class="tinp" data-f="s" value="${W.s||''}" aria-label="Начало"></div>
+      <div class="wb-cell"><button type="button" class="tbtn" data-t="e">Закончил сейчас</button>
+        <input type="time" class="tinp" data-f="e" value="${W.e||''}" aria-label="Конец"></div>
+    </div>
+    <div class="wb-row three">
+      <label>Ср. пульс<input type="text" inputmode="numeric" class="app-field" data-f="hr" value="${W.hr??''}" placeholder="уд/мин"></label>
+      <label>Макс. пульс<input type="text" inputmode="numeric" class="app-field" data-f="mx" value="${W.mx??''}" placeholder="уд/мин"></label>
+      <label>Ккал<input type="text" inputmode="numeric" class="app-field" data-f="kc" value="${W.kc??''}" placeholder="активные"></label>
+    </div>
+    <div class="wb-sum"></div>`;
+  const sum=box.querySelector('.wb-sum');
+  const paint=()=>{
+    const w=watch[k]||{}, m=watchMinutes(w), parts=[];
+    if(m!=null) parts.push(`длительность ${fmtDur(m)}`);
+    if(num(w.hr)!=null) parts.push(`пульс ${w.hr}${num(w.mx)!=null?'/'+w.mx:''}`);
+    if(num(w.kc)!=null) parts.push(`${w.kc} ккал по часам · к еде +300`);
+    sum.innerHTML = parts.length ? `<span style="color:var(--carb)">✓</span> ${parts.join(' · ')}` : '<span style="color:var(--muted)">Нажми «Начал сейчас» в начале и «Закончил сейчас» в конце: часы не должны идти дольше тренировки</span>';
+  };
+  const put=(f,v)=>{
+    const cur=watch[k]||{};
+    if(v===''||v==null) delete cur[f]; else cur[f]=v;
+    if(Object.keys(cur).length) watch[k]=cur; else delete watch[k];
+    saveWatch(); paint();
+  };
+  box.querySelectorAll('.tbtn').forEach(b=>b.addEventListener('click',()=>{
+    const f=b.dataset.t, v=nowHM(); put(f,v);
+    box.querySelector(`.tinp[data-f="${f}"]`).value=v;
+    toast(f==='s'?`Начало ${v}`:`Конец ${v}`);
+  }));
+  box.querySelectorAll('.tinp').forEach(i=>i.addEventListener('change',()=>put(i.dataset.f, i.value)));
+  box.querySelectorAll('.app-field').forEach(i=>i.addEventListener('input',()=>put(i.dataset.f, num(i.value)==null?'':num(i.value))));
+  paint();
   return box;
 }
 
@@ -5471,7 +5543,7 @@ window.addEventListener('scroll',()=>{
    17 · IPHONE: ЗАДАЧИ, РЕЗЕРВНАЯ КОПИЯ, УСТАНОВКА, ОФЛАЙН
    ############################################################ */
 /* Дата сборки — видна в «Справка → Данные», чтобы проверить, что обновление пришло */
-const APP_VERSION='светофор поясницы, вводная неделя';
+const APP_VERSION='данные с часов в тренировке';
 let toastTimer=0;
 function toast(msg){
   const t=document.getElementById('toast');
@@ -5539,7 +5611,7 @@ function renderNow(){
 
 /* Резервная копия: всё, что приложение хранит, — ключи plan* */
 const BACKUP_KEYS=['planMarks','planGrams','planSkips','planCustom','planFood','planPos','planTodo',
-                   'planLog','planSet','planBody','planCirc','planTests','planFav'];
+                   'planLog','planSet','planBody','planCirc','planTests','planFav','planWatch'];
 function makeBackup(){
   const data={};
   BACKUP_KEYS.forEach(k=>{ try{ const v=localStorage.getItem(k); if(v!=null) data[k]=JSON.parse(v); }catch(e){} });
@@ -6097,13 +6169,16 @@ function dayExport(iso){
         const sets=L?L.sets.filter(s=>num(s.r)!=null).map(s=>({kg:num(s.w)||0, reps:num(s.r)})):[];
         return {name:x.name, plan:x.dose, rest:x.rest, done:!!marks[key(day.id,x.id)], sets, rpe:L&&L.rpe||null};
       });
-      tr={type:'gym', title:day.title, status:dropped?'отменена':(moved?'перенесена':'по плану'),
+      const wd=watch[`${state.cycle}-${state.week}-${day.id}`]||null;
+      tr={type:'gym', title:day.title, status:dropped?'отменена':(moved?'перенесена':'по плану'), watch:wd?{start:wd.s||null, end:wd.e||null, minutes:watchMinutes(wd), avgHr:num(wd.hr), maxHr:num(wd.mx), kcal:num(wd.kc)}:null,
           noPE: day.swap?true:false,
           warmupDone:warm.list.filter(s=>marks[key(day.id,s.id)]).length, warmupTotal:warm.list.length,
           exercises:exs, done:exs.filter(x=>x.done).length, total:exs.length,
           volumeKg:Math.round(exs.reduce((a,x)=>a+x.sets.reduce((b,s)=>b+s.kg*s.reps,0),0))};
     } else if(e && e.type==='run'){
-      tr={type:'cardio', title:e.title, dur:e.dur, note:e.note, done:!!marks[key(e.id,e.ex)], ball:!!marks[key(e.id,'ball')], skipped:isSkipped(e.id)};
+      const wd=watch[`${state.cycle}-${state.week}-${e.id}`]||null;
+      tr={type:'cardio', title:e.title, dur:e.dur, note:e.note, done:!!marks[key(e.id,e.ex)], ball:!!marks[key(e.id,'ball')], skipped:isSkipped(e.id),
+          watch:wd?{start:wd.s||null, end:wd.e||null, minutes:watchMinutes(wd), avgHr:num(wd.hr), maxHr:num(wd.mx), kcal:num(wd.kc)}:null};
     } else if(e){ tr={type:'rest', title:e.title}; }
     D.training=tr;
     D.dailyBlock = gymDays().has(dow) ? null : !!marks[`${state.cycle}-${state.week}-daily-${dow}`];
@@ -6142,6 +6217,13 @@ function dayExport(iso){
 }
 
 const R1=x=>String(x).replace('.',',');
+function watchLine(w){
+  const p=[];
+  if(w.start||w.end) p.push(`${w.start||'—'}–${w.end||'—'}${w.minutes!=null?` (${fmtDur(w.minutes)})`:''}`);
+  if(w.avgHr!=null) p.push(`пульс ${w.avgHr}${w.maxHr!=null?'/'+w.maxHr:''}`);
+  if(w.kcal!=null) p.push(`${w.kcal} ккал по часам`);
+  return '  Часы: '+(p.join(' · ')||'—');
+}
 function dayText(D){
   const L=[];
   const [y,m,d]=D.date.split('-');
@@ -6168,8 +6250,10 @@ function dayText(D){
       if(sets||x.rpe) L.push(`     ${sets||'подходы не записаны'}${x.rpe?` · тяжесть ${x.rpe}`:''}`);
     });
     if(T.volumeKg) L.push(`  Тоннаж: ${T.volumeKg} кг`);
+    if(T.watch) L.push(watchLine(T.watch));
   } else if(T.type==='cardio'){
     L.push(`  ${T.title} ${T.dur} — ${T.skipped?'пропущено':(T.done?'сделано':'не отмечено')}${T.ball?' · мяч сделан':''}`);
+    if(T.watch) L.push(watchLine(T.watch));
   } else L.push(`  ${T.title}`);
   if(D.dailyBlock!==null) L.push(`  Ежедневный блок: ${D.dailyBlock?'сделан':'не отмечен'}`);
   else L.push('  Ежедневный блок: входит в разминку');
@@ -6189,7 +6273,7 @@ function dayText(D){
 
 const csvCell=v=>{ if(v==null) return ''; const s=String(v); return /[",;\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; };
 const CSV_COLS=['date','weekday','cycle','week','training','training_status','exercises_done','exercises_total','sets_logged','tonnage_kg','top_rpe','warmup_done','cardio_done','ball_done','daily_block',
-  'kcal','kcal_target','protein','protein_target','fat','carb','meals','first_meal','last_meal','weight_kg','pulse','back_0_10','knee_0_10','feel_1_10'];
+  'kcal','kcal_target','protein','protein_target','fat','carb','meals','first_meal','last_meal','weight_kg','pulse','back_0_10','knee_0_10','feel_1_10','workout_start','workout_end','workout_min','workout_avg_hr','workout_max_hr','watch_kcal'];
 function dayRow(D){
   const T=D.training, F=D.food, B=D.body||{};
   const times=F.meals.map(m=>m.time).filter(Boolean).sort();
@@ -6202,20 +6286,22 @@ function dayRow(D){
     D.dailyBlock===null?'в разминке':(D.dailyBlock?1:0),
     F.meals.length?F.total.kcal:'', D.target.kcal, F.meals.length?F.total.p:'', D.target.p, F.meals.length?F.total.f:'', F.meals.length?F.total.c:'',
     F.meals.length, times[0]||'', times[times.length-1]||'',
-    B.w??'', B.hr??'', B.back??'', B.knee??'', B.feel??''];
+    B.w??'', B.hr??'', B.back??'', B.knee??'', B.feel??'',
+    (T.watch&&T.watch.start)||'', (T.watch&&T.watch.end)||'', (T.watch&&T.watch.minutes)??'', (T.watch&&T.watch.avgHr)??'', (T.watch&&T.watch.maxHr)??'', (T.watch&&T.watch.kcal)??''];
 }
 /* Все даты, по которым что-то записано */
 function datesWithData(){
   const set=new Set();
   const addWeek=(c,w)=>{ for(let i=0;i<7;i++) set.add(dateOfCW(c,w,i)); };
   Object.keys(foodLog).forEach(k=>{ const [c,w,d]=k.split('-').map(Number); if(foodLog[k] && (Object.values(foodLog[k].dishOn||{}).some(Boolean)||(foodLog[k].custom||[]).length)) set.add(dateOfCW(c,w,d)); });
-  [marks,logs].forEach(src=>Object.keys(src).forEach(k=>{ const [c,w]=k.split('-').map(Number); if(c&&w&&src[k]&&(src!==logs||hasData(src[k]))) addWeek(c,w); }));
+  [marks,logs,watch].forEach(src=>Object.keys(src).forEach(k=>{ const [c,w]=k.split('-').map(Number); if(c&&w&&src[k]&&(src!==logs||hasData(src[k]))) addWeek(c,w); }));
   Object.keys(body).forEach(d=>set.add(d)); circ.forEach(x=>set.add(x.d)); tests.forEach(x=>set.add(x.d));
   return [...set].filter(Boolean).sort();
 }
 function allDays(){
   return datesWithData().map(d=>dayExport(d)).filter(D=>
     D.body || D.food.meals.length || D.circ.length || D.tests.length || D.dailyBlock===true ||
+    (D.training.watch) ||
     (D.training.type==='gym' && (D.training.done||D.training.sets||D.training.exercises.some(x=>x.sets.length))) ||
     (D.training.type==='cardio' && (D.training.done||D.training.ball)));
 }
