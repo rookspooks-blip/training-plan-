@@ -3009,9 +3009,27 @@ const EXTRA=[
  <p><b>Питание.</b> Сушка заканчивается вместе с неделей 12. В сессию — поддержание, 2850 ккал: голове нужны углеводы, а дефицит на экзаменах бьёт по памяти и сну.</p>
  <p><b>Цикл 2</b> стартует после сессии. Калории поднимаются ступенями: 2950 → 3075 → 3175 за три недели. Прыжок сразу на +575 ккал даёт в основном воду и жир, а не мышцы.</p>`],
 ['Как расти в весах',`
- <p><b>Цикл 1 — двойная прогрессия.</b> Для упражнений с диапазоном (8–12, 10–15) сначала добираешь повторы: как только во всех подходах сделал верх диапазона и было не тяжелее 8 из 10 — добавляй 2–4 кг в рюкзак или берёшь гантель тяжелее, повторы снова от низа. Рюкзак по неделям в карточке — ориентир, а не закон.</p>
- <p><b>Циклы 2–3 — таблица с поправкой на самочувствие.</b> После последнего рабочего подхода отметь, насколько было тяжело, по шкале 6–10 (10 — больше ни одного повтора). Пятёрки дались на 9,5–10 или не добрал повторы — вес следующей недели не растёт, повторяешь прошлый. На 9 — прибавка не больше 2,5 кг. На 8 и легче — идёшь по таблице.</p>
- <p>Приложение считает это само: в карточке упражнения видно, что было в прошлый раз и какой вес брать сегодня.</p>`],
+ <p><b>Вес на неделю приложение считает само</b> — по тому, что ты реально сделал в прошлый раз и насколько было тяжело. Он виден в заголовке упражнения, а внутри — цель на каждый подход. Поэтому после каждого упражнения записывай повторы и отмечай тяжесть 6–10.</p>
+ <h5>Штанга: присед, трап-тяга, жим стоя, тяга в наклоне</h5>
+ <ul>
+ <li>Все повторы сделаны, тяжесть 7 и легче — <b>+5 кг</b> (жим и тяга в наклоне +2,5).</li>
+ <li>Все повторы, тяжесть 8–9 — <b>+2,5 кг</b> (жим на 9 — тот же вес).</li>
+ <li>Все повторы, но на пределе (9,5–10) — <b>тот же вес</b>, пусть станет легче.</li>
+ <li>Недобрал до четверти повторов — <b>тот же вес</b>, добрать.</li>
+ <li>Недобрал больше четверти или второй раз подряд — <b>минус 10 %</b>, потом снова вверх.</li>
+ <li>Разгрузка — 80 % от последнего рабочего. Тест — разминка до рабочего, дальше по 2,5–5 кг.</li>
+ <li>Сменилась схема (5 повторов ↔ 8–10) — вес пересчитывается через твой расчётный максимум.</li></ul>
+ <p>Таблица весов остаётся ориентиром: если ты идёшь медленнее или быстрее неё, приложение покажет оба числа.</p>
+ <h5>Гантели, рюкзак, добавленный вес — двойная прогрессия</h5>
+ <ul>
+ <li>Сначала растут повторы: цель — +1 в каждом подходе, пока не дойдёшь до верха диапазона.</li>
+ <li>Все подходы по верху диапазона и тяжесть не выше 8 — <b>следующая гантель (+2 кг)</b>, повторы снова от низа.</li>
+ <li>Недобор до низа диапазона — тот же вес. Большой недобор — гантель полегче.</li></ul>
+ <h5>Свой вес</h5>
+ <ul>
+ <li>Подтягивания до отказа минус 1 — <b>+2 повтора за тренировку</b>, на первых двух подходах.</li>
+ <li>Упражнения с диапазоном (отжимания 10–15) — +1 в подходе до верха, потом приложение подскажет, как усложнить.</li>
+ <li>На время — +5 секунд, когда все подходы даются легко.</li></ul>`],
 ['Прыжки: на цель, с разбега, контраст',`
  <p><b>Прыжки на цель.</b> С целью над головой прыгают выше, чем без неё. Поэтому в каждой скоростной — прыжки на касание: на физре щит, сетка или кольцо с разбега в 1–2 шага, дома — метка скотчем на стене. Метку двигай выше, когда достаёшь её 3 раза из 4 два занятия подряд.</p>
  <p><b>Ахилл и пого.</b> Скоростная начинается с изометрии ахилла (3 × 30 сек на ногу) и мелких прыжков на носках: сухожилие — пружина прыжка, его готовят так же, как колено полуприседом у стены.</p>
@@ -3756,7 +3774,7 @@ const isLogged = ex => !['Скорость','Выносливость','Мяч',
 
 /* Разбор дозировки: сколько подходов, какой диапазон, какой вес по таблице */
 function parseDose(dose){
-  const o={sets:3, lo:null, hi:null, w:null, timed:/сек/.test(dose), max:/отказ|запас/.test(dose)};
+  const o={sets:3, lo:null, hi:null, w:null, timed:/×\s*[\d–]+\s*сек|максимум, сек/.test(dose), max:/отказ|запас/.test(dose)};
   let m=dose.match(/^(\d+)\s*(?:×|подход)/); if(m) o.sets=+m[1];
   if(/^тест/.test(dose)) o.sets=1;
   m=dose.match(/×\s*(\d+)(?:–(\d+))?/); if(m){ o.lo=+m[1]; o.hi=+(m[2]||m[1]); }
@@ -3778,16 +3796,19 @@ const shortDate = iso => { if(!iso) return ''; const [y,m,d]=iso.split('-'); ret
 const logKey = (dayId, exId) => `${state.cycle}-${state.week}-${dayId}-${exId}`;
 const hasData = L => L && L.sets && L.sets.some(x=>num(x.r)!=null);
 
-/* Последняя запись этого же упражнения (по названию), кроме текущей */
-function lastLog(name, exceptKey){
-  let best=null, bk=null;
-  Object.keys(logs).forEach(k=>{
-    const L=logs[k];
-    if(k===exceptKey || !L || L.n!==name || !hasData(L)) return;
-    if(!best || (L.d||'') > (best.d||'')){ best=L; bk=k; }
-  });
-  return best;
+/* Положение недели в году: прошлый раз всегда раньше текущего */
+const posOf = (c,w) => (c===1?0:(c===2?100:200)) + w;
+/* Все записи этого упражнения (по названию), от свежих к старым */
+function logsOf(name, exceptKey){
+  const cur=posOf(state.cycle,state.week);
+  return Object.keys(logs)
+    .filter(k=>k!==exceptKey && logs[k] && logs[k].n===name && hasData(logs[k]))
+    .map(k=>{ const [c,w]=k.split('-').map(Number); return {k, pos:posOf(c,w), L:logs[k]}; })
+    .filter(x=>x.pos<=cur)
+    .sort((a,b)=> b.pos-a.pos || ((b.L.d||'')>(a.L.d||'') ? 1 : -1));
 }
+function lastLog(name, exceptKey){ const a=logsOf(name, exceptKey); return a.length ? a[0].L : null; }
+
 function lastSummary(L, P){
   const sets=L.sets.filter(x=>num(x.r)!=null).map(x=>{
     const w=num(x.w);
@@ -3796,34 +3817,170 @@ function lastSummary(L, P){
   return `В прошлый раз${L.d?` (${shortDate(L.d)})`:''}: ${sets.join(' · ')}${L.rpe?` · тяжесть ${L.rpe}`:''}`;
 }
 
-/* Что делать сегодня — правила из раздела «Как расти в весах» */
-function suggest(P, L){
-  const done = L ? L.sets.filter(x=>num(x.r)!=null) : [];
-  const lw = done.length ? Math.max(0, ...done.map(x=>num(x.w)||0)) : 0;
-  const unit = P.timed ? 'сек' : 'повт.';
-  if(P.w!=null){                                   /* штанга по таблице */
-    if(!done.length || !lw) return {t:`<b>${fmtW(P.w)} кг</b> по таблице`, w:P.w, r:P.lo};
-    const missed = done.some(x=>P.lo && num(x.r)<P.lo);
-    if(P.w<=lw && !missed) return {t:`<b>${fmtW(P.w)} кг</b> по таблице`, w:P.w, r:P.lo};
-    if(missed || (L.rpe||0)>=9.5) return {t:`<b>повтори ${fmtW(lw)} кг</b> — в прошлый раз ${missed?'не добрал повторы':'было на пределе'}`, w:lw, r:P.lo};
-    if(L.rpe===9){ const w=Math.min(P.w, lw+2.5); return {t:`<b>${fmtW(w)} кг</b> — прошлый раз был тяжёлым, прибавка не больше 2,5`, w, r:P.lo}; }
-    return {t:`<b>${fmtW(P.w)} кг</b> по таблице`, w:P.w, r:P.lo};
+/* ############################################################
+   ПРОГРЕССИЯ: какой вес и сколько повторов на этой неделе
+   Считается от того, что реально сделано в прошлый раз, а не по
+   формуле «процент выполнения × прибавка». Логика тренера:
+   сделал всё и было не на пределе — прибавка; недобрал немного —
+   тот же вес и добрать; недобрал много или второй раз подряд —
+   шаг назад. Разгрузка, тест и сессия — свои правила.
+   ############################################################ */
+
+/* Стартовые веса, пока нет истории (вес одной гантели / штанги) */
+const START_W={
+  'Тяга гантели в наклоне':16, 'Румынская тяга на одной ноге':12, 'Жим гантелей стоя':12,
+  'Сгибания на бицепс':10, 'Разгибания на трицепс':14, 'Тяга штанги в наклоне':40,
+  'Подтягивания с весом':5, 'Брусья с весом':5, 'Болгарский сплит-присед':8
+};
+/* С какой гантели начинать, когда без веса стало легко */
+const OPT_W={calf:10, hipthrust:10, pistol:4, bulgarian:8};
+/* Как усложнить упражнение со своим весом, когда упёрся в верх диапазона */
+const HARDER={pushup:'ноги на возвышение или рюкзак 5 кг', pullup:'рюкзак или блин 5 кг', deadbug:'медленнее, 3 сек на каждое движение',
+  nordic:'опускайся медленнее, 5 сек', plank:'+5 сек', copenhagen:'переходи на длинный рычаг (стопа на скамье)',
+  bulgarian:'рюкзак 4–6 кг уже сейчас', pistol:'гантели по 4 кг в руки', hipthrust:'гантель 10 кг на таз'};
+
+const rDb = x => Math.round(x*2)/2;                 /* гантели — до 0,5 кг */
+const listR = a => a.map(v=>v==null?'—':v).join('-');
+
+function sessionStats(L, lo, ns){
+  const sets=L.sets.filter(x=>num(x.r)!=null);
+  const rs=sets.map(x=>num(x.r)), ws=sets.map(x=>num(x.w)||0);
+  const need=(L.tr ?? lo) || 0, plan=L.ns || ns;
+  const comp = need ? Math.min(1, rs.reduce((a,r)=>a+Math.min(r,need),0)/(need*plan)) : (sets.length>=plan?1:sets.length/plan);
+  return {rs, top:ws.length?Math.max(...ws):0, n:sets.length, min:rs.length?Math.min(...rs):0,
+          sum:rs.reduce((a,b)=>a+b,0), comp, rpe:L.rpe||null, tr:L.tr, ns:plan};
+}
+
+/* План на сегодня: вес (если есть), повторы на каждый подход, объяснение */
+function planFor(ex, P, k){
+  const WK=weightKind(ex,P);
+  const wk=weekKind(state.cycle,state.week);
+  const deload=wk==='deload', session=wk==='session', test=/^тест/.test(ex.dose);
+  const hist=logsOf(ex.name,k);
+  const base=hist.find(h=>h.L.wk!=='deload' && h.L.wk!=='test') || hist[0] || null;
+  const B=base ? sessionStats(base.L, P.lo, P.sets) : null;
+  const lo=P.lo, hi=P.hi, n=P.sets;
+  const out=(w, r, t, kind)=>({w, kind,
+    sets:Array.from({length:n},(_,i)=>({w, r:Array.isArray(r)?(r[i]??r[r.length-1]??null):r})), t});
+  const isBar=WK.ph==='штанга';
+  const optional=/пусто, если без веса/.test(WK.hint);
+  const loaded=WK.ph==='гантель'||WK.ph==='рюкзак'||WK.ph==='доп.'||optional;
+
+  /* --- на время --- */
+  if(P.timed){
+    if(!B) return out(null, lo, `<b>${lo}${hi>lo?'–'+hi:''} сек</b> в подходе`);
+    if(deload) return out(null, lo, `разгрузка: <b>${lo} сек</b>, без предела`);
+    const allTop=B.n>=B.ns && B.min>=hi && (!B.rpe||B.rpe<=8);
+    if(allTop) return out(null, hi+5, `прошлый раз дался легко — <b>${hi+5} сек</b>${HARDER[ex.tech]&&hi+5>45?` или ${HARDER[ex.tech]}`:''}`);
+    const r=B.rs.map(x=>Math.min(hi, x+5));
+    return out(null, r, `цель: <b>${listR(r)} сек</b> (было ${listR(B.rs)})`);
   }
+
+  /* --- штанга --- */
+  if(isBar){
+    const table=P.w;
+    if(!B){
+      if(test) return out(null, lo, 'тест: разомнись и прибавляй по 2,5–5 кг до веса, который поднимешь 5 раз на пределе', 'bar');
+      const w=table ?? START_W[ex.name] ?? null;
+      return out(w, lo, w!=null?`<b>${fmtW(w)} кг</b> ${table!=null?'по таблице':'— стартовый вес'}. Последние повторы тяжёлые, но чистые`:'', 'bar');
+    }
+    const bw=B.top;
+    let w, t;
+    if(test){ w=r25(bw+5); t=`тест: разминка до ${fmtW(bw)}, дальше по 2,5–5 кг. Ориентир — <b>${fmtW(w)} кг на 5</b>`; }
+    else if(B.tr && lo && B.tr!==lo){
+      /* схема повторов сменилась: пересчёт через одноповторный максимум */
+      const e1=bw*(1+B.tr/30);
+      w=r25(e1/(1+lo/30)*0.92);   /* 4 подхода, а не один — нужен запас */
+      t=`новая схема (${lo} повт.): пересчёт с прошлых ${fmtW(bw)}×${B.tr} → <b>${fmtW(w)} кг</b>`;
+    }
+    else if(deload){ w=r25(bw*0.8); t=`разгрузка: ~80 % от рабочих ${fmtW(bw)} → <b>${fmtW(w)} кг</b>, без предела`; }
+    else if(session){ w=bw; t=`сессия: держим <b>${fmtW(w)} кг</b>, запас 2–3 повтора`; }
+    else {
+      const prev=hist.filter(h=>h!==base && h.L.wk!=='deload' && h.L.wk!=='test')[0];
+      const P2=prev?sessionStats(prev.L,lo,n):null;
+      const twoFails = B.comp<1 && P2 && P2.comp<1 && Math.abs(P2.top-bw)<0.1;
+      const small = /Жим стоя|наклоне/.test(ex.name);
+      if(B.comp>=1){
+        const rpe=B.rpe||8;
+        const inc = rpe<=7 ? (small?2.5:5) : rpe>=9.5 ? 0 : rpe===9 ? (small?0:2.5) : 2.5;
+        w=r25(bw+inc);
+        if(table!=null && w>table+5) w=r25(table+5);
+        t = inc ? `все повторы сделаны${B.rpe?`, тяжесть ${B.rpe}`:''} → <b>${fmtW(w)} кг</b> (+${fmtW(w-bw)})`
+                : `все повторы, но на пределе → <b>${fmtW(w)} кг</b> ещё раз, пусть станет легче`;
+      } else if(twoFails){ w=r25(bw*0.9); t=`второй раз подряд недобор на ${fmtW(bw)} → шаг назад: <b>${fmtW(w)} кг</b>, потом снова вверх`; }
+      else if(B.comp>=0.75){ w=bw; t=`недобрал ${Math.round((1-B.comp)*lo*B.ns)} повт. → тот же вес <b>${fmtW(w)} кг</b>, добери`; }
+      else { w=r25(bw*0.9); t=`сделано меньше ¾ объёма → <b>${fmtW(w)} кг</b> (−10 %), техника и скорость важнее`; }
+    }
+    if(table!=null && Math.abs(w-table)>=2.5 && !test) t+=` <span style="color:var(--muted)">· по таблице ${fmtW(table)}</span>`;
+    return out(w, lo, t, 'bar');
+  }
+
+  /* --- гантели, рюкзак, добавленный вес, «по желанию с гантелями» --- */
+  if(loaded && lo!=null){
+    const step = WK.ph==='доп.' ? 2.5 : 2;
+    const ruck = (ex.dose.match(/рюкзак (\d+)/)||[])[1];
+    const bodyNow = /свой вес/.test(ex.dose);
+    if(!B){
+      let w = ruck ? +ruck : (optional ? 0 : (START_W[ex.name] ?? null));
+      if(WK.ph==='доп.' && lo<=5) w=10;
+      const range = hi>lo?`${lo}–${hi}`:`${lo}`;
+      if(!w) return out(0, lo, `<b>свой вес</b>, ${range} повт. Последние 2 повтора тяжёлые`, 'body');
+      const nxt = WK.ph==='доп.' ? 'легко — +2,5 кг' : WK.ph==='рюкзак' ? 'легко — +2 кг в рюкзак' : 'легко — бери следующую гантель';
+      return out(w, lo, `старт: <b>${fmtW(w)} кг</b> × ${range}. Последний повтор тяжёлый, но чистый; ${nxt}`, 'load');
+    }
+    const bw=B.top;
+    const allTop=B.n>=B.ns && B.min>=hi && (!B.rpe||B.rpe<=8);
+    /* по плану с этой недели появился рюкзак, а раньше было без веса */
+    if(ruck && !bw) return out(+ruck, lo, `с этой недели рюкзак: <b>${ruck} кг</b>, повторы снова от ${lo}`, 'load');
+    if(deload) return out(bw, lo, `разгрузка: тот же вес${bw?` <b>${fmtW(bw)} кг</b>`:''}, по ${lo} повт., без отказа`, 'load');
+    if(session) return out(bw, lo, `сессия: держим${bw?` <b>${fmtW(bw)} кг</b>`:''} × ${lo}, запас 2–3 повтора`, 'load');
+    if(allTop){
+      if(bodyNow) return out(0, lo, `все подходы по ${hi} — можно надеть <b>рюкзак 4–6 кг</b> уже сейчас, повторы снова от ${lo}`, 'body');
+      const w = bw ? rDb(bw+step) : (OPT_W[ex.tech] ?? step);
+      return out(w, lo, `все подходы по ${hi}${B.rpe?`, тяжесть ${B.rpe}`:''} → <b>${fmtW(w)} кг</b>${bw?` (+${fmtW(w-bw)})`:''}, повторы снова от ${lo}`, 'load');
+    }
+    if(B.comp>=1){
+      const r=Array.from({length:n},(_,i)=>Math.min(hi, (B.rs[i]??lo)+1));
+      return out(bw, r, `${bw?`тот же вес <b>${fmtW(bw)} кг</b>, `:''}цель: <b>${listR(r)}</b> (было ${listR(B.rs)})`, 'load');
+    }
+    if(B.comp>=0.75) return out(bw, lo, `${bw?`тот же вес <b>${fmtW(bw)} кг</b>, `:''}добери до ${lo} во всех подходах (было ${listR(B.rs)})`, 'load');
+    const w=bw?Math.max(0,rDb(bw-step)):0;
+    return out(w, lo, `много недобора (${listR(B.rs)}) → ${w?`<b>${fmtW(w)} кг</b>`:'<b>без веса</b>'}, сначала чистые повторы`, 'load');
+  }
+
+  /* --- свой вес: до отказа минус 1 / запас --- */
   if(P.max){
-    if(!done.length) return {t:'Запиши повторы — в следующий раз будет с чем сравнить', w:null, r:null};
-    const sum=done.reduce((a,x)=>a+num(x.r),0);
-    return {t:`цель — <b>больше ${sum}</b> повторов за все подходы`, w:lw||null, r:null};
+    if(!B) return out(null, null, 'до отказа минус 1 — запиши повторы, и в следующий раз будет цель на каждый подход');
+    if(deload) { const r=B.rs.slice(0,n).map(x=>Math.max(1,x-2)); return out(null, r, `разгрузка: <b>${listR(r)}</b> — на 2 меньше прошлого, без отказа`); }
+    if(session || /запас/.test(ex.dose)) { const r=B.rs.slice(0,n).map(x=>Math.max(1,x-1)); return out(null, r, `поддержание: <b>${listR(r)}</b>, запас 2 повтора`); }
+    const r=Array.from({length:n},(_,i)=>(B.rs[i]??B.rs[B.rs.length-1]??5)+(i<2?1:0));
+    const heavy=(B.rs[0]||0)>=12 && HARDER[ex.tech] ? ` · первый подход 12+ — пора ${HARDER[ex.tech]}` : '';
+    return out(null, r, `цель: <b>${listR(r)}</b> (было ${listR(B.rs)}) — +2 повтора за тренировку${heavy}`);
   }
-  if(P.lo==null) return {t:'', w:null, r:null};
-  const range = P.hi>P.lo ? `${P.lo}–${P.hi}` : `${P.lo}`;
-  if(!done.length) return {t:`<b>${range} ${unit}</b> в подходе`, w:null, r:P.lo};
-  const minR=Math.min(...done.map(x=>num(x.r)));
-  const allTop = done.length>=P.sets && minR>=P.hi && (!L.rpe || L.rpe<=8);
-  if(P.timed) return allTop ? {t:`<b>${P.hi+5} сек</b> — прошлый раз дался легко`, w:null, r:P.hi+5}
-                            : {t:`<b>${Math.min(P.hi,minR+5)} сек</b>`, w:null, r:Math.min(P.hi,minR+5)};
-  if(P.hi>P.lo && allTop) return {t:`все подходы по ${P.hi} — <b>добавь 2–4 кг</b>, повторы снова от ${P.lo}`, w:lw?lw+2:null, r:P.lo};
-  if(P.hi>P.lo){ const t=Math.min(P.hi, minR+1); return {t:`цель: <b>по ${t} повт.</b>${lw?` с ${fmtW(lw)} кг`:''}`, w:lw||null, r:t}; }
-  return {t:`<b>${P.lo} ${unit}</b>${lw?` · ${fmtW(lw)} кг`:''}`, w:lw||null, r:P.lo};
+
+  /* --- свой вес с диапазоном или фиксированными повторами --- */
+  if(lo!=null){
+    if(!B) return out(null, lo, `<b>${hi>lo?`${lo}–${hi}`:lo} повт.</b> в подходе`);
+    if(deload) return out(null, lo, `разгрузка: по <b>${lo}</b>, без отказа`);
+    const allTop=B.n>=B.ns && B.min>=hi && (!B.rpe||B.rpe<=8);
+    if(allTop) return out(null, hi>lo?lo:hi, hi>lo
+      ? `все подходы по ${hi} — усложни: <b>${HARDER[ex.tech]||'медленнее опускание, 3–4 сек'}</b>, повторы снова от ${lo}`
+      : `всё по ${hi} сделано — держи технику, объём вырастет по плану`);
+    const r=Array.from({length:n},(_,i)=>Math.min(hi, (B.rs[i]??lo)+1));
+    return out(null, r, `цель: <b>${listR(r)}</b> (было ${listR(B.rs)})`);
+  }
+  return out(null, null, '');
+}
+
+/* Короткая подпись веса для заголовка карточки */
+function planBadge(ex, P, pl){
+  if(!pl || pl.w==null || !pl.w) return '';
+  const WK=weightKind(ex,P);
+  const w=fmtW(pl.w);
+  if(WK.ph==='штанга') return `${w} кг`;
+  if(WK.ph==='доп.') return `+${w} кг`;
+  if(WK.ph==='рюкзак') return `рюкзак ${w} кг`;
+  return `гантель ${w} кг`;
 }
 
 const TIMER_IC='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6"/></svg>';
@@ -3853,7 +4010,7 @@ function logBlock(day, ex, card, setDone){
   const L=logs[k] || {n:ex.name, d:null, sets:[], rpe:null};
   while(L.sets.length<P.sets) L.sets.push({w:'',r:''});
   const last=lastLog(ex.name, k);
-  const sg=suggest(P, last);
+  const PL=planFor(ex, P, k);
   const rs=restSec(ex.rest);
   const box=document.createElement('div');
   box.className='log';
@@ -3866,14 +4023,14 @@ function logBlock(day, ex, card, setDone){
   const draw=()=>{
     box.innerHTML=`
       ${last?`<div class="log-last">${lastSummary(last,P)}</div>`:''}
-      ${sg.t?`<div class="log-tip">Сегодня: ${sg.t}</div>`:''}
+      ${PL.t?`<div class="log-tip">Сегодня: ${PL.t}</div>`:''}
       <div class="log-last" style="margin-bottom:8px">${wHint}</div>
       <div class="ls-head"><span>#</span><span>кг</span><span></span><span>${unit}</span><span>${rs?'отдых':''}</span></div>
       ${L.sets.map((x,i)=>`<div class="ls-row${num(x.r)!=null?' full':''}" data-i="${i}">
         <span class="ls-n">${i+1}</span>
-        <input class="ls-w" type="text" inputmode="decimal" enterkeyhint="next" value="${x.w??''}" placeholder="${sg.w!=null?fmtW(sg.w):WK.ph}" aria-label="Вес, подход ${i+1}">
+        <input class="ls-w" type="text" inputmode="decimal" enterkeyhint="next" value="${x.w??''}" placeholder="${(PL.sets[i]&&PL.sets[i].w)?fmtW(PL.sets[i].w):WK.ph}" aria-label="Вес, подход ${i+1}">
         <span class="ls-x">×</span>
-        <input class="ls-r" type="text" inputmode="numeric" enterkeyhint="done" value="${x.r??''}" placeholder="${sg.r!=null?sg.r:'—'}" aria-label="Повторы, подход ${i+1}">
+        <input class="ls-r" type="text" inputmode="numeric" enterkeyhint="done" value="${x.r??''}" placeholder="${(PL.sets[i]&&PL.sets[i].r!=null)?PL.sets[i].r:'—'}" aria-label="Повторы, подход ${i+1}">
         ${rs?`<button type="button" class="ls-rest" aria-label="Таймер отдыха">${TIMER_IC}</button>`:'<span></span>'}
       </div>`).join('')}
       <div class="log-rpe">
@@ -3889,6 +4046,8 @@ function logBlock(day, ex, card, setDone){
   };
   const save=()=>{
     L.n=ex.name;
+    /* что было запланировано — чтобы в следующий раз честно посчитать выполнение */
+    L.tr=P.lo; L.th=P.hi; L.ns=P.sets; L.wk=weekKind(state.cycle,state.week);
     if(!L.d && hasData(L)) L.d=isoDay();
     logs[k]=L; saveLogs();
     /* все подходы записаны → упражнение отмечено само */
@@ -3908,7 +4067,8 @@ function logBlock(day, ex, card, setDone){
       const v=+b.dataset.v; L.rpe = (L.rpe===v) ? null : v; save(); draw();
     }));
     box.querySelector('.fill').addEventListener('click',()=>{
-      L.sets.forEach(x=>{ if(!x.w && sg.w!=null) x.w=fmtW(sg.w); if(!x.r && sg.r!=null) x.r=String(sg.r); });
+      L.sets.forEach((x,i)=>{ const p=PL.sets[i]||PL.sets[PL.sets.length-1]||{};
+        if(!x.w && p.w) x.w=fmtW(p.w); if(!x.r && p.r!=null) x.r=String(p.r); });
       save(); draw();
     });
     box.querySelector('.addset').addEventListener('click',()=>{ L.sets.push({w:'',r:''}); save(); draw(); });
@@ -3920,6 +4080,16 @@ function logBlock(day, ex, card, setDone){
 /* Карточка упражнения: галочка, дозировка, журнал, техника */
 function exCard(day, ex){
   const k=key(day.id,ex.id), done=!!marks[k];
+  /* вес на эту неделю — видно без раскрытия карточки */
+  let doseShown=ex.dose;
+  if(isLogged(ex)){
+    const P=parseDose(ex.dose), pl=planFor(ex, P, logKey(day.id, ex.id)), bd=planBadge(ex, P, pl);
+    if(bd){
+      if(/·\s*[\d.,]+\s*кг/.test(doseShown)) doseShown=doseShown.replace(/·\s*[\d.,]+\s*кг/, '· '+bd);
+      else if(/·\s*(свой вес|рюкзак [\d–]+ кг)/.test(doseShown)) doseShown=doseShown.replace(/·\s*(свой вес|рюкзак [\d–]+ кг)/, '· '+bd);
+      else doseShown+=' · '+bd;
+    }
+  }
   const t=TECH[ex.tech]||{text:'<p>Описание будет добавлено.</p>'};
   const card=document.createElement('article');
   card.className='ex'+(done?' ex-done':'');
@@ -3930,7 +4100,7 @@ function exCard(day, ex){
         <div class="ex-name">${ex.name}</div>
         <div class="ex-meta">
           <span class="badge ${ex.badge[1]}">${ex.badge[0]}</span>
-          <span class="dose">${ex.dose}${ex.rest&&ex.rest!=='—'?`<span class="rest">отдых ${ex.rest}</span>`:''}</span>
+          <span class="dose">${doseShown}${ex.rest&&ex.rest!=='—'?`<span class="rest">отдых ${ex.rest}</span>`:''}</span>
         </div>
       </div>
       <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
