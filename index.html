@@ -1295,6 +1295,15 @@ reach:`<svg viewBox="0 0 260 132" style="color:var(--muted)">
  <path d="M84 104q60-90 104-40" fill="none" stroke="var(--warmc)" stroke-width="2" stroke-dasharray="4 4"/>
  ${CAP(20,126,'1–2 шага разбега, толчок')}${CAP(150,126,'касание выше метки')}</svg>`,
 
+hamslide:`<svg viewBox="0 0 260 132" style="color:var(--muted)">
+ <path d="M14 110h232" ${AC}/>
+ <rect x="84" y="106" width="30" height="5" rx="2" fill="var(--accent)"/><rect x="212" y="106" width="40" height="5" rx="2" fill="var(--accent)"/><g ${ST}>
+ ${head(24,98,0,-1)}<path d="M34 102L64 90"/><path d="M64 90l24-24"/><path d="M88 66l8 40"/><path d="M92 108h14"/>
+ ${head(142,98,0,-1)}<path d="M152 102L182 90"/><path d="M182 90l62 18"/></g>
+ <path d="M198 76q22-10 40 6" fill="none" stroke="var(--warmc)" stroke-width="2" stroke-dasharray="4 4"/>
+ <path d="M232 76l8 6-10 3" fill="none" stroke="var(--warmc)" stroke-width="2" stroke-linecap="round"/>
+ ${CAP(14,126,'пятки на полотенце у таза, таз поднят')}${CAP(146,126,'выкатываешь пятки 3–4 сек, таз не опускаешь')}</svg>`,
+
 pogo:`<svg viewBox="0 0 260 132" style="color:var(--muted)">
  <path d="M14 110h232" ${AC}/><g ${ST}>
  ${head(60,26,1,0)}<path d="M60 35v32"/><path d="M60 67l-3 20 1 18M60 67l3 20 2 18"/><path d="M60 42l-8 14 4 8M60 42l8 14-2 8"/>
@@ -1843,6 +1852,12 @@ jump:{fig:'jump',text:`
 nordic:{fig:'nordic',text:`
 <h4>Как встать</h4>
 <p>Встань на колени на коврик или сложенное полотенце. Пятки должны быть намертво зафиксированы: зацепи их под тяжёлую гантельную стойку, под диван или попроси кого-то держать за щиколотки.</p>
+<h4>Где делать, если нет партнёра</h4>
+<ul>
+<li>Пятки под нижнюю перекладину тяжёлой стойки или станины тренажёра — проверь, что она не сдвигается.</li>
+<li>Под тяжёлую кровать или диван: пятки под раму, колени на коврике.</li>
+<li>Ремень или лямка: петлёй вокруг устойчивого столба и щиколоток, ноги прижаты к полу.</li>
+<li>Нет надёжной опоры — делай <b>скольжение пяток на полотенце</b>, оно даёт ту же задачу без опоры.</li></ul>
 <h4>Что делать</h4>
 <p>Тело — прямая линия от колен до головы, таз не сгибается. Медленно наклоняйся вперёд, сопротивляясь задней поверхностью бедра, 3–4 секунды вниз. Когда удержать уже не можешь — падай на руки, как в отжимание, и оттолкнись руками обратно вверх.</p>
 <p>Поднимать себя бёдрами не нужно: работает только опускание. Именно эта фаза защищает мышцу при спринте.</p>
@@ -1937,6 +1952,21 @@ achilles:{fig:'calf',text:`
 <h4>Частые ошибки</h4><ul>
 <li class="err">Встать на полный носок и «висеть» на суставе — работать должна мышца.</li>
 <li class="err">Делать на одной ноге больше, чем на другой. Начинай с правой — там вальгус.</li></ul>`},
+
+hamslide:{fig:'hamslide',text:`
+<h4>Как встать</h4>
+<p>Ляг на спину на гладкий пол — ламинат или плитку. Под каждую пятку подложи полотенце или надень носки. Согни ноги, пятки поставь близко к тазу и подними таз в мостик.</p>
+<h4>Что делать</h4>
+<p>Медленно выкатывай пятки вперёд, пока ноги не выпрямятся или пока можешь держать таз высоко, 3–4 секунды. Потом подтяни пятки назад, как будто сгибаешь ногу задней поверхностью бедра. Таз всё время наверху.</p>
+<h4>Зачем</h4>
+<p>Это та же задача, что у нордических сгибаний: задняя поверхность бедра удерживает ногу при растяжении, только нагрузка мягче и не нужен партнёр. Она защищает мышцу на ускорениях. С 5-й недели вместо неё идут нордические.</p>
+<h4>Как понять, что всё правильно</h4>
+<p>Тянет заднюю поверхность бедра, ягодицы напряжены. Поясницу не чувствуешь.</p>
+<h4>Частые ошибки</h4><ul>
+<li class="err">Таз проваливается на пол — вся нагрузка уходит на поясницу.</li>
+<li class="err">Выкатывать пятки быстро. Должно быть медленно, иначе нет смысла.</li>
+<li class="err">Поясница прогибается дугой. Рёбра опущены, пресс включён.</li></ul>
+<p>Станет легко — делай одной ногой, вторая в воздухе.</p>`},
 
 pogo:{fig:'pogo',text:`
 <h4>Что делать</h4>
@@ -2371,6 +2401,8 @@ const REACH=(dl,home)=> home
 
 const LANDING={id:'b0',name:'Приземление с фиксацией',badge:['Скорость','b-speed'],dose:'3 × 5 · замри на 2 сек',rest:'60 сек',tech:'landing',warm:'Не нужна — идёт первым, до прыжков.'};
 
+/* Скольжение пяток на полотенце: та же мышца, что нордические, но не нужны ни партнёр, ни опора */
+const HAMSLIDE=(dl,intro)=>({id:'a9',name:'Скольжение пяток на полотенце',badge:['Ноги','b-legs'],dose:dl?'2 × 6':(intro?'2 × 8':'3 × 8'),rest:'90 сек',tech:'hamslide',warm:'Не нужна — ноги размяты. Таз держи высоко весь подход.'});
 /* Нордические: с малого объёма, иначе крепатура съест четверг */
 function nordicDose(c,lw,dl){
   if(dl) return '2 × 3';
@@ -2393,7 +2425,7 @@ function sessionDays(week){
     {id:'a1',name:'Болгарский сплит-присед',badge:['Ноги','b-legs'],dose:'3 × 8 на ногу · рюкзак как в конце цикла',rest:'2 мин',tech:'bulgarian',warm:'Один подход 8 повторов без веса.'},
     {id:'a2',name:'Подтягивания',badge:['Спина','b-back'],dose:'3 подхода · запас 2 повтора',rest:'2 мин',tech:'pullup',warm:'Один подход 3 повтора не до отказа.'},
     {id:'a3',name:'Отжимания с паузой',badge:['Грудь','b-chest'],dose:'3 × 10–12 · 3 сек вниз',rest:'90 сек',tech:'pushup',warm:'Не нужна.'},
-    {id:'a4',name:'Нордические сгибания',badge:['Ноги','b-legs'],dose:'2 × 4',rest:'2 мин',tech:'nordic',warm:'Не нужна — ноги размяты сплит-приседом.'},
+    {...HAMSLIDE(false), id:'a4', dose:'2 × 8'},
     {id:'a5',name:'Face pull',badge:['Плечи','b-delts'],dose:'2 × 15 · резина',rest:'60 сек',tech:'facepull',warm:'Не нужна.'}]},
   {id:'d2',title:'Прыжки и мяч',when:'Четверг · зал у дома или двор',note:'20–25 минут. Физры в сессию нет — это короткая поддержка прыжка и мяча.',ex:[
     ACHILLES,
@@ -2416,15 +2448,18 @@ function buildDays(cycle, week){
   const lw = (cycle===state.cycle && week===state.week) ? loadWeek() : week;
   if(cycle===1){
     const dl=(week===4||week===8), test=(week===12);
-    const S3=dl?2:3, S4=dl?3:4;
+    const intro=(lw===1 && !dl);   /* первая неделя после перерыва: на подход меньше */
+    const S3=(dl||intro)?2:3, S4=(dl||intro)?3:4;
+    const introNote=intro?' Вводная неделя после перерыва: на подход меньше, запас 2 повтора, до отказа не идём.':'';
     const bw = lw<=4?'свой вес':(lw<=8?'рюкзак 6–8 кг':'рюкзак 10–12 кг');
     return [
-    {id:'d1',title:'Силовая А',when:'Понедельник · зал у дома',note:'После пар домой. Тренировка 17:00–18:30.',ex:[
+    {id:'d1',title:'Силовая А',when:'Понедельник · зал у дома',note:'После пар домой. Тренировка 17:00–18:30.'+introNote,ex:[
       {id:'a1',name:'Болгарский сплит-присед',badge:['Ноги','b-legs'],dose:`${S4} × 8–12 на ногу · темп 3–3 · ${bw}`,rest:'2 мин',tech:'bulgarian',warm:'Один подход 8 повторов без веса, медленно. Общая разминка уже сделана, больше ничего не нужно.'},
       {id:'a2',name:'Подтягивания',badge:['Спина','b-back'],dose:`${S4} подхода до отказа минус 1`,rest:'2 мин',tech:'pullup',warm:'Один подход 3 повтора не до отказа, либо 4 негатива. Плечевой сустав холодный — без этого нельзя.'},
       {id:'a3',name:'Отжимания с паузой',badge:['Грудь','b-chest'],dose:`${S3} × 10–15 · 3 сек вниз`,rest:'90 сек',tech:'pushup',warm:'Не нужна — грудь и трицепс уже включились в подтягиваниях.'},
       {id:'a4',name:'Румынская тяга на одной ноге',badge:['Ноги','b-legs'],dose:lw<=4 ? `${S3} × 8 на ногу · рукой за опору, без веса, 3 сек вниз` : `${S3} × 10 на ногу · 3 сек вниз`,rest:'90 сек',tech:'rdl',warm:'Не нужна — ноги размяты сплит-приседом. Первый подход сделай с лёгкой гантелью, чтобы поймать равновесие.'},
-      {id:'a9',name:'Нордические сгибания',badge:['Ноги','b-legs'],dose:nordicDose(1,lw,dl),rest:'2 мин',tech:'nordic',warm:'Не нужна — задняя поверхность размята румынской тягой.'},
+      ...(lw<=4 ? [HAMSLIDE(dl,intro)] : []),
+      ...(lw>4 ? [{id:'a9',name:'Нордические сгибания',badge:['Ноги','b-legs'],dose:nordicDose(1,lw,dl),rest:'2 мин',tech:'nordic',warm:'Не нужна — задняя поверхность размята румынской тягой.'},] : []),
       {id:'a5',name:'Тяга гантели в наклоне',badge:['Спина','b-back'],dose:`${S3} × 10–12 на руку`,rest:'90 сек',tech:'row',warm:'Не нужна — спина размята подтягиваниями.'},
       {id:'a6',name:'Подъём на носки на одной ноге',badge:['Ноги','b-legs'],dose:`${S3} × 15 на ногу`,rest:'60 сек',tech:'calf',warm:'Не нужна.'},
       {id:'a7',name:'Dead bug',badge:['Кор','b-core'],dose:`${S3} × 16`,rest:'60 сек',tech:'deadbug',warm:'Не нужна.'},
@@ -2438,7 +2473,7 @@ function buildDays(cycle, week){
       {id:'b3',name:'Латеральные прыжки',badge:['Скорость','b-speed'],dose:dl?'пропустить':'3 × 6 на сторону',rest:'90 сек',warm:'Не нужна — ноги размяты ускорениями.',tech:'plyo'},
       {id:'b4',name:'Челнок по линиям',badge:['Выносливость','b-speed'],dose:dl?'2 подхода':'4 подхода · штрафная – трёха – центр',rest:'2 мин',warm:'Не нужна — идёт последним, всё уже разогрето.',tech:'shuttle'},
       SHOOT]},
-    {id:'d3',title:'Силовая Б',when:'Суббота · зал у дома',note:'Суббота свободна — тренируйся днём, без спешки.',ex:[
+    {id:'d3',title:'Силовая Б',when:'Суббота · зал у дома',note:'Суббота свободна — тренируйся днём, без спешки.'+introNote,ex:[
       ...(jumpTestWeek(1,week) ? [JUMP_TEST] : []),
       {id:'c1',name:'Присед на одной ноге',badge:['Ноги','b-legs'],dose:`${S4} × 6–8 на ногу`,rest:'2 мин',tech:'pistol',warm:'Один подход 5 повторов на высокой опоре. Дальше рабочие.'},
       {id:'c2',name:'Отжимания на брусьях',badge:['Грудь','b-chest'],dose:`${S3} × 8–12`,rest:'90 сек',tech:'pushup',warm:'Один подход 5 повторов в неполную амплитуду. Плечо в брусьях уязвимо, холодным не начинай.'},
@@ -3715,6 +3750,16 @@ function renderDays(){
       sec.appendChild(n);
     }
 
+    /* поясница: светофор в днях, где есть наклоны и штанга */
+    if(day.ex.some(x=>BACK_LOAD.includes(x.tech))){
+      const bs=backStatus();
+      const n=document.createElement('div');
+      n.className='coach knee-note '+(bs?bs.lvl:'');
+      n.innerHTML = bs ? `<b>${bs.title}</b>${bs.text}`
+        : `<b>Поясница</b>Утром оцени, как она, 0–10 во вкладке «Прогресс» — здесь появится светофор для наклонов. Если во время подхода в пояснице больше 2 из 10 — стоп.`;
+      sec.appendChild(n);
+    }
+
     /* колено прыгуна: светофор по утренней оценке */
     if(day.ex.some(x=>x.badge[0]==='Скорость')){
       const ks=kneeStatus();
@@ -3885,6 +3930,14 @@ function sessionStats(L, lo, ns){
 /* План на сегодня: вес (если есть), повторы на каждый подход, объяснение */
 function planFor(ex, P, k){
   const WK=weightKind(ex,P);
+  /* поясница жёлтая/красная — наклонные упражнения без веса или пропуск */
+  const bk=backStatus();
+  if(bk && bk.lvl!=='g' && ['rdl','row','trap'].includes(ex.tech)){
+    const n=P.sets;
+    return {w:0, kind:'back', sets:Array.from({length:n},()=>({w:0, r:bk.lvl==='r'?null:P.lo})),
+      t: bk.lvl==='r' ? '<b>сегодня пропусти</b> — поясница красная. Вместо этого ягодичный мостик без веса'
+                      : '<b>без веса</b>, рукой за опору — поясница жёлтая. Амплитуда до середины голени'};
+  }
   const wk=weekKind(state.cycle,state.week);
   const deload=wk==='deload', session=wk==='session', test=/^тест/.test(ex.dose);
   const hist=logsOf(ex.name,k);
@@ -3941,6 +3994,11 @@ function planFor(ex, P, k){
       } else if(twoFails){ w=r25(bw*0.9); t=`второй раз подряд недобор на ${fmtW(bw)} → шаг назад: <b>${fmtW(w)} кг</b>, потом снова вверх`; }
       else if(B.comp>=0.75){ w=bw; t=`недобрал ${Math.round((1-B.comp)*lo*B.ns)} повт. → тот же вес <b>${fmtW(w)} кг</b>, добери`; }
       else { w=r25(bw*0.9); t=`сделано меньше ¾ объёма → <b>${fmtW(w)} кг</b> (−10 %), техника и скорость важнее`; }
+    }
+    /* поясница не в порядке — штанга на плечах легче */
+    if(bk && bk.lvl!=='g' && ['squat','ohp'].includes(ex.tech)){
+      const f = bk.lvl==='y' ? 0.8 : 0.6;
+      w=r25(w*f); t+=` · <b>поясница ${bk.lvl==='y'?'жёлтая: −20':'красная: −40'} %</b> → ${fmtW(w)} кг`;
     }
     if(table!=null && Math.abs(w-table)>=2.5 && !test) t+=` <span style="color:var(--muted)">· по таблице ${fmtW(table)}</span>`;
     return out(w, lo, t, 'bar');
@@ -5413,7 +5471,7 @@ window.addEventListener('scroll',()=>{
    17 · IPHONE: ЗАДАЧИ, РЕЗЕРВНАЯ КОПИЯ, УСТАНОВКА, ОФЛАЙН
    ############################################################ */
 /* Дата сборки — видна в «Справка → Данные», чтобы проверить, что обновление пришло */
-const APP_VERSION='выгрузка дня и время приёма пищи';
+const APP_VERSION='светофор поясницы, вводная неделя';
 let toastTimer=0;
 function toast(msg){
   const t=document.getElementById('toast');
@@ -5627,6 +5685,20 @@ function kneeStatus(){
   return {lvl:'g', v, d:ks[0], title:`Колено ${v}/10 — зелёный`, text:'Прыжки по плану. Перед ними — изометрия у стены 5 × 45 сек.'};
 }
 
+/* Светофор поясницы: наклонные упражнения с весом зависят от него */
+const BACK_LOAD=['rdl','row','trap','squat','ohp'];
+function backStatus(){
+  const ks=Object.keys(body).filter(d=>num(body[d].back)!=null).sort().reverse();
+  if(!ks.length || daysBetween(ks[0], isoDay())>3) return null;
+  const v=num(body[ks[0]].back), p1=ks[1]?num(body[ks[1]].back):null, p2=ks[2]?num(body[ks[2]].back):null;
+  const worse = p1!=null && v>p1, worse2 = worse && p2!=null && p1>p2;
+  if(v>=6 || worse2) return {lvl:'r', v, d:ks[0], title:`Поясница ${v}/10 — красный`,
+    text:'Без наклонов с весом: румынская тяга, тяга в наклоне и трап-тяга сегодня пропускаются. Ходьба, «кошка-верблюд», тепло. Присед и жим — на 40 % легче. К врачу, если отдаёт в ногу, немеет нога или не проходит 3–4 дня.'};
+  if(v>=4 || worse) return {lvl:'y', v, d:ks[0], title:`Поясница ${v}/10 — жёлтый`,
+    text:'Наклоны только без веса и с опорой рукой. Трап-тягу и тягу в наклоне с весом не делай. Присед и жим — вес на 20 % меньше.'};
+  return {lvl:'g', v, d:ks[0], title:`Поясница ${v}/10 — зелёный`, text:'Наклоны по плану. Ощущение в пояснице выше 2 из 10 во время подхода — стоп.'};
+}
+
 /* ---------- Сегодня утром ---------- */
 function renderProgToday(){
   const box=document.getElementById('progToday');
@@ -5638,6 +5710,8 @@ function renderProgToday(){
     <div class="pform">
       <label>Вес натощак, кг<input id="pfW" type="text" inputmode="decimal" value="${e.w??''}" placeholder="${prev?fmt1(prev.w):'75,0'}"></label>
       <label>Пульс лёжа<input id="pfHR" type="text" inputmode="numeric" value="${e.hr??''}" placeholder="уд/мин"></label>
+      <label class="wide">Поясница: тянет или «забита», 0–10
+        <div class="scale knee" id="pfBack">${Array.from({length:11},(_,i)=>`<button type="button" data-v="${i}" class="${kneeCls(i)}" aria-pressed="${num(e.back)===i}">${i}</button>`).join('')}</div></label>
       <label class="wide">Колено: боль в приседе на одной ноге, 0–10
         <div class="scale knee" id="pfKnee">${Array.from({length:11},(_,i)=>`<button type="button" data-v="${i}" class="${kneeCls(i)}" aria-pressed="${num(e.knee)===i}">${i}</button>`).join('')}</div></label>
       <label class="wide">Самочувствие после тренировки, 1–10
@@ -5652,6 +5726,7 @@ function renderProgToday(){
     const x=body[t]||{}, parts=[];
     if(num(x.w)!=null) parts.push(`вес ${String(num(x.w)).replace('.',',')} кг`);
     if(num(x.hr)!=null) parts.push(`пульс ${x.hr}`);
+    if(num(x.back)!=null) parts.push(`поясница ${x.back}/10`);
     if(num(x.knee)!=null) parts.push(`колено ${x.knee}/10`);
     if(num(x.feel)!=null) parts.push(`самочувствие ${x.feel}/10`);
     box.querySelector('#pfStatus').innerHTML = parts.length
@@ -5677,12 +5752,12 @@ function renderProgToday(){
     toast(Object.keys(body[t]||{}).length ? 'Сохранено' : 'Нечего сохранять — впиши вес или отметь колено');
   });
   status();
-  [['#pfKnee','knee'],['#pfFeel','feel']].forEach(([sel,f])=>{
+  [['#pfBack','back'],['#pfKnee','knee'],['#pfFeel','feel']].forEach(([sel,f])=>{
     box.querySelectorAll(sel+' button').forEach(b=>b.addEventListener('click',()=>{
       const v=+b.dataset.v, same=num((body[t]||{})[f])===v;
       upd(f, same?null:v);
       box.querySelectorAll(sel+' button').forEach(x=>x.setAttribute('aria-pressed', String(!same && +x.dataset.v===v)));
-      status(); renderProgressParts(); if(f==='knee') renderDays();
+      status(); renderProgressParts(); if(f==='knee'||f==='back') renderDays();
     }));
   });
 }
@@ -5735,6 +5810,8 @@ function coachItems(){
   /* колено */
   const ks=kneeStatus();
   if(ks) out.push({c:ks.lvl,b:ks.title,x:ks.text});
+  const bs=backStatus();
+  if(bs) out.push({c:bs.lvl,b:bs.title,x:bs.text});
   return out;
 }
 function renderCoach(){
@@ -6074,8 +6151,8 @@ function dayText(D){
   L.push('');
   const B=D.body;
   L.push('ЗАМЕРЫ УТРОМ');
-  if(B && (B.w!=null||B.hr!=null||B.knee!=null||B.feel!=null)){
-    L.push(`  Вес: ${B.w!=null?R1(B.w)+' кг':'—'} · пульс: ${B.hr!=null?B.hr:'—'} · колено: ${B.knee!=null?B.knee+'/10':'—'} · самочувствие: ${B.feel!=null?B.feel+'/10':'—'}`);
+  if(B && (B.w!=null||B.hr!=null||B.knee!=null||B.back!=null||B.feel!=null)){
+    L.push(`  Вес: ${B.w!=null?R1(B.w)+' кг':'—'} · пульс: ${B.hr!=null?B.hr:'—'} · поясница: ${B.back!=null?B.back+'/10':'—'} · колено: ${B.knee!=null?B.knee+'/10':'—'} · самочувствие: ${B.feel!=null?B.feel+'/10':'—'}`);
   } else L.push('  ничего не записано');
   D.circ.forEach(c=>L.push(`  Обхваты: талия узкая ${c.waistNarrow??'—'}, по пупку ${c.waistNavel??'—'}, бедро ${c.thigh??'—'}`));
   D.tests.forEach(t=>L.push(`  Тест: ${t.test} — ${R1(t.value)} ${t.unit}`));
@@ -6112,7 +6189,7 @@ function dayText(D){
 
 const csvCell=v=>{ if(v==null) return ''; const s=String(v); return /[",;\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; };
 const CSV_COLS=['date','weekday','cycle','week','training','training_status','exercises_done','exercises_total','sets_logged','tonnage_kg','top_rpe','warmup_done','cardio_done','ball_done','daily_block',
-  'kcal','kcal_target','protein','protein_target','fat','carb','meals','first_meal','last_meal','weight_kg','pulse','knee_0_10','feel_1_10'];
+  'kcal','kcal_target','protein','protein_target','fat','carb','meals','first_meal','last_meal','weight_kg','pulse','back_0_10','knee_0_10','feel_1_10'];
 function dayRow(D){
   const T=D.training, F=D.food, B=D.body||{};
   const times=F.meals.map(m=>m.time).filter(Boolean).sort();
@@ -6125,7 +6202,7 @@ function dayRow(D){
     D.dailyBlock===null?'в разминке':(D.dailyBlock?1:0),
     F.meals.length?F.total.kcal:'', D.target.kcal, F.meals.length?F.total.p:'', D.target.p, F.meals.length?F.total.f:'', F.meals.length?F.total.c:'',
     F.meals.length, times[0]||'', times[times.length-1]||'',
-    B.w??'', B.hr??'', B.knee??'', B.feel??''];
+    B.w??'', B.hr??'', B.back??'', B.knee??'', B.feel??''];
 }
 /* Все даты, по которым что-то записано */
 function datesWithData(){
