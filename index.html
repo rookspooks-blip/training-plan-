@@ -821,6 +821,26 @@ body.timing #toTop{ opacity:0; pointer-events:none; }
 .pick.weeks button.ss{ border-color:var(--cardc); color:var(--cardc); }
 .pick.weeks button.ss[aria-pressed="true"]{ background:var(--cardc); color:var(--ink); }
 
+/* Выгрузка */
+.exnav{ display:grid; grid-template-columns:48px 1fr 48px; gap:8px; margin-bottom:10px; }
+.exnav .btn{ padding:10px 0; font-size:20px; }
+.exnav input{ text-align:center; }
+.expre{
+  white-space:pre-wrap; word-break:break-word; margin:0 0 12px; padding:12px; max-height:380px; overflow:auto;
+  background:var(--ink); border:1px solid var(--line); border-radius:var(--r-md);
+  font:12.5px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace; color:var(--text); -webkit-user-select:text; user-select:text;
+}
+/* Время приёма пищи */
+.dish-time{ display:flex; align-items:center; gap:8px; margin-top:10px; }
+.tbtn{ white-space:nowrap; flex-shrink:0; padding:7px 13px; border-radius:99px; border:1px solid var(--line); background:var(--surface2); color:var(--text);
+  font-size:13px; font-weight:700; font-family:inherit; cursor:pointer; }
+.tbtn:active{ background:var(--line); }
+.tinp{ width:98px; padding:5px 8px; border-radius:10px; border:1px solid var(--line); background:var(--surface2);
+  color:var(--accent); font-size:16px; font-weight:700; font-family:inherit; font-variant-numeric:tabular-nums; }
+.tinp:focus{ outline:2px solid var(--accent); outline-offset:-1px; }
+.tclr{ background:none; border:0; color:var(--muted); font-size:20px; line-height:1; padding:0 4px; cursor:pointer; font-family:inherit; }
+.cust-t{ margin-top:6px; width:98px; }
+
 /* Блоки еды */
 .dgroup{ margin:24px 0 10px; }
 .dgroup:first-child{ margin-top:6px; }
@@ -963,6 +983,7 @@ body.timing #toTop{ opacity:0; pointer-events:none; }
   <div id="progWeight"></div>
   <div id="progCirc"></div>
   <div id="progTests"></div>
+  <div id="progExport"></div>
   <div class="card" id="jumpTool"></div>
 </section>
 </div><!-- /prog -->
@@ -3131,7 +3152,8 @@ const foodKey = () => `${state.cycle}-${state.week}-${foodDay}`;
 
 /* Переключает активный день: dishOn, grams и custom начинают
    указывать на запись этого дня, поэтому весь остальной код не меняется */
-const emptyDay = () => ({ dishOn:Object.fromEntries(DISHES.map(d=>[d.id,false])), grams:{}, custom:[] });
+const emptyDay = () => ({ dishOn:Object.fromEntries(DISHES.map(d=>[d.id,false])), grams:{}, custom:[], times:{} });
+let mealTimes={};   /* время приёма блюд выбранного дня: id блюда → «ЧЧ:ММ» */
 
 function loadFoodDay(){
   const k=foodKey();
@@ -3140,7 +3162,8 @@ function loadFoodDay(){
   if(!e.dishOn) e.dishOn=Object.fromEntries(DISHES.map(d=>[d.id,false]));
   if(!e.grams)  e.grams={};
   if(!e.custom) e.custom=[];
-  dishOn=e.dishOn; grams=e.grams; custom=e.custom;
+  if(!e.times) e.times={};
+  dishOn=e.dishOn; grams=e.grams; custom=e.custom; mealTimes=e.times;
 }
 
 /* День заполнен, только если в нём реально есть еда.
@@ -3227,7 +3250,7 @@ function bindFold(head, box){
     head.setAttribute('aria-expanded', open?'true':'false');
   };
   head.addEventListener('click',e=>{
-    if(e.target.closest('.check,.step-check,.dish-toggle,.gram,input,.step-toggle')) return;
+    if(e.target.closest('.check,.step-check,.dish-toggle,.gram,input,.step-toggle,.dish-time')) return;
     toggle();
   });
   head.addEventListener('keydown',e=>{
@@ -4251,6 +4274,7 @@ function renderCustom(){
         <div class="cust-main">
           <div class="cust-name">${x.name}</div>
           <div class="cust-mac">${x.k} ккал · Б ${x.p} · Ж ${x.f} · У ${x.c}</div>
+          <input type="time" class="tinp cust-t" data-i="${i}" value="${x.t||''}" aria-label="Время приёма">
         </div>
         <button class="cust-fav" type="button" data-i="${i}" aria-label="В избранное">☆</button>
         <button class="cust-del" type="button" data-i="${i}" aria-label="Удалить">×</button>
@@ -4287,18 +4311,23 @@ function renderCustom(){
   });
 
   box.querySelector('#favEdit').addEventListener('click',()=>{ favEdit=!favEdit; renderCustom(); });
+  box.querySelectorAll('.cust-t').forEach(inp=>inp.addEventListener('change',()=>{
+    const x=custom[+inp.dataset.i]; if(!x) return;
+    if(inp.value) x.t=inp.value; else delete x.t;
+    saveFood();
+  }));
   box.querySelectorAll('.fav.ff').forEach(b=>b.addEventListener('click',()=>{
     const x=FASTFOOD[+b.dataset.i];
-    custom.push({name:x.name, k:x.k, p:x.p, f:x.f, c:x.c});
+    custom.push({name:x.name, k:x.k, p:x.p, f:x.f, c:x.c, t:nowHM()});
     saveFood(); renderCustom(); renderSummary(); renderWeekStats(); renderFoodDays();
-    toast(`${x.name} — добавлено`);
+    toast(`${x.name} — добавлено, ${nowHM()}`);
   }));
   box.querySelectorAll('.fav:not(.ff)').forEach(b=>b.addEventListener('click',()=>{
     const f=getFavs(), x=f[+b.dataset.i];
     if(favEdit){ f.splice(+b.dataset.i,1); setFavs(f); renderCustom(); return; }
-    custom.push({name:x.name, k:x.k, p:x.p, f:x.f, c:x.c});
+    custom.push({name:x.name, k:x.k, p:x.p, f:x.f, c:x.c, t:nowHM()});
     saveFood(); renderCustom(); renderSummary(); renderWeekStats(); renderFoodDays();
-    toast(`${x.name} — добавлено`);
+    toast(`${x.name} — добавлено, ${nowHM()}`);
   }));
   box.querySelectorAll('.cust-fav').forEach(b=>b.addEventListener('click',()=>{
     const x=custom[+b.dataset.i], f=getFavs();
@@ -4311,7 +4340,7 @@ function renderCustom(){
     const num=id=>Math.max(0, Math.round(+box.querySelector(id).value||0));
     const k=num('#cuK');
     if(!name && !k) return;
-    custom.push({name:name||'Без названия', k, p:num('#cuP'), f:num('#cuF'), c:num('#cuC')});
+    custom.push({name:name||'Без названия', k, p:num('#cuP'), f:num('#cuF'), c:num('#cuC'), t:nowHM()});
     saveFood(); renderCustom(); renderSummary(); renderWeekStats(); renderFoodDays();
   });
 }
@@ -4873,7 +4902,7 @@ function renderNutrition(){
     root.appendChild(gh);
     /* длинный блок: сначала выбранное, остальное — по кнопке */
     const open = dishOpen[cat] || list.length<=3;
-    const shown = open ? list : list.filter(d=>dishOn[d.id]);
+    const shown = open ? list : (on.length ? on : list.slice(0,3));
     shown.forEach(d=>root.appendChild(dishCard(d)));
     if(list.length>3){
       const b=document.createElement('button');
@@ -4901,6 +4930,11 @@ function dishCard(d){
           <div class="dish-macros">
             <span class="k num">${t.k} ккал</span><span class="p num">Б ${t.p}</span>
             <span class="f num">Ж ${t.f}</span><span class="c num">У ${t.c}</span>
+          </div>
+          <div class="dish-time">
+            <button type="button" class="tbtn now">Съел сейчас</button>
+            <input type="time" class="tinp" value="${mealTimes[d.id]||''}" aria-label="Время приёма">
+            <button type="button" class="tclr" aria-label="Убрать время" ${mealTimes[d.id]?'':'hidden'}>×</button>
           </div>
         </div>
         <button class="dish-toggle" role="switch" aria-checked="${on}" aria-label="Включить в день"></button>
@@ -4969,6 +5003,21 @@ function dishCard(d){
       input.addEventListener('keydown',e=>e.stopPropagation());
     });
 
+    /* время приёма: «Съел сейчас» пишет текущее, поле — любое. Время отмечает блюдо как съеденное */
+    const tinp=card.querySelector('.tinp'), clr=card.querySelector('.tclr');
+    const setTime=v=>{
+      if(v){
+        mealTimes[d.id]=v;
+        if(!dishOn[d.id]){ dishOn[d.id]=true; tg.setAttribute('aria-checked','true'); card.classList.remove('off'); }
+      } else delete mealTimes[d.id];
+      tinp.value=v||''; clr.hidden=!v;
+      saveFood(); renderSummary(); renderWeekStats(); renderFoodDays(); refreshGroupCounts();
+    };
+    card.querySelector('.tbtn.now').addEventListener('click',e=>{ e.stopPropagation(); const v=nowHM(); setTime(v); toast(`${d.name} · ${v}`); });
+    tinp.addEventListener('change',()=>setTime(tinp.value));
+    clr.addEventListener('click',e=>{ e.stopPropagation(); setTime(''); });
+    /* выключил блюдо — время тоже убираем */
+    tg.addEventListener('click',()=>{ if(!dishOn[d.id] && mealTimes[d.id]){ delete mealTimes[d.id]; tinp.value=''; clr.hidden=true; saveFood(); } });
     return card;
 }
 function refreshGroupCounts(){
@@ -5364,7 +5413,7 @@ window.addEventListener('scroll',()=>{
    17 · IPHONE: ЗАДАЧИ, РЕЗЕРВНАЯ КОПИЯ, УСТАНОВКА, ОФЛАЙН
    ############################################################ */
 /* Дата сборки — видна в «Справка → Данные», чтобы проверить, что обновление пришло */
-const APP_VERSION='06.10 · румынская тяга без веса';
+const APP_VERSION='выгрузка дня и время приёма пищи';
 let toastTimer=0;
 function toast(msg){
   const t=document.getElementById('toast');
@@ -5922,6 +5971,249 @@ function renderProgressParts(){ renderCoach(); renderWeight(); }
 function renderProgress(){
   renderProgToday(); renderCoach(); renderWeight(); renderCirc(); renderTests();
   if(!document.getElementById('jtFile')) renderJumpTool();
+  renderExport();
+}
+
+/* ############################################################
+   ВЫГРУЗКА ДНЯ: всё, что записано за дату, одним текстом / JSON / CSV
+   ############################################################ */
+const WD_FULL=['Понедельник','Вторник','Среда','Четверг','Пятница','Суббота','Воскресенье'];
+const pad2=n=>String(n).padStart(2,'0');
+const nowHM=()=>{ const d=new Date(); return pad2(d.getHours())+':'+pad2(d.getMinutes()); };
+const dateOfCW=(c,w,dow)=>{
+  const ses=settings.session|0, g = c===1 ? w-1 : (c===2 ? 12+ses+w-1 : 24+ses+w-1);
+  return addDays(settings.start, g*7+dow);
+};
+/* Считаем в чужой неделе: подменяем положение в плане и возвращаем обратно */
+function withWeek(c,w,fn){
+  const sv={c:state.cycle,w:state.week};
+  state.cycle=c; state.week=w;
+  try{ return fn(); } finally{ state.cycle=sv.c; state.week=sv.w; loadFoodDay(); }
+}
+
+function dayExport(iso){
+  const dow=(dOf(iso).getDay()+6)%7;
+  const pos=posForDate(iso);
+  return withWeek(pos.cycle,pos.week,()=>{
+    const info=weekInfo(), T=nutritionTarget();
+    const D={date:iso, weekday:WD_FULL[dow], cycle:pos.cycle, week:pos.week, weekLabel:info.label,
+             preStart:!!pos.pre, target:{kcal:T.k, p:T.p, f:T.f, c:T.c}};
+
+    /* до старта плана недели ещё нет: тренировки и еда по расписанию не считаются */
+    if(pos.pre){
+      D.training={type:'rest', title:'до старта плана'}; D.dailyBlock=null;
+      D.food={meals:[], total:{kcal:0,p:0,f:0,c:0}};
+      D.body=body[iso]?{...body[iso]}:null;
+      D.circ=circ.filter(x=>x.d===iso).map(x=>({waistNarrow:x.a, waistNavel:x.b, thigh:x.h}));
+      D.tests=tests.filter(x=>x.d===iso).map(x=>({test:TESTS[x.t]?TESTS[x.t].n:x.t, value:x.v, unit:TESTS[x.t]?TESTS[x.t].u:''}));
+      return D;
+    }
+
+    /* --- тренировка дня --- */
+    const e=buildWeek().find(x=>(x.dow===0?6:x.dow-1)===dow);
+    let tr={type:'rest', title:'Отдых'};
+    if(e && e.type==='gym'){
+      const day=e.day, dropped=isDropped(e.id), moved=isMoved(e.id)&&!dropped;
+      const warm=warmupFor(state.week);
+      const exs=day.ex.map(x=>{
+        const L=logs[logKey(day.id,x.id)];
+        const sets=L?L.sets.filter(s=>num(s.r)!=null).map(s=>({kg:num(s.w)||0, reps:num(s.r)})):[];
+        return {name:x.name, plan:x.dose, rest:x.rest, done:!!marks[key(day.id,x.id)], sets, rpe:L&&L.rpe||null};
+      });
+      tr={type:'gym', title:day.title, status:dropped?'отменена':(moved?'перенесена':'по плану'),
+          noPE: day.swap?true:false,
+          warmupDone:warm.list.filter(s=>marks[key(day.id,s.id)]).length, warmupTotal:warm.list.length,
+          exercises:exs, done:exs.filter(x=>x.done).length, total:exs.length,
+          volumeKg:Math.round(exs.reduce((a,x)=>a+x.sets.reduce((b,s)=>b+s.kg*s.reps,0),0))};
+    } else if(e && e.type==='run'){
+      tr={type:'cardio', title:e.title, dur:e.dur, note:e.note, done:!!marks[key(e.id,e.ex)], ball:!!marks[key(e.id,'ball')], skipped:isSkipped(e.id)};
+    } else if(e){ tr={type:'rest', title:e.title}; }
+    D.training=tr;
+    D.dailyBlock = gymDays().has(dow) ? null : !!marks[`${state.cycle}-${state.week}-daily-${dow}`];
+
+    /* --- еда --- */
+    const fe=foodLog[`${state.cycle}-${state.week}-${dow}`];
+    const meals=[]; let k=0,p=0,f=0,c=0;
+    if(fe){
+      DISHES.forEach(dish=>{
+        if(!fe.dishOn || !fe.dishOn[dish.id]) return;
+        let dk=0,dp=0,df=0,dc=0; const ing=[];
+        dish.ing.forEach(([fid,base])=>{
+          const kk=`${dish.id}-${fid}`;
+          const g=(fe.grams && fe.grams[kk]!=null) ? fe.grams[kk] : Math.round(base*portionFactor()/5)*5;
+          const F=FOOD[fid];
+          dk+=F.k*g/100; dp+=F.p*g/100; df+=F.f*g/100; dc+=F.c*g/100;
+          ing.push({food:F.n, g});
+        });
+        meals.push({time:(fe.times||{})[dish.id]||null, name:dish.name, kcal:Math.round(dk), p:Math.round(dp), f:Math.round(df), c:Math.round(dc), ing});
+        k+=dk; p+=dp; f+=df; c+=dc;
+      });
+      (fe.custom||[]).forEach(x=>{
+        meals.push({time:x.t||null, name:x.name, custom:true, kcal:x.k, p:x.p, f:x.f, c:x.c, ing:[]});
+        k+=x.k; p+=x.p; f+=x.f; c+=x.c;
+      });
+    }
+    meals.sort((a,b)=> (a.time||'99:99')<(b.time||'99:99') ? -1 : ((a.time||'99:99')>(b.time||'99:99') ? 1 : 0));
+    D.food={meals, total:{kcal:Math.round(k), p:Math.round(p), f:Math.round(f), c:Math.round(c)}};
+
+    /* --- утренние замеры, обхваты, тесты --- */
+    D.body=body[iso]?{...body[iso]}:null;
+    D.circ=circ.filter(x=>x.d===iso).map(x=>({waistNarrow:x.a, waistNavel:x.b, thigh:x.h}));
+    D.tests=tests.filter(x=>x.d===iso).map(x=>({test:TESTS[x.t]?TESTS[x.t].n:x.t, value:x.v, unit:TESTS[x.t]?TESTS[x.t].u:''}));
+    return D;
+  });
+}
+
+const R1=x=>String(x).replace('.',',');
+function dayText(D){
+  const L=[];
+  const [y,m,d]=D.date.split('-');
+  L.push(`ДЕНЬ · ${D.weekday} ${d}.${m}.${y}`);
+  L.push(D.cycle===1&&D.week>12 ? `Сессионный блок, неделя ${D.week-12}` : `Цикл ${D.cycle}, неделя ${D.week} · ${D.weekLabel}`);
+  if(D.preStart) L.push('(дата до старта плана — только замеры и тесты)');
+  L.push('');
+  const B=D.body;
+  L.push('ЗАМЕРЫ УТРОМ');
+  if(B && (B.w!=null||B.hr!=null||B.knee!=null||B.feel!=null)){
+    L.push(`  Вес: ${B.w!=null?R1(B.w)+' кг':'—'} · пульс: ${B.hr!=null?B.hr:'—'} · колено: ${B.knee!=null?B.knee+'/10':'—'} · самочувствие: ${B.feel!=null?B.feel+'/10':'—'}`);
+  } else L.push('  ничего не записано');
+  D.circ.forEach(c=>L.push(`  Обхваты: талия узкая ${c.waistNarrow??'—'}, по пупку ${c.waistNavel??'—'}, бедро ${c.thigh??'—'}`));
+  D.tests.forEach(t=>L.push(`  Тест: ${t.test} — ${R1(t.value)} ${t.unit}`));
+  if(D.preStart) return L.join('\n');
+  L.push('');
+  const T=D.training;
+  L.push('ТРЕНИРОВКА');
+  if(T.type==='gym'){
+    L.push(`  ${T.title} (${T.status}) — сделано ${T.done}/${T.total}, разминка ${T.warmupDone}/${T.warmupTotal}${T.noPE?', физры не было':''}`);
+    T.exercises.forEach((x,i)=>{
+      const sets=x.sets.map(s=>(s.kg?R1(s.kg)+'×':'')+s.reps).join(', ');
+      L.push(`  ${i+1}. ${x.name} — ${x.plan}${x.done?' ✓':''}`);
+      if(sets||x.rpe) L.push(`     ${sets||'подходы не записаны'}${x.rpe?` · тяжесть ${x.rpe}`:''}`);
+    });
+    if(T.volumeKg) L.push(`  Тоннаж: ${T.volumeKg} кг`);
+  } else if(T.type==='cardio'){
+    L.push(`  ${T.title} ${T.dur} — ${T.skipped?'пропущено':(T.done?'сделано':'не отмечено')}${T.ball?' · мяч сделан':''}`);
+  } else L.push(`  ${T.title}`);
+  if(D.dailyBlock!==null) L.push(`  Ежедневный блок: ${D.dailyBlock?'сделан':'не отмечен'}`);
+  else L.push('  Ежедневный блок: входит в разминку');
+  L.push('');
+  const tg=D.target, F=D.food;
+  L.push(`ЕДА · цель ${tg.kcal} ккал, Б${tg.p} Ж${tg.f} У${tg.c}`);
+  if(F.meals.length){
+    F.meals.forEach(x=>{
+      L.push(`  ${x.time||'—:—'}  ${x.name}${x.custom?' (вручную)':''} — ${x.kcal} ккал, Б${x.p} Ж${x.f} У${x.c}`);
+      if(x.ing.length) L.push(`         ${x.ing.map(i=>`${i.food.toLowerCase()} ${i.g} г`).join(', ')}`);
+    });
+    const dk=F.total.kcal-tg.kcal;
+    L.push(`  ИТОГО: ${F.total.kcal} ккал (${dk>0?'+':''}${dk}), Б${F.total.p} Ж${F.total.f} У${F.total.c}`);
+  } else L.push('  ничего не записано');
+  return L.join('\n');
+}
+
+const csvCell=v=>{ if(v==null) return ''; const s=String(v); return /[",;\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; };
+const CSV_COLS=['date','weekday','cycle','week','training','training_status','exercises_done','exercises_total','sets_logged','tonnage_kg','top_rpe','warmup_done','cardio_done','ball_done','daily_block',
+  'kcal','kcal_target','protein','protein_target','fat','carb','meals','first_meal','last_meal','weight_kg','pulse','knee_0_10','feel_1_10'];
+function dayRow(D){
+  const T=D.training, F=D.food, B=D.body||{};
+  const times=F.meals.map(m=>m.time).filter(Boolean).sort();
+  const sets=T.type==='gym'?T.exercises.reduce((a,x)=>a+x.sets.length,0):'';
+  const rp=T.type==='gym'?Math.max(0,...T.exercises.map(x=>x.rpe||0)):0;
+  return [D.date,D.weekday,D.cycle,D.week,T.title,T.status||'',
+    T.type==='gym'?T.done:'', T.type==='gym'?T.total:'', sets, T.type==='gym'?T.volumeKg:'', rp||'',
+    T.type==='gym'?`${T.warmupDone}/${T.warmupTotal}`:'',
+    T.type==='cardio'?(T.done?1:0):'', T.type==='cardio'?(T.ball?1:0):'',
+    D.dailyBlock===null?'в разминке':(D.dailyBlock?1:0),
+    F.meals.length?F.total.kcal:'', D.target.kcal, F.meals.length?F.total.p:'', D.target.p, F.meals.length?F.total.f:'', F.meals.length?F.total.c:'',
+    F.meals.length, times[0]||'', times[times.length-1]||'',
+    B.w??'', B.hr??'', B.knee??'', B.feel??''];
+}
+/* Все даты, по которым что-то записано */
+function datesWithData(){
+  const set=new Set();
+  const addWeek=(c,w)=>{ for(let i=0;i<7;i++) set.add(dateOfCW(c,w,i)); };
+  Object.keys(foodLog).forEach(k=>{ const [c,w,d]=k.split('-').map(Number); if(foodLog[k] && (Object.values(foodLog[k].dishOn||{}).some(Boolean)||(foodLog[k].custom||[]).length)) set.add(dateOfCW(c,w,d)); });
+  [marks,logs].forEach(src=>Object.keys(src).forEach(k=>{ const [c,w]=k.split('-').map(Number); if(c&&w&&src[k]&&(src!==logs||hasData(src[k]))) addWeek(c,w); }));
+  Object.keys(body).forEach(d=>set.add(d)); circ.forEach(x=>set.add(x.d)); tests.forEach(x=>set.add(x.d));
+  return [...set].filter(Boolean).sort();
+}
+function allDays(){
+  return datesWithData().map(d=>dayExport(d)).filter(D=>
+    D.body || D.food.meals.length || D.circ.length || D.tests.length || D.dailyBlock===true ||
+    (D.training.type==='gym' && (D.training.done||D.training.sets||D.training.exercises.some(x=>x.sets.length))) ||
+    (D.training.type==='cardio' && (D.training.done||D.training.ball)));
+}
+
+async function shareFile(name, text, mime, title){
+  const file=new File([text], name, {type:mime});
+  if(navigator.canShare && navigator.canShare({files:[file]})){
+    try{ await navigator.share({files:[file], title}); return; }
+    catch(e){ if(e && e.name==='AbortError') return; }
+  }
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(file); a.download=name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+}
+async function copyText(t){
+  try{ if(navigator.clipboard && window.isSecureContext){ await navigator.clipboard.writeText(t); return true; } }catch(e){}
+  const ta=document.createElement('textarea'); ta.value=t; ta.style.cssText='position:fixed;opacity:0;top:0;left:0';
+  document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0,999999);
+  let ok=false; try{ ok=document.execCommand('copy'); }catch(e){}
+  ta.remove(); return ok;
+}
+
+let exDate=null;
+function renderExport(){
+  const box=document.getElementById('progExport');
+  if(!box) return;
+  if(!exDate) exDate=isoDay();
+  box.innerHTML=`<div class="card"><h3>Выгрузка</h3>
+    <p style="font-size:13.5px;margin:0 0 12px">Всё, что записано за день: замеры, тренировка с подходами, еда с временем и граммами, итоги.</p>
+    <div class="exnav">
+      <button type="button" class="btn" id="exPrev" aria-label="Предыдущий день">‹</button>
+      <input type="date" id="exDate" class="app-field" value="${exDate}">
+      <button type="button" class="btn" id="exNext" aria-label="Следующий день">›</button>
+    </div>
+    <pre class="expre" id="exPre"></pre>
+    <div class="btn-row">
+      <button type="button" class="btn btn-primary" id="exCopy">Скопировать</button>
+      <button type="button" class="btn" id="exShare">Поделиться</button>
+    </div>
+    <div class="btn-row" style="margin-top:8px">
+      <button type="button" class="btn" id="exJson">День · JSON</button>
+    </div>
+    <h5 style="margin:18px 0 8px;font-size:12.5px;color:var(--muted);font-weight:700">ВСЕ ДНИ</h5>
+    <div class="btn-row">
+      <button type="button" class="btn" id="exCsv">Таблица CSV</button>
+      <button type="button" class="btn" id="exAll">Всё в JSON</button>
+    </div>
+    <p style="font-size:12.5px;color:var(--muted);margin:10px 0 0">CSV открывается в Numbers и Excel: по строке на день, колонки — калории, белок, время первого и последнего приёма, тоннаж, вес, пульс, колено. «Поделиться» отправляет в Telegram, Файлы, почту.</p>
+  </div>`;
+  const pre=box.querySelector('#exPre'), inp=box.querySelector('#exDate');
+  let D=null;
+  const show=()=>{ D=dayExport(exDate); pre.textContent=dayText(D); };
+  const go=n=>{ exDate=addDays(exDate,n); inp.value=exDate; show(); };
+  inp.addEventListener('change',()=>{ if(inp.value){ exDate=inp.value; show(); } });
+  box.querySelector('#exPrev').addEventListener('click',()=>go(-1));
+  box.querySelector('#exNext').addEventListener('click',()=>go(+1));
+  box.querySelector('#exCopy').addEventListener('click',async()=>{ toast(await copyText(pre.textContent)?'Скопировано':'Не удалось скопировать — выдели текст вручную'); });
+  box.querySelector('#exShare').addEventListener('click',()=>{
+    if(navigator.share) navigator.share({text:pre.textContent}).catch(()=>{});
+    else shareFile(`den-${exDate}.txt`, pre.textContent, 'text/plain', 'День '+exDate);
+  });
+  box.querySelector('#exJson').addEventListener('click',()=>shareFile(`den-${exDate}.json`, JSON.stringify(D,null,1), 'application/json', 'День '+exDate));
+  box.querySelector('#exCsv').addEventListener('click',()=>{
+    const rows=allDays().map(dayRow);
+    if(!rows.length){ toast('Пока нечего выгружать'); return; }
+    const csv='﻿'+[CSV_COLS,...rows].map(r=>r.map(csvCell).join(',')).join('\r\n');
+    shareFile(`tri-cikla-dni-${isoDay()}.csv`, csv, 'text/csv', 'Три цикла · все дни');
+  });
+  box.querySelector('#exAll').addEventListener('click',()=>{
+    const days=allDays();
+    if(!days.length){ toast('Пока нечего выгружать'); return; }
+    shareFile(`tri-cikla-dni-${isoDay()}.json`, JSON.stringify({app:'tri-cikla', exported:new Date().toISOString(), days},null,1), 'application/json', 'Три цикла · все дни');
+  });
+  show();
 }
 
 /* ############################################################
