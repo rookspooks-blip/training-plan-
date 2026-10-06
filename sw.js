@@ -3,7 +3,7 @@
    обновления приходили сами, без сети — из кэша.
    Иконки и картинки: сначала кэш.
    При изменении списка файлов увеличь VERSION. */
-const VERSION = 'v16';
+const VERSION = 'v17';
 const CACHE = 'tri-cikla-' + VERSION;
 const FILES = [
   './',
@@ -18,6 +18,7 @@ const FILES = [
   './js/plan-extra.js',
   './js/plan.js',
   './js/progress.js',
+  './js/rules.js',
   './js/store.js',
   './js/tech.js',
   './js/training.js',

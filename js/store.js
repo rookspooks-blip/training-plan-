@@ -57,9 +57,11 @@ function clearDay(d){
 /* localStorage может быть недоступен — тогда работаем в памяти.
    Ошибку записи не глотаем молча: раз за сеанс показываем подсказку */
 let storeWarned=false;
+let dataGen=0;   /* номер версии данных в памяти: растёт при каждой записи */
 const store={
   get(k,fb){ try{ const r=localStorage.getItem(k); return r?JSON.parse(r):fb; }catch(e){ return fb; } },
   set(k,v){
+    dataGen++;   /* данные поменялись — расчёты по истории пересчитаются */
     try{ localStorage.setItem(k,JSON.stringify(v)); return true; }
     catch(e){
       if(!storeWarned && typeof toast==='function'){
@@ -112,7 +114,8 @@ function posForDate(iso){
   const c1=12+(settings.session|0);
   if(n<c1) return {cycle:1, week:n+1};
   if(n<c1+12) return {cycle:2, week:n-c1+1};
-  return {cycle:3, week:Math.min(24, n-c1-12+1)};
+  /* после 24-й недели цикла 3 план закончился: остаёмся на последней неделе */
+  return {cycle:3, week:Math.min(24, n-c1-12+1), end:n-c1-12+1>24};
 }
 function applyAuto(){
   if(!settings.auto || !settings.start) return false;

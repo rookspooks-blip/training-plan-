@@ -82,6 +82,8 @@ function weekInfo(){
     return {kind, shift:sh, label: kind==='deload'?'Разгрузочная неделя':kind==='test'?'Тестовая неделя':`Присед ${x.sq} · тяга ${x.tr} · жим ${x.oh}`,
             where:'Цикл 2 · абсолютная сила · зал со штангой'}; }
   const x=cycle3(Math.min(lw,24));
+  if(w===24 && posForDate(isoDay()).end) return {kind, shift:0, label:'План пройден · повторяй последний блок',
+          where:'Год закончен. Новый план — с новой датой старта в настройках недели'};
   return {kind, shift:sh, label: kind==='deload'?'Разгрузочная неделя':`${x.blockName} · присед ${x.sq} · тяга ${x.tr}`,
           where:'Цикл 3 · гипертрофия и реконверсия · зал со штангой'};
 }

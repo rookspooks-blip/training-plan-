@@ -128,6 +128,7 @@ function layout(){
 function buildWeek(){
   const S=buildDays(state.cycle,state.week), C=cardioFor();
   if(noPE() && !isSession()) S[1]=homeSpeedDay();          /* четверг: физры не было */
+  adjustDays(S);                                            /* замены, колено, перерыв, усталость */
   const L=layout();
   const MODE={bike:'Велосипед', run:'Бег', walk:'Ходьба'};
 
@@ -197,13 +198,21 @@ function blockStart(c, w){
 }
 
 /* Сколько недель прогрессии потеряно к текущему моменту */
-function progressShift(){
+function progressShift(){ return memo('shift', progressShiftRaw); }
+function progressShiftRaw(){
   const c=state.cycle, w=state.week, start=blockStart(c,w);
+  /* Пропуск без отметки тоже пропуск: если человек ведёт журнал, а за
+     прошедший день нет ни галочки, ни подходов, ни часов — тренировки не было.
+     Считаем только дни после первой записи и только уже прошедшие. */
+  const today=isoDay(), first=activityDates()[0];
   let missed=0;
   for(let x=start; x<w; x++){
-    /* перенесённая тренировка сделана, просто в другой день — она не считается */
-    if(skips[`${c}-${x}-drop-d1`]) missed++;
-    if(skips[`${c}-${x}-drop-d3`]) missed++;
+    ['d1','d3'].forEach(id=>{
+      /* перенесённая тренировка сделана, просто в другой день — она не считается */
+      if(skips[`${c}-${x}-drop-${id}`]){ missed++; return; }
+      const date=dateOfCW(c,x,DAY_DOW[id]+(skips[`${c}-${x}-skip-${id}`]?1:0));
+      if(first && date>=first && date<today && !dayActive(c,x,id)) missed++;
+    });
   }
   return Math.floor(missed/2);
 }
@@ -475,6 +484,14 @@ function renderDays(){
       sec.appendChild(n);
     }
 
+    /* перерыв или усталость: день легче, объясняем почему */
+    if(day.alert){
+      const n=document.createElement('div');
+      n.className='coach knee-note '+day.alert.lvl;
+      n.innerHTML=day.alert.html;
+      sec.appendChild(n);
+    }
+
     /* поясница: светофор в днях, где есть наклоны и штанга */
     if(day.ex.some(x=>BACK_LOAD.includes(x.tech))){
       const bs=backStatus();
@@ -654,7 +671,8 @@ function sessionStats(L, lo, ns){
 }
 
 /* План на сегодня: вес (если есть), повторы на каждый подход, объяснение */
-function planFor(ex, P, k){
+/* Подсказка по прошлым записям. Поправки дня (перерыв, усталость) — planFor в rules.js */
+function planBase(ex, P, k){
   const WK=weightKind(ex,P);
   /* поясница жёлтая/красная — наклонные упражнения без веса или пропуск */
   const bk=backStatus();
@@ -952,6 +970,15 @@ function watchBlock(id){
   return box;
 }
 
+/* Строка замены: «Заменить на …» или «Вернуть …» */
+function subRow(ex){
+  if(ex.sub) return `<div class="subrow">Замена для «${ex.sub.from}»: ${ex.sub.why}.
+    <button type="button" class="linkbtn subbtn" data-from="${esc(ex.sub.from)}" data-on="0">Вернуть «${ex.sub.from}»</button></div>`;
+  const A=ALTS[ex.name];
+  if(!A || /пропустить/.test(ex.dose)) return '';
+  return `<div class="subrow">Если ${A.why} — <button type="button" class="linkbtn subbtn" data-from="${esc(ex.name)}" data-on="1">заменить на «${A.name}»</button></div>`;
+}
+
 /* Карточка упражнения: галочка, дозировка, журнал, техника */
 function exCard(day, ex){
   const k=key(day.id,ex.id), done=!!marks[k];
@@ -986,8 +1013,11 @@ function exCard(day, ex){
         <span class="ws-l">Подводка</span><span>${ex.warm}</span></div>`:''}
       ${t.fig?`<div class="fig">${S[t.fig]}</div>`:''}
       <div class="tech">${t.text}</div>
+      ${subRow(ex)}
     </div></div></div>`;
   bindFold(card.querySelector('.ex-head'), card);
+  const sb=card.querySelector('.subbtn');
+  if(sb) sb.addEventListener('click',e=>{ e.stopPropagation(); setSub(sb.dataset.from, sb.dataset.on==='1'); renderAll(); });
   const chk=card.querySelector('.check');
   const setDone=now=>{
     if(!!marks[k]===now) return;
