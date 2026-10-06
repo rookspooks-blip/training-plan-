@@ -3930,7 +3930,7 @@ function planFor(ex, P, k){
     const bodyNow = /свой вес/.test(ex.dose);
     const noLoad = /без веса/.test(ex.dose);
     if(!B){
-      let w = ruck ? +ruck : (optional ? 0 : (START_W[ex.name] ?? null));
+      let w = ruck ? +ruck : ((optional||noLoad) ? 0 : (START_W[ex.name] ?? null));
       if(WK.ph==='доп.' && lo<=5) w=10;
       const range = hi>lo?`${lo}–${hi}`:`${lo}`;
       if(!w && noLoad) return out(0, lo, `<b>без веса</b>, рукой за опору, ${range} повт. Если поясница хоть чуть тянет — амплитуду меньше`, 'body');
