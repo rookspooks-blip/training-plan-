@@ -271,6 +271,8 @@ function gymDays(){
 function renderDaily(){
   const box=document.getElementById('dailyBox');
   const gym=gymDays();
+  /* в день тренировки блок входит в разминку — отдельная карточка не нужна */
+  if(gym.has((selDow+6)%7)){ box.innerHTML=''; return; }
   const td=todayIdx();
 
   const gymList  = DOW_IDX.filter((n,i)=>gym.has(i)).join(', ');
@@ -356,7 +358,7 @@ function renderDays(){
   }).join('');
   const strip=document.getElementById('weekstrip');
   strip.querySelectorAll('.wchip').forEach(b=>b.addEventListener('click',()=>{
-    selDow=+b.dataset.dow; renderDays(); updateProgress();
+    selDow=+b.dataset.dow; renderDaily(); renderDays(); updateProgress();
   }));
   const selChip=strip.querySelector('.wchip.sel');
   if(selChip) strip.scrollLeft = Math.max(0, selChip.offsetLeft - strip.clientWidth/2 + selChip.clientWidth/2);
@@ -381,7 +383,7 @@ function renderDays(){
         const nb=document.createElement('button');
         nb.type='button'; nb.className='btn nextbtn';
         nb.textContent=`Следующая: ${DOW_FULL[next.dow]} · ${next.type==='gym'?next.day.title:next.title} →`;
-        nb.addEventListener('click',()=>{ selDow=next.dow; renderDays(); updateProgress(); });
+        nb.addEventListener('click',()=>{ selDow=next.dow; renderDaily(); renderDays(); updateProgress(); });
         root.appendChild(nb);
       }
       return;
@@ -454,17 +456,8 @@ function renderDays(){
     sec.innerHTML=`<div class="day-head"><h2>${day.title}${tag}</h2><span class="when">${whenText}</span></div>
                    <p class="day-note">${day.note}</p>`;
 
-    /* кнопки: первый пропуск переносит, второй отменяет */
-    const tools=document.createElement('div');
-    tools.className='day-tools';
-    const peBtn = (e.id==='d2' && !isSession())
-      ? `<button class="skipbtn pe${noPE()?' on':''}" type="button">${noPE()?'Физра была':'Физры не было'}</button>`
-      : '';
-    const skLabel = dropped ? 'Вернуть день' : (moved ? 'Снова не сделал' : 'Пропустил');
-    tools.innerHTML=`<button class="skipbtn sk${dropped?' on':''}${moved?' moved':''}" type="button">${skLabel}</button>${peBtn}`;
-    tools.querySelector('.sk').addEventListener('click',()=>toggleSkip(e.id));
-    if(e.id==='d2' && !isSession()) tools.querySelector('.pe').addEventListener('click', togglePE);
-    sec.appendChild(tools);
+    /* «Не получается?» — все отклонения от плана в одном месте, а не три кнопки на виду */
+    sec.appendChild(dayMenu(e, dropped, moved));
 
     /* отменённый день: вместо упражнений — что это значит */
     if(dropped){
@@ -492,24 +485,25 @@ function renderDays(){
       sec.appendChild(n);
     }
 
-    /* поясница: светофор в днях, где есть наклоны и штанга */
-    if(day.ex.some(x=>BACK_LOAD.includes(x.tech))){
-      const bs=backStatus();
+    /* Светофоры поясницы и колена: карточка только когда есть оценка.
+       Зелёный — одна строка, жёлтый и красный — с объяснением.
+       Нет оценки — одна ссылка на утреннюю форму, а не два блока текста */
+    const needBack=day.ex.some(x=>BACK_LOAD.includes(x.tech)), needKnee=day.ex.some(x=>x.badge[0]==='Скорость');
+    const bs=needBack?backStatus():null, ks=needKnee?kneeStatus():null;
+    [bs,ks].forEach(st=>{
+      if(!st) return;
       const n=document.createElement('div');
-      n.className='coach knee-note '+(bs?bs.lvl:'');
-      n.innerHTML = bs ? `<b>${bs.title}</b>${bs.text}`
-        : `<b>Поясница</b>Утром оцени, как она, 0–10 во вкладке «Прогресс» — здесь появится светофор для наклонов. Если во время подхода в пояснице больше 2 из 10 — стоп.`;
+      n.className='coach knee-note '+st.lvl+(st.lvl==='g'?' slim':'');
+      n.innerHTML = st.lvl==='g' ? `<b>${st.title}</b>` : `<b>${st.title}</b>${st.text}`;
       sec.appendChild(n);
-    }
-
-    /* колено прыгуна: светофор по утренней оценке */
-    if(day.ex.some(x=>x.badge[0]==='Скорость')){
-      const ks=kneeStatus();
-      const n=document.createElement('div');
-      n.className='coach knee-note '+(ks?ks.lvl:'');
-      n.innerHTML = ks ? `<b>${ks.title}</b>${ks.text}`
-        : `<b>Колено</b>Утром после прыжкового дня оцени боль 0–10 во вкладке «Прогресс» — здесь появится светофор. Перед прыжками — изометрия у стены 5 × 45 сек.`;
-      sec.appendChild(n);
+    });
+    if((needBack && !bs) || (needKnee && !ks)){
+      const what=[needKnee&&!ks?'колено':'', needBack&&!bs?'поясницу':''].filter(Boolean).join(' и ');
+      const a=document.createElement('button');
+      a.type='button'; a.className='linkbtn morning-link';
+      a.textContent=`Оценить ${what} 0–10 — план подстроится →`;
+      a.addEventListener('click',()=>goTab('prog','#progToday'));
+      sec.appendChild(a);
     }
 
     /* четверг без физры: объясняем, что поменялось и чего не заменить */
@@ -521,6 +515,9 @@ function renderDays(){
         <br><br>Не заменяется одно: ускорения с места. На дорожке полотно уходит из-под ноги само, а весь смысл в отталкивании от неподвижного пола. Раз-два в месяц это ничего не стоит; если физры нет несколько недель подряд — нужен любой коридор метров на двадцать.`;
       sec.appendChild(n);
     }
+
+    /* старт / идёт / итог тренировки */
+    sec.appendChild(sessionBar(e, day));
 
     /* --- разминка --- */
     const wb=document.createElement('div');
@@ -579,7 +576,8 @@ function renderDays(){
 
     /* --- основные упражнения --- */
     day.ex.forEach(ex=>sec.appendChild(exCard(day, ex)));
-    sec.appendChild(watchBlock(day.id));
+    /* в конце — «Закончить», чтобы не листать наверх */
+    if(sessionState(day.id)==='run') sec.appendChild(finishBtn(day.id));
 
     root.appendChild(sec);
   });
@@ -970,6 +968,132 @@ function watchBlock(id){
   return box;
 }
 
+/* ############################################################
+   ТРЕНИРОВКА ОТ НАЧАЛА ДО КОНЦА
+   «Начать» → идёт (время, сколько сделано) → «Закончить» → итог
+   с самочувствием. Время старта и конца пишутся туда же, где данные
+   с часов, поэтому выгрузка и калории считают их как раньше.
+   ############################################################ */
+function sessionState(id){
+  const W=watch[watchKey(id)]||{};
+  return !W.s ? 'idle' : (W.e ? 'done' : 'run');
+}
+const dayDate = e => dateOfCW(state.cycle, state.week, (e.dow+6)%7);
+function daySummary(day){
+  const pre=`${state.cycle}-${state.week}-${day.id}-`;
+  const done=day.ex.filter(x=>marks[key(day.id,x.id)]).length;
+  let vol=0;
+  for(const k in logs) if(k.startsWith(pre)) (logs[k].sets||[]).forEach(s=>{ const w=num(s.w), r=num(s.r); if(w&&r) vol+=w*r; });
+  return {done, total:day.ex.length, vol:Math.round(vol)};
+}
+function setWatch(id, f, v){
+  const k=watchKey(id), cur=watch[k]||{};
+  if(v==null) delete cur[f]; else cur[f]=v;
+  if(Object.keys(cur).length) watch[k]=cur; else delete watch[k];
+  saveWatch();
+}
+let sessTick=0;
+function sessionBar(e, day){
+  clearInterval(sessTick);
+  const id=day.id, st=sessionState(id), W=watch[watchKey(id)]||{};
+  const box=document.createElement('div');
+  box.className='sessbar '+st;
+  const isToday = isNowWeek() && e.dow===new Date().getDay();
+  const S=daySummary(day);
+  const watchFold=`<div class="sb-more"><button type="button" class="linkbtn sb-watch">${st==='idle'?'Записать время и пульс вручную':'Время, пульс и калории с часов'}</button><div class="sb-wslot" hidden></div></div>`;
+
+  if(st==='idle'){
+    if(!isToday){ box.innerHTML=watchFold; }
+    else box.innerHTML=`<button type="button" class="btn btn-primary sb-start">Начать тренировку</button>${watchFold}`;
+  } else if(st==='run'){
+    const el=()=>{ const m=watchMinutes({s:W.s, e:nowHM()}); return m==null?'':fmtDur(m); };
+    box.innerHTML=`<div class="sb-row"><div><div class="sb-t">Идёт тренировка</div>
+        <div class="sb-s">с ${esc(W.s)} · <span class="sb-el">${el()}</span> · сделано ${S.done} из ${S.total}</div></div>
+        <button type="button" class="btn sb-stop">Закончить</button></div>${watchFold}`;
+    sessTick=setInterval(()=>{ const x=box.querySelector('.sb-el'); if(!x || !x.isConnected) return clearInterval(sessTick); x.textContent=el(); }, 30000);
+  } else {
+    const m=watchMinutes(W), d=dayDate(e), feel=num((body[d]||{}).feel);
+    box.innerHTML=`<div class="sb-t">Тренировка сделана${m?` · ${fmtDur(m)}`:''}</div>
+      <div class="sb-s">${S.done} из ${S.total} упражнений${S.vol?` · поднято ${S.vol.toLocaleString('ru-RU')} кг`:''}</div>
+      <div class="sb-feel"><span>Самочувствие после, 1–10</span>
+        <div class="scale">${Array.from({length:10},(_,i)=>`<button type="button" data-v="${i+1}" aria-pressed="${feel===i+1}">${i+1}</button>`).join('')}</div></div>
+      ${watchFold}`;
+    box.querySelectorAll('.sb-feel button').forEach(b=>b.addEventListener('click',()=>{
+      const v=+b.dataset.v; body[d]=body[d]||{};
+      if(num(body[d].feel)===v) delete body[d].feel; else body[d].feel=v;
+      saveBody();
+      box.querySelectorAll('.sb-feel button').forEach(x=>x.setAttribute('aria-pressed', String(num(body[d].feel)===+x.dataset.v)));
+    }));
+  }
+  const start=box.querySelector('.sb-start');
+  if(start) start.addEventListener('click',()=>{
+    setWatch(id,'s',nowHM()); renderDays(); updateProgress();
+    const w=document.querySelector(`#${id} .warmblock`); if(w) w.scrollIntoView({behavior:'smooth', block:'start'});
+    toast(`Начало ${nowHM()} · удачной тренировки`);
+  });
+  const stop=box.querySelector('.sb-stop');
+  if(stop) stop.addEventListener('click',()=>finishSession(id));
+  const wb=box.querySelector('.sb-watch'), slot=box.querySelector('.sb-wslot');
+  wb.addEventListener('click',()=>{
+    if(!slot.firstChild) slot.appendChild(watchBlock(id));
+    slot.hidden=!slot.hidden;
+  });
+  return box;
+}
+function finishSession(id){
+  setWatch(id,'e',nowHM()); renderDays(); updateProgress();
+  const b=document.querySelector(`#${id} .sessbar`); if(b) b.scrollIntoView({behavior:'smooth', block:'center'});
+  toast('Готово. Оцени самочувствие — это видно в отчёте');
+}
+function finishBtn(id){
+  const b=document.createElement('button');
+  b.type='button'; b.className='btn btn-primary sb-finish';
+  b.textContent='Закончить тренировку';
+  b.addEventListener('click',()=>finishSession(id));
+  return b;
+}
+
+/* ---------- «Не получается?» ----------
+   Пропуск (перенос), физры не было, болею — в одном меню */
+function unskip(id){ delete skips[skipKey(id)]; delete skips[dropKey(id)]; saveSkips(); renderAll(); }
+function pauseWeek(fromDow){
+  const ord=d=>(d===0?7:d);
+  buildWeek().forEach(x=>{
+    if((x.type==='gym'||x.type==='run') && ord(x.dow)>=ord(fromDow)){ skips[skipKey(x.id)]=true; skips[dropKey(x.id)]=true; }
+  });
+  saveSkips(); renderAll();
+  toast('Пауза до конца недели. После — первая тренировка будет легче');
+}
+function dayMenu(e, dropped, moved){
+  const box=document.createElement('div');
+  box.className='day-tools';
+  if(dropped){
+    box.innerHTML=`<button class="skipbtn on" type="button">Вернуть день</button>`;
+    box.firstChild.addEventListener('click',()=>unskip(e.id));
+    return box;
+  }
+  const speed=e.id==='d2', pe=speed && !isSession();
+  const opts=[
+    {a:'skip', t:moved?'Снова не сделал':'Пропустил',
+     s:moved?'отменить тренировку на этой неделе':(speed?'скоростная не переносится — просто отменится':'перенести на ближайший подходящий день')},
+    ...(moved?[{a:'back', t:'Вернуть в свой день', s:'перенос не нужен'}]:[]),
+    ...(pe?[{a:'pe', t:noPE()?'Физра всё-таки была':'Физры не было', s:noPE()?'вернуть скоростную после физры':'прыжки дома, выносливость — горкой на дорожке'}]:[]),
+    {a:'ill', t:'Болею', s:'пауза до конца недели, после — мягкое возвращение'}
+  ];
+  box.innerHTML=`<button class="skipbtn more${moved||noPE()&&speed?' moved':''}" type="button" aria-expanded="false">${moved?'Перенесено · изменить':'Не получается?'}</button>
+    <div class="day-menu" hidden>${opts.map(o=>`<button type="button" class="dm-opt" data-a="${o.a}"><b>${o.t}</b><span>${o.s}</span></button>`).join('')}</div>`;
+  const btn=box.querySelector('.more'), menu=box.querySelector('.day-menu');
+  btn.addEventListener('click',()=>{ menu.hidden=!menu.hidden; btn.setAttribute('aria-expanded', String(!menu.hidden)); });
+  menu.querySelectorAll('.dm-opt').forEach(o=>o.addEventListener('click',()=>{
+    const a=o.dataset.a;
+    if(a==='skip'){ if(speed && !moved){ skips[skipKey(e.id)]=true; skips[dropKey(e.id)]=true; saveSkips(); renderAll(); } else toggleSkip(e.id); }
+    else if(a==='back') unskip(e.id);
+    else if(a==='pe') togglePE();
+    else if(a==='ill'){ if(confirm('Поставить паузу до конца недели? Тренировки этой недели отменятся, вернуть можно кнопкой «Вернуть день».')) pauseWeek(e.dow); }
+  }));
+  return box;
+}
+
 /* Строка замены: «Заменить на …» или «Вернуть …» */
 function subRow(ex){
   if(ex.sub) return `<div class="subrow">Замена для «${ex.sub.from}»: ${ex.sub.why}.
@@ -1001,8 +1125,8 @@ function exCard(day, ex){
       <div class="ex-main">
         <div class="ex-name">${ex.name}</div>
         <div class="ex-meta">
-          <span class="badge ${ex.badge[1]}">${ex.badge[0]}</span>
-          <span class="dose">${doseShown}${ex.rest&&ex.rest!=='—'?`<span class="rest">отдых ${ex.rest}</span>`:''}</span>
+          ${ex.badge[0]==='Тест'?`<span class="badge ${ex.badge[1]}">тест</span>`:''}${ex.sub?'<span class="badge b-sub">замена</span>':''}
+          <span class="dose">${doseShown}</span>${ex.rest&&ex.rest!=='—'?`<span class="rest">отдых ${ex.rest}</span>`:''}
         </div>
       </div>
       <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>

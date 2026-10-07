@@ -42,6 +42,7 @@ const FASTFOOD=[
   {name:'Стрипсы, 3 шт', k:290, p:21, f:15, c:18}
 ];
 let favEdit=false;
+let custOpen={ff:false, form:false};   /* фастфуд и ручной ввод раскрываются по кнопке */
 const getFavs=()=>store.get('planFav', null) || FAV_SEED.slice();
 const setFavs=f=>store.set('planFav', f);
 
@@ -57,29 +58,37 @@ function renderCustom(){
         <button class="cust-fav" type="button" data-i="${i}" aria-label="В избранное">☆</button>
         <button class="cust-del" type="button" data-i="${i}" aria-label="Удалить">×</button>
       </div>`).join('')
-    : `<p style="font-size:14px;color:var(--muted);margin:0">Пока пусто. Сюда добавляй всё, что съел не из списка — столовую, перекус, что-то дома.</p>`;
+    : '';
 
   const favs=getFavs();
   box.innerHTML=`
     <h3>Съел ещё</h3>
     <div class="favhead"><span>Быстро добавить</span><button type="button" id="favEdit">${favEdit?'Готово':'Изменить'}</button></div>
     <div class="favs">${favs.map((x,i)=>`<button type="button" class="fav${x.bad?' bad':''}" data-i="${i}">${favEdit?'<span class="x">×</span>':''}${esc(x.name)} <small>${esc(x.k)}</small></button>`).join('')}</div>
-    <div class="favhead"><span>Фастфуд · цифры примерные</span></div>
-    <div class="favs">${FASTFOOD.map((x,i)=>`<button type="button" class="fav ff${x.bad?' bad':''}" data-i="${i}">${x.name} <small>${x.k}</small></button>`).join('')}</div>
-    <p style="font-size:12px;color:var(--muted);margin:-6px 0 14px">На сушке лучший выбор — двойной чизбургер и стрипсы: больше всего белка на калорию. Шаурма 700 г — больше половины дневной нормы: бери половину или без лишнего соуса, в этот день остальное — мясо и овощи. Фри и газировку заменяй на второй бургер или наггетсы.</p>
     ${favs.some(x=>x.bad)&&!favEdit?`<p style="font-size:12px;color:var(--muted);margin:-6px 0 14px">Оранжевая рамка — то, что план советует заменить: много жира или сахара и мало белка.</p>`:''}
     ${rows}
-    <div class="cust-form">
-      <input class="wide" id="cuName" type="text" placeholder="Что это было">
-      <input id="cuK" type="number" inputmode="numeric" placeholder="ккал">
-      <input id="cuP" type="number" inputmode="numeric" placeholder="белки, г">
-      <input id="cuF" type="number" inputmode="numeric" placeholder="жиры, г">
-      <input id="cuC" type="number" inputmode="numeric" placeholder="углеводы, г">
+    <div class="btn-row" style="margin-top:4px">
+      <button class="btn" type="button" id="cuFF" aria-expanded="${custOpen.ff}">Фастфуд</button>
+      <button class="btn" type="button" id="cuOwn" aria-expanded="${custOpen.form}">Своё блюдо</button>
     </div>
-    <div class="btn-row"><button class="btn" type="button" id="cuAdd">Добавить в день</button></div>
-    <p style="font-size:12.5px;color:var(--muted);margin:12px 0 0">
-      Если знаешь только калории — впиши их, остальное оставь пустым. Сумма всё равно обновится.
-    </p>`;
+    <div ${custOpen.ff?'':'hidden'} style="margin-top:14px">
+      <div class="favhead"><span>Фастфуд · цифры примерные</span></div>
+      <div class="favs">${FASTFOOD.map((x,i)=>`<button type="button" class="fav ff${x.bad?' bad':''}" data-i="${i}">${x.name} <small>${x.k}</small></button>`).join('')}</div>
+      <p style="font-size:12px;color:var(--muted);margin:-6px 0 0">На сушке лучший выбор — двойной чизбургер и стрипсы: больше всего белка на калорию. Шаурма 700 г — больше половины дневной нормы: бери половину или без лишнего соуса, в этот день остальное — мясо и овощи.</p>
+    </div>
+    <div ${custOpen.form?'':'hidden'} style="margin-top:14px">
+      <div class="cust-form">
+        <input class="wide" id="cuName" type="text" placeholder="Что это было">
+        <input id="cuK" type="number" inputmode="numeric" placeholder="ккал">
+        <input id="cuP" type="number" inputmode="numeric" placeholder="белки, г">
+        <input id="cuF" type="number" inputmode="numeric" placeholder="жиры, г">
+        <input id="cuC" type="number" inputmode="numeric" placeholder="углеводы, г">
+      </div>
+      <div class="btn-row"><button class="btn btn-primary" type="button" id="cuAdd">Добавить в день</button></div>
+      <p style="font-size:12.5px;color:var(--muted);margin:12px 0 0">Знаешь только калории — впиши их, остальное оставь пустым.</p>
+    </div>`;
+  box.querySelector('#cuFF').addEventListener('click',()=>{ custOpen.ff=!custOpen.ff; renderCustom(); });
+  box.querySelector('#cuOwn').addEventListener('click',()=>{ custOpen.form=!custOpen.form; renderCustom(); if(custOpen.form) document.getElementById('cuName').focus(); });
 
   box.querySelectorAll('.cust-del').forEach(b=>{
     b.addEventListener('click',()=>{
@@ -412,11 +421,8 @@ function renderWeekStats(){
     if(on && t) filled.push({d, k:t.k, diff:t.k-T.k});
   }
 
-  if(filled.length < 2){
-    box.innerHTML=`<div class="wstat"><h3>Сводка за неделю</h3>
-      <p style="font-size:14px;color:var(--muted);margin:0">Отметь хотя бы два дня, и здесь появится картина по неделе: в какие дни перебор, в какие недобор и что с этим делать.</p></div>`;
-    return;
-  }
+  /* меньше двух дней — сравнивать нечего, блок не показываем */
+  if(filled.length < 2){ box.innerHTML=''; return; }
 
   const scale = T.k*0.6;                       /* ширина полосы = ±60% цели */
   const bars = rows.map(r=>{
@@ -612,7 +618,7 @@ function renderReport(){
       <button class="btn" type="button" id="btnShareReport" hidden>Поделиться</button>
     <button class="btn" type="button" id="btnCopyReport">Скопировать</button>
     </div>
-    <textarea id="reportText" readonly placeholder="Нажми «Собрать отчёт»"></textarea>
+    <textarea id="reportText" readonly hidden></textarea>
     <div class="ok" id="reportOk" style="display:none">Скопировано</div>
   </div>`;
 
@@ -620,7 +626,7 @@ function renderReport(){
   const ok=box.querySelector('#reportOk');
 
   box.querySelector('#btnReport').addEventListener('click',()=>{
-    ta.value=buildReport();
+    ta.value=buildReport(); ta.hidden=false;
     ok.style.display='none';
   });
 
@@ -632,7 +638,7 @@ function renderReport(){
   });
 
   box.querySelector('#btnCopyReport').addEventListener('click',()=>{
-    if(!ta.value) ta.value=buildReport();
+    if(!ta.value){ ta.value=buildReport(); ta.hidden=false; }
     if(navigator.clipboard && window.isSecureContext){
       navigator.clipboard.writeText(ta.value)
         .then(()=>{ ok.style.display='block'; toast('Отчёт скопирован'); })
@@ -796,6 +802,8 @@ function dishCard(d){
     clr.addEventListener('click',e=>{ e.stopPropagation(); setTime(''); });
     /* выключил блюдо — время тоже убираем */
     tg.addEventListener('click',()=>{ if(!dishOn[d.id] && mealTimes[d.id]){ delete mealTimes[d.id]; tinp.value=''; clr.hidden=true; saveFood(); } });
+    /* включил сегодня — значит съел сейчас: время ставится само */
+    tg.addEventListener('click',()=>{ if(dishOn[d.id] && !mealTimes[d.id] && foodDay===todayIdx() && isNowWeek()) setTime(nowHM()); });
     return card;
 }
 function refreshGroupCounts(){

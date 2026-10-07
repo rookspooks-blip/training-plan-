@@ -3,7 +3,7 @@
    17 · IPHONE: ЗАДАЧИ, РЕЗЕРВНАЯ КОПИЯ, УСТАНОВКА, ОФЛАЙН
    ############################################################ */
 /* Дата сборки — видна в «Справка → Данные», чтобы проверить, что обновление пришло */
-const APP_VERSION='справка и календарь из дат плана';
+const APP_VERSION='проще: старт и финиш тренировки, меню пропусков';
 let toastTimer=0;
 function toast(msg){
   const t=document.getElementById('toast');
@@ -117,6 +117,23 @@ function importBackup(file){
   };
   r.readAsText(file);
 }
+/* Первый запуск: три пункта, как пользоваться. Показывается, пока нет ни одной записи */
+function renderOnboard(){
+  const box=document.getElementById('onboard');
+  const empty=!Object.keys(logs).length && !Object.keys(marks).length && !Object.keys(body).length
+    && !Object.values(foodLog).some(d=>d && (Object.values(d.dishOn||{}).some(Boolean) || (d.custom||[]).length));
+  if(!empty || store.get('planOnboarded',false)){ box.innerHTML=''; return; }
+  box.innerHTML=`<div class="onboard">
+    <h3>Как пользоваться</h3>
+    <ol>
+      <li><b>Неделя выбирается по дате.</b> Старт плана — ${planDates().start}. Поменять — нажми на карточку недели сверху.</li>
+      <li><b>В день тренировки</b> нажми «Начать тренировку» и записывай подходы: вес на следующий раз приложение подберёт само.</li>
+      <li><b>Утром</b> во вкладке «Прогресс» — вес, колено и поясница 0–10. По ним план подстраивается.</li>
+    </ol>
+    <button type="button" class="btn btn-primary" id="obOk" style="width:100%">Понятно</button></div>`;
+  box.querySelector('#obOk').addEventListener('click',()=>{ store.set('planOnboarded',true); box.innerHTML=''; });
+}
+
 function renderBackup(){
   const box=document.getElementById('backupBox');
   if(!box) return;
@@ -130,6 +147,7 @@ function renderBackup(){
       <button class="btn" type="button" id="btnRestore">Восстановить</button>
     </div>
     <input type="file" id="restoreFile" accept="application/json,.json" hidden>
+    <button class="linkbtn danger" type="button" id="btnWipe" style="margin-top:12px">Удалить все данные с телефона</button>
     ${auto ? `<p style="font-size:12.5px;color:var(--muted);margin-top:10px">Автокопия от ${esc(new Date(auto.saved).toLocaleString('ru-RU',{day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'}))} — ${esc(auto.reason||'')}. <button class="linkbtn" type="button" id="btnAuto">Вернуть её</button></p>` : ''}
     <h5 style="margin-top:16px">Календарь</h5>
     <p>Тренировки сушки и сессионного блока (с ${shortDate(settings.start)}) и напоминания взвеситься — в стандартный Календарь iPhone. За 30 минут до тренировки придёт уведомление.</p>
@@ -150,6 +168,12 @@ function renderBackup(){
   const inp=box.querySelector('#restoreFile');
   box.querySelector('#btnRestore').addEventListener('click',()=>inp.click());
   inp.addEventListener('change',()=>{ if(inp.files[0]) importBackup(inp.files[0]); inp.value=''; });
+  box.querySelector('#btnWipe').addEventListener('click',()=>{
+    if(!confirm('Удалить все записи: тренировки, еду, замеры, настройки? Перед удалением приложение сохранит автокопию — её можно будет вернуть здесь же.')) return;
+    snapshot('перед удалением всех данных');
+    [...DATA_KEYS, ...LEGACY_KEYS, 'planTab','planOnboarded'].forEach(k=>{ try{ localStorage.removeItem(k); }catch(e){} });
+    toast('Данные удалены'); setTimeout(()=>location.reload(),700);
+  });
   const ab=box.querySelector('#btnAuto');
   if(ab) ab.addEventListener('click',()=>{
     if(confirm('Вернуть данные из автокопии? Текущие данные заменятся.')) afterRestore(restoreData(auto, null));

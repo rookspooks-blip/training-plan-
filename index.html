@@ -25,32 +25,21 @@
 <div class="wrap" id="top">
 
 <header>
-  <h1>Три цикла
-    <span class="sub">Год работы над прыжком, силой и первым шагом · позиции 1–3</span>
-  </h1>
-
-  <!-- Выбор цикла и недели переехал в модальное окно -->
+  <!-- Одна карточка: где мы в плане, сколько отмечено. Нажатие — выбор недели -->
   <button class="weekbtn" type="button" id="openModal" aria-haspopup="dialog">
-    <span>
-      <span class="wb-t" id="wbTitle">Цикл 1 · Неделя 1</span>
-      <span class="wb-s" id="wbSub">Нажми, чтобы сменить</span>
+    <span class="wb-txt">
+      <span class="wb-t" id="wbTitle">Неделя 1</span>
+      <span class="wb-s" id="wbSub"></span>
     </span>
+    <span class="wb-done"><span class="num" id="progCount">0 / 0</span><span class="wb-bar"><i id="progBar"></i></span></span>
     <svg class="wb-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <circle cx="12" cy="12" r="3"/>
       <path d="M19.4 15a1.7 1.7 0 00.3 1.9l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-2.9 1.2v.2a2 2 0 11-4 0v-.1a1.7 1.7 0 00-3-1.5l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00-1.1-2.9H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-3l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 002.9-1.1V3a2 2 0 114 0v.1a1.7 1.7 0 003 1.5l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 001.1 2.9h.2a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/>
     </svg>
   </button>
-
-  <div class="status" id="status"></div>
-
-  <div class="progress-wrap">
-    <div class="progress-top">
-      <span>Отмечено на этой неделе</span>
-      <span class="cnt num" id="progCount">0 / 0</span>
-    </div>
-    <div class="bar"><i id="progBar"></i></div>
-  </div>
+  <div class="status" id="status" hidden></div>
   <div id="installHint"></div>
+  <div id="onboard"></div>
 </header>
 
 <div class="tab" data-tab="today">
@@ -67,23 +56,29 @@
   <div class="fdays" id="foodDays"></div>
   <div id="mealTiming"></div>
   <div id="macroSummary"></div>
-  <div id="weekStats"></div>
-  <div id="weekReport"></div>
-  <div class="btn-row" style="margin:0 0 8px">
+  <!-- Главное действие на виду, редкие — под «Ещё» -->
+  <div class="btn-row" style="margin:0 0 16px">
     <button class="btn btn-primary" type="button" id="btnAssemble">Собрать день</button>
-    <button class="btn" type="button" id="btnResetFood">Базовый набор</button>
+    <button class="btn" type="button" id="btnFoodMore" aria-expanded="false">Ещё</button>
   </div>
-  <div class="btn-row" style="margin:0 0 8px">
-    <button class="btn" type="button" id="btnClearDay">Обнулить день</button>
-    <button class="btn" type="button" id="btnClearWeek">Очистить неделю</button>
+  <div id="foodMore" hidden>
+    <div class="btn-row" style="margin:0 0 8px">
+      <button class="btn" type="button" id="btnResetFood">Базовый набор</button>
+      <button class="btn" type="button" id="btnClearDay">Обнулить день</button>
+    </div>
+    <div class="btn-row" style="margin:0 0 8px">
+      <button class="btn" type="button" id="btnClearWeek">Очистить неделю</button>
+    </div>
+    <p style="font-size:12.5px;color:var(--muted);margin:0 0 16px">
+      Отмечай тумблером то, что реально съел: время приёма поставится само, его можно поправить.
+      «Собрать день» берёт завтрак, два разных мяса с подходящими гарнирами, овощи и перекус и подгоняет граммовки под калораж недели.
+      Пустые дни в недельную статистику не попадают.
+    </p>
   </div>
-  <p style="font-size:12.5px;color:var(--muted);margin:0 0 16px">
-    Новый день начинается пустым — отмечай тумблерами то, что реально съел.
-    «Собрать день» берёт завтрак, два разных мяса с подходящими гарнирами, овощи и перекус и подгоняет граммовки под калораж недели.
-    Пустые дни в недельную статистику не попадают.
-  </p>
   <div id="dishes"></div>
   <div class="card" id="customBox"></div>
+  <div id="weekStats"></div>
+  <div id="weekReport"></div>
 </section>
 
 </div><!-- /food -->

@@ -48,7 +48,7 @@
 | `js/progress.js` · `js/export.js` | вкладка «Прогресс» и выгрузка дней |
 | `js/calendar.js` | календарь .ics из дат плана (кнопка в приложении и `plan.ics`) |
 | `js/main.js` | запуск |
-| `tests/` | проверки в эмуляции iPhone (Playwright): `smoke.mjs`, `rules.mjs` |
+| `tests/` | проверки в эмуляции iPhone (Playwright): `smoke.mjs`, `rules.mjs`, `flows.mjs` |
 | `plan.ics` | расписание для Календаря iPhone — собирается `node tools/make-ics.mjs`, руками не править |
 | `manifest.webmanifest` | название и иконка для экрана «Домой» |
 | `sw.js` | офлайн-режим (при изменении файлов подними `VERSION`) |

@@ -202,18 +202,30 @@ function renderExtra(){
    ############################################################ */
 function renderHeader(){
   const info=weekInfo();
-  document.getElementById('wbTitle').textContent = isSession() ? `Сессия · неделя ${state.week-12}` : `Цикл ${state.cycle} · Неделя ${state.week}`;
-  document.getElementById('wbSub').textContent=info.where;
+  /* Заголовок: неделя и её тип. Подпись: цикл и цель (в циклах 2–3 — рабочие веса) */
+  const KIND={build:'рабочая', hyper:'рабочая', deload:'разгрузка', test:'тестовая'};
+  const ses=settings.session|0;
+  document.getElementById('wbTitle').textContent = isSession()
+    ? `Сессия · неделя ${state.week-12} из ${ses}`
+    : `Неделя ${state.week} из ${state.cycle===1?12:maxWeek(state.cycle)} · ${KIND[info.kind]||''}`;
+  const goal = isSession() ? 'поддержание формы'
+    : state.cycle===1 ? 'сушка · свой вес'
+    : (info.kind==='build'||info.kind==='hyper') ? info.label.replace(/^Блок [АБ] · /,'').toLowerCase()
+    : state.cycle===2 ? 'сила · штанга' : 'гипертрофия';
+  document.getElementById('wbSub').textContent=`Цикл ${state.cycle} · ${goal}`;
 
+  /* Отдельная строка — только когда есть что сказать */
   const el=document.getElementById('status');
-  el.className='status'+(info.kind==='deload'?' is-deload':info.kind==='test'?' is-test':(info.shift?' is-shift':''));
-  const shiftNote = info.shift
-    ? `<span class="where">Прогрессия сдвинута на ${info.shift} ${info.shift===1?'неделю':'недели'}: пропущенные силовые не выкинуты, веса догоняют. Выровняется на разгрузке.</span>`
-    : '';
-  const of = state.cycle===1 ? (isSession() ? '' : ' из 12') : ` из ${maxWeek(state.cycle)}`;
-  const pre = (settings.auto && settings.start && daysBetween(isoDay(), settings.start)>0)
-    ? `<span class="where">Старт плана — пн ${shortDate(settings.start)}. До него можно осмотреться и сделать первый замер прыжка.</span>` : '';
-  el.innerHTML = isSession() ? `<b>${info.label}</b>${pre}` : `<b>Неделя ${state.week}${of}</b> · ${info.label}${shiftNote}${pre}`;
+  const notes=[];
+  if(info.shift) notes.push(`<b>Прогрессия сдвинута на ${info.shift} ${info.shift===1?'неделю':'недели'}.</b> Пропущенные силовые не выкинуты — веса догоняют, выровняется на разгрузке.`);
+  if(settings.auto && settings.start && daysBetween(isoDay(), settings.start)>0)
+    notes.push(`<b>Старт плана — пн ${shortDate(settings.start)}.</b> До него можно осмотреться и сделать первый замер прыжка.`);
+  if(/План пройден/.test(info.label)) notes.push(`<b>${info.label}.</b> ${info.where}.`);
+  if(info.kind==='deload') notes.push('<b>Разгрузка.</b> Меньше подходов и веса — так закрепляется рост прошлых недель.');
+  if(info.kind==='test') notes.push('<b>Тестовая неделя.</b> Замеры на свежую голову: прыжок, тесты, рабочие максимумы.');
+  el.className='status'+(info.kind==='deload'||info.kind==='test'?' is-deload':(info.shift?' is-shift':''));
+  el.innerHTML=notes.join('<br>');
+  el.hidden=!notes.length;
 }
 
 /* На «Сегодня» виден один день, поэтому неделю считаем по данным, а не по экрану */
@@ -339,6 +351,10 @@ document.addEventListener('keydown',e=>{ if(e.key==='Escape' && backdrop.classLi
    16 · КНОПКИ И ПРОКРУТКА
    ############################################################ */
 document.getElementById('btnAssemble').addEventListener('click', assembleDay);
+document.getElementById('btnFoodMore').addEventListener('click',e=>{
+  const m=document.getElementById('foodMore'); m.hidden=!m.hidden;
+  e.currentTarget.setAttribute('aria-expanded', String(!m.hidden));
+});
 /* Стандартный набор с эталонными граммовками */
 document.getElementById('btnResetFood').addEventListener('click',()=>{
   Object.keys(grams).forEach(k=>delete grams[k]);
