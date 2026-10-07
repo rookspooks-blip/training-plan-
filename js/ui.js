@@ -255,7 +255,7 @@ function updateProgress(){
   buildWeek().forEach(e=>{
     if(e.type==='gym'){
       if(isDropped(e.id)) return;
-      warm.list.forEach(x=>add(key(e.day.id,x.id)));
+      if(!e.day.noWarm) warm.list.forEach(x=>add(key(e.day.id,x.id)));
       e.day.ex.forEach(x=>add(key(e.day.id,x.id)));
     } else if(e.type==='run'){
       if(isSkipped(e.id)) return;

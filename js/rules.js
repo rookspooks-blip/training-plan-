@@ -18,7 +18,7 @@ function isNowWeek(){
 /* ---------- Когда реально тренировался ----------
    День тренировки считается сделанным, если в нём есть галочка,
    запись подходов или данные с часов. Дата — по расписанию недели. */
-const DAY_DOW={d1:0, d2:3, d3:5};
+const DAY_DOW={d1:0, d2:3, d3:5, d4:4};
 
 /* Расчёты по всей истории дорогие, а за одну перерисовку их зовут
    десятки раз. Запоминаем результат, пока не поменялись данные, дата или неделя */
@@ -33,7 +33,7 @@ function memo(name, fn){
 /* Дни, в которых что-то сделано: "цикл-неделя-день" */
 function activeDays(){
   return memo('active', ()=>{
-    const set=new Set(), re=/^([123]-\d+-d[123])(?:-|$)/;
+    const set=new Set(), re=/^([123]-\d+-d[1-4])(?:-|$)/;
     for(const k in watch){ const m=k.match(re); if(m) set.add(m[1]); }
     for(const k in marks){ const m=marks[k] && k.match(re); if(m) set.add(m[1]); }
     for(const k in logs){ const m=k.match(re); if(m && hasData(logs[k])) set.add(m[1]); }
@@ -47,7 +47,7 @@ function activityDates(){ return memo('dates', activityDatesRaw); }
 function activityDatesRaw(){
   const set=new Set(), today=isoDay();
   const add=(c,w,id)=>{ if(DAY_DOW[id]!=null) set.add(dateOfCW(c,w,DAY_DOW[id])); };
-  const parse=k=>k.match(/^([123])-(\d+)-(d[123])(?:-|$)/);
+  const parse=k=>k.match(/^([123])-(\d+)-(d[1-4])(?:-|$)/);
   for(const k in logs){ const L=logs[k]; if(L && hasData(L)){ if(L.d) set.add(L.d); else { const m=parse(k); if(m) add(+m[1],+m[2],m[3]); } } }
   for(const k in marks){ const m=marks[k] && parse(k); if(m) add(+m[1],+m[2],m[3]); }
   for(const k in watch){ const m=parse(k); if(m) add(+m[1],+m[2],m[3]); }
@@ -119,8 +119,9 @@ const ALTS={
   'Копенгагенская планка':{name:'Изометрия паха', tech:'w_groin', why:'пах болит больше 3 из 10',
     dose:ex=>`${setsOf(ex)} × 30 сек`},
 };
-/* Партнёра для нордических нет — по умолчанию сразу замена */
-const DEFAULT_SUBS={'Нордические сгибания':true};
+/* Замены по умолчанию. Нордические не заменяем: они вдвое снижают
+   травмы задней поверхности бедра, а пятки можно зацепить за диван */
+const DEFAULT_SUBS={};
 function subOn(name){
   const s=settings.subs||{};
   return (name in s) ? !!s[name] : !!DEFAULT_SUBS[name];

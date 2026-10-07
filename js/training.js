@@ -61,7 +61,7 @@ const dropKey  = id => `${state.cycle}-${state.week}-drop-${id}`;
 const peKey    = ()  => `${state.cycle}-${state.week}-nope`;
 const isMoved   = id => !!skips[skipKey(id)];
 const isDropped = id => !!skips[dropKey(id)];
-const isSkipped = id => isDropped(id) || (isMoved(id) && id==='d2');  /* скоростная не переносится */
+const isSkipped = id => isDropped(id) || (isMoved(id) && (id==='d2'||id==='d4'));  /* скоростные не переносятся */
 const noPE = () => !!skips[peKey()];
 
 function toggleSkip(id){
@@ -128,6 +128,7 @@ function layout(){
 function buildWeek(){
   const S=buildDays(state.cycle,state.week), C=cardioFor();
   if(noPE() && !isSession()) S[1]=homeSpeedDay();          /* четверг: физры не было */
+  if(!isSession()) S[3]=fridayDay(state.cycle,state.week);  /* пятница: первый шаг после физры */
   adjustDays(S);                                            /* замены, колено, перерыв, усталость */
   const L=layout();
   const MODE={bike:'Велосипед', run:'Бег', walk:'Ходьба'};
@@ -140,6 +141,7 @@ function buildWeek(){
   out.push({dow:L.d1.dow, id:'d1', type:'gym', day:S[0], moveNote:L.d1.note});
   if(!isDropped('d2')) out.push({dow:L.d2.dow, id:'d2', type:'gym', day:S[1], moveNote:L.d2.note});
   out.push({dow:L.d3.dow, id:'d3', type:'gym', day:S[2], moveNote:L.d3.note});
+  if(S[3] && !isDropped('d4')){ out.push({dow:5, id:'d4', type:'gym', day:S[3], moveNote:''}); taken.add(5); }
 
   /* Кардио: вторник и воскресенье, но уступают силовым */
   const dropped=[];
@@ -264,7 +266,8 @@ const DAILY=[WP.wallsit, WP.groin, WP.shortfoot, WP.balance];
 /* В какие дни недели есть тренировка (там блок закрыт разминкой) */
 function gymDays(){
   const set=new Set();
-  buildWeek().forEach(e=>{ if(e.type==='gym' && !isDropped(e.id)) set.add(e.dow===0?6:e.dow-1); });
+  /* пятничный «первый шаг» без разминки — там ежедневный блок нужен отдельно */
+  buildWeek().forEach(e=>{ if(e.type==='gym' && !isDropped(e.id) && !e.day.noWarm) set.add(e.dow===0?6:e.dow-1); });
   return set;
 }
 
@@ -519,8 +522,9 @@ function renderDays(){
     /* старт / идёт / итог тренировки */
     sec.appendChild(sessionBar(e, day));
 
-    /* --- разминка --- */
+    /* --- разминка (после физры не нужна) --- */
     const wb=document.createElement('div');
+    if(day.noWarm) wb.hidden=true;
     wb.className='warmblock';
     wb.innerHTML=`
       <div class="warm-head" tabindex="0" role="button" aria-expanded="false">
@@ -1072,7 +1076,7 @@ function dayMenu(e, dropped, moved){
     box.firstChild.addEventListener('click',()=>unskip(e.id));
     return box;
   }
-  const speed=e.id==='d2', pe=speed && !isSession();
+  const speed=e.id==='d2'||e.id==='d4', pe=e.id==='d2' && !isSession();
   const opts=[
     {a:'skip', t:moved?'Снова не сделал':'Пропустил',
      s:moved?'отменить тренировку на этой неделе':(speed?'скоростная не переносится — просто отменится':'перенести на ближайший подходящий день')},

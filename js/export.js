@@ -48,7 +48,7 @@ function dayExport(iso){
       const wd=watch[`${state.cycle}-${state.week}-${day.id}`]||null;
       tr={type:'gym', title:day.title, status:dropped?'отменена':(moved?'перенесена':'по плану'), watch:wd?{start:wd.s||null, end:wd.e||null, minutes:watchMinutes(wd), avgHr:num(wd.hr), maxHr:num(wd.mx), kcal:num(wd.kc)}:null,
           noPE: day.swap?true:false,
-          warmupDone:warm.list.filter(s=>marks[key(day.id,s.id)]).length, warmupTotal:warm.list.length,
+          warmupDone:day.noWarm?0:warm.list.filter(s=>marks[key(day.id,s.id)]).length, warmupTotal:day.noWarm?0:warm.list.length,
           exercises:exs, done:exs.filter(x=>x.done).length, total:exs.length,
           volumeKg:Math.round(exs.reduce((a,x)=>a+x.sets.reduce((b,s)=>b+s.kg*s.reps,0),0))};
     } else if(e && e.type==='run'){
@@ -119,7 +119,7 @@ function dayText(D){
   const T=D.training;
   L.push('ТРЕНИРОВКА');
   if(T.type==='gym'){
-    L.push(`  ${T.title} (${T.status}) — сделано ${T.done}/${T.total}, разминка ${T.warmupDone}/${T.warmupTotal}${T.noPE?', физры не было':''}`);
+    L.push(`  ${T.title} (${T.status}) — сделано ${T.done}/${T.total}${T.warmupTotal?`, разминка ${T.warmupDone}/${T.warmupTotal}`:''}${T.noPE?', физры не было':''}`);
     T.exercises.forEach((x,i)=>{
       const sets=x.sets.map(s=>(s.kg?R1(s.kg)+'×':'')+s.reps).join(', ');
       L.push(`  ${i+1}. ${x.name} — ${x.plan}${x.done?' ✓':''}`);
@@ -157,7 +157,7 @@ function dayRow(D){
   const rp=T.type==='gym'?Math.max(0,...T.exercises.map(x=>x.rpe||0)):0;
   return [D.date,D.weekday,D.cycle,D.week,T.title,T.status||'',
     T.type==='gym'?T.done:'', T.type==='gym'?T.total:'', sets, T.type==='gym'?T.volumeKg:'', rp||'',
-    T.type==='gym'?`${T.warmupDone}/${T.warmupTotal}`:'',
+    T.type==='gym'&&T.warmupTotal?`${T.warmupDone}/${T.warmupTotal}`:'',
     T.type==='cardio'?(T.done?1:0):'', T.type==='cardio'?(T.ball?1:0):'',
     D.dailyBlock===null?'в разминке':(D.dailyBlock?1:0),
     F.meals.length?F.total.kcal:'', D.target.kcal, F.meals.length?F.total.p:'', D.target.p, F.meals.length?F.total.f:'', F.meals.length?F.total.c:'',

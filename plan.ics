@@ -22,8 +22,8 @@ DTEND;TZID=Europe/Moscow:20261005T183000
 RRULE:FREQ=WEEKLY;UNTIL=20261227T205959Z
 SUMMARY:Силовая А
 DESCRIPTION:Сплит-присед\, подтягивания\, отжим
- ания\, скольжение пяток. Веса и повторы —
-  в приложении.
+ ания\, нордические (недели 1–4 — скольжен
+ ие пяток). Веса и повторы — в приложении.
 BEGIN:VALARM
 ACTION:DISPLAY
 DESCRIPTION:Силовая А
@@ -248,5 +248,20 @@ DTSTART;VALUE=DATE:20270125
 DTEND;VALUE=DATE:20270126
 SUMMARY:Старт цикла 2 · штанга
 DESCRIPTION:Калории ступенями: 2950 → 3075 → 3175.
+END:VEVENT
+BEGIN:VEVENT
+UID:tri-cikla-18@training-plan
+DTSTAMP:20260930T120000Z
+DTSTART;TZID=Europe/Moscow:20261009T112500
+DTEND;TZID=Europe/Moscow:20261009T114000
+RRULE:FREQ=WEEKLY;UNTIL=20261227T205959Z
+SUMMARY:Первый шаг после физры
+DESCRIPTION:Старты из стойки 6 × 5–10 м и ускорен
+ ия 3 × 20 м. Без прыжков.
+BEGIN:VALARM
+ACTION:DISPLAY
+DESCRIPTION:Первый шаг после физры
+TRIGGER:-PT30M
+END:VALARM
 END:VEVENT
 END:VCALENDAR

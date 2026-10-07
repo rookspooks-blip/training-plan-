@@ -104,10 +104,10 @@ const W7 = '2026-11-16';
 {
   const { ctx, p } = await at(W7);
   let ex = await dayEx(p, 'd1');
-  check('нордические заменены по умолчанию', ex.some(x => x.id === 'a9' && x.name === 'Скольжение пяток на полотенце' && x.dose === '3 × 10'), JSON.stringify(ex.find(x => x.id === 'a9')));
-  await p.evaluate(() => setSub('Нордические сгибания', false));
+  check('с 5-й недели нордические по умолчанию', ex.some(x => x.id === 'a9' && x.name === 'Нордические сгибания' && x.dose === '3 × 5'), JSON.stringify(ex.find(x => x.id === 'a9')));
+  await p.evaluate(() => setSub('Нордические сгибания', true));
   ex = await dayEx(p, 'd1');
-  check('вернул нордические', ex.some(x => x.id === 'a9' && x.name === 'Нордические сгибания'));
+  check('замена на скольжение по кнопке', ex.some(x => x.id === 'a9' && x.name === 'Скольжение пяток на полотенце' && x.dose === '3 × 10'));
   await p.evaluate(() => setSub('Жим гантелей стоя', true));
   ex = await dayEx(p, 'd3');
   check('жим стоя → сидя', ex.some(x => x.id === 'c5' && x.name === 'Жим гантелей сидя со спинкой'));
@@ -144,6 +144,25 @@ const W7 = '2026-11-16';
   const r = await p.evaluate(() => ({ pos: [state.cycle, state.week], label: weekInfo().label }));
   check('после 52 недель — «план пройден»', r.pos.join('/') === '3/24' && /План пройден/.test(r.label), JSON.stringify(r));
   check('ошибок нет', p.errs.length === 0, p.errs.join(' | '));
+  await ctx.close();
+}
+
+/* 7б. Пятница: первый шаг после физры, без прыжков и без разминки; в сессию — нет */
+{
+  const { ctx, p } = await at('2026-10-16');
+  const r = await p.evaluate(() => {
+    const e = buildWeek().find(x => x.id === 'd4');
+    return { dow: e && e.dow, names: e ? e.day.ex.map(x => x.name) : [], noWarm: e && e.day.noWarm,
+             daily: gymDays().has(4), ses: withWeek(1, 13, () => buildWeek().some(x => x.id === 'd4')) };
+  });
+  check('пятница: старты и ускорения после физры', r.dow === 5 && r.names.join() === 'Старты из баскетбольной стойки,Ускорения 20 м' && r.noWarm, JSON.stringify(r));
+  check('пятница: ежедневный блок нужен, в сессию дня нет', r.daily === false && r.ses === false, JSON.stringify(r));
+  await ctx.close();
+}
+{
+  const { ctx, p } = await at('2026-11-20', { planBody: { '2026-11-20': { knee: 7 } } });
+  const ex = await dayEx(p, 'd4');
+  check('пятница при красном колене: вместо стартов стена', !ex.some(x => /Старты|Ускорения/.test(x.name)) && ex.some(x => x.name === 'Полуприсед у стены'), ex.map(x => x.name).join(', '));
   await ctx.close();
 }
 

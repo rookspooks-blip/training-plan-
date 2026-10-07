@@ -88,7 +88,7 @@ const visible = (p, sel) => p.evaluate(s => { const e = document.querySelector(s
   await p.evaluate(() => { selDow = 1; renderDays(); });
   await p.click('.skipbtn.more');
   await p.click('.dm-opt[data-a="ill"]');
-  check('болею: все тренировки недели отменены', await p.evaluate(() => ['d1', 'd2', 'd3', 'c-tue', 'c-sun'].every(isDropped)));
+  check('болею: все тренировки недели отменены', await p.evaluate(() => ['d1', 'd2', 'd4', 'd3', 'c-tue', 'c-sun'].every(isDropped)));
   await ctx.close();
 }
 /* 5. Еда: тумблер сегодня ставит время, время скрыто у неотмеченных */
