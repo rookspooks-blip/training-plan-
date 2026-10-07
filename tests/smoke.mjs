@@ -131,6 +131,23 @@ async function page(opts = {}) {
   await ctx.close();
 }
 
+/* 6б. Фото движений: у каждого упражнения из карт есть оба кадра */
+{
+  const { ctx, p } = await page();
+  const r = await p.evaluate(async () => {
+    const slugs = [...new Set([...Object.values(PHOTO_BY_TECH), ...Object.values(PHOTO_BY_NAME)].filter(Boolean))];
+    const bad = [];
+    for (const s of slugs) for (const n of [0, 1]) { const res = await fetch(`img/ex/${s}-${n}.webp`); if (!res.ok) bad.push(`${s}-${n}`); }
+    return { n: slugs.length, bad };
+  });
+  check(`фото движений на месте (${r.n} упражнений)`, r.bad.length === 0, r.bad.join(', '));
+  const sw = await (await fetch(URL0 + 'sw.js')).text();
+  const miss = (await p.evaluate(() => [...new Set([...Object.values(PHOTO_BY_TECH), ...Object.values(PHOTO_BY_NAME)].filter(Boolean))]))
+    .flatMap(s => [0, 1].map(n => `img/ex/${s}-${n}.webp`)).filter(f => !sw.includes(f));
+  check('все фото в офлайн-кэше', miss.length === 0, miss.join(', '));
+  await ctx.close();
+}
+
 /* 7. Офлайн: после первого открытия всё работает без сети */
 {
   const { ctx, p } = await page({ sw: true });

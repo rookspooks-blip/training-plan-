@@ -2,12 +2,30 @@
 /* ############################################################
    13 · ОСТАЛЬНЫЕ СЕКЦИИ
    ############################################################ */
+/* Справочные карточки сворачиваются до заголовка. Открыты первая
+   (главная цифра) и те, где что-то отмечают. Открытые запоминаются */
+const openCards=new Set();
+function foldCards(box){
+  box.querySelectorAll(':scope > .card').forEach((c,i)=>{
+    const h=c.querySelector(':scope > h3');
+    if(!h || i===0 || c.querySelector('.habit, input, .check')) return;
+    const t=h.textContent;
+    c.classList.add('fcard'); c.classList.toggle('open', openCards.has(t));
+    h.setAttribute('role','button'); h.tabIndex=0;
+    h.setAttribute('aria-expanded', String(openCards.has(t)));
+    const flip=()=>{ const o=c.classList.toggle('open'); h.setAttribute('aria-expanded',String(o)); o?openCards.add(t):openCards.delete(t); };
+    h.addEventListener('click',flip);
+    h.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); flip(); } });
+  });
+}
+
 function renderSleep(){
   const info=weekInfo();
   document.getElementById('sleepLede').textContent = info.kind==='deload'
     ? 'Разгрузочная неделя — восстановление важнее объёма.'
     : 'Делается каждый день, включая дни отдыха.';
   document.getElementById('sleepBox').innerHTML=sleepPlan();
+  foldCards(document.getElementById('sleepBox'));
 
   document.querySelectorAll('#habits .habit').forEach(h=>{
     const k=h.dataset.k, cb=h.querySelector('.check');
@@ -62,7 +80,7 @@ function recList(items, cls, prefix){
         <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
       </div>
       <div class="fold"><div class="fold-inner"><div class="rec-body">
-        ${t.fig?`<div class="fig">${S[t.fig]}</div>`:''}
+        ${figFor(x.tech,x.name)}
         <div class="tech">${t.text}</div>
       </div></div></div>
     </div>`;
@@ -178,6 +196,7 @@ function renderRecovery(){
       </ul>
       <p><b>Разгрузочная неделя — тоже восстановление</b>, и самое недооценённое. На восьмой неделе будет казаться, что она не нужна: самочувствие хорошее, веса идут. Это ровно тот момент, когда она нужнее всего — усталость сухожилий не ощущается, пока не станет травмой.</p>
     </div>`;
+  foldCards(document.getElementById('recBox'));
 
   /* аккордеоны: сначала группы, потом упражнения внутри */
   document.querySelectorAll('#recBox .sub[data-group]').forEach(x=>bindFold(x.querySelector('.sub-head'), x));

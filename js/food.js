@@ -219,8 +219,9 @@ function renderTiming(){
 function renderSummary(){
   const T=nutritionTarget(), D=dayTotals();
   const delta=D.k-T.k;
-  const cls=Math.abs(delta)<=120?'ok':(delta<0?'under':'over');
-  const txt=Math.abs(delta)<=120?'В цель':(delta<0?`Не хватает ${-delta} ккал`:`Перебор ${delta} ккал`);
+  /* пустой день — не «недобор», а ещё не начатый день */
+  const cls=!D.k?'idle':Math.abs(delta)<=120?'ok':(delta<0?'under':'over');
+  const txt=!D.k?'Отметь, что съел, — сумма посчитается сама':Math.abs(delta)<=120?'В цель':(delta<0?`Осталось ${-delta} ккал`:`Перебор ${delta} ккал`);
   const pct=(a,b)=>Math.min(100, b? a/b*100 : 0);
 
   document.getElementById('macroSummary').innerHTML=`

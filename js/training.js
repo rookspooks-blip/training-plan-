@@ -294,7 +294,7 @@ function renderDaily(){
         <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
       </div>
       <div class="fold"><div class="fold-inner"><div class="sub-body">
-        ${t.fig?`<div class="fig">${S[t.fig]}</div>`:''}
+        ${figFor(x.tech,x.name)}
         <div class="tech">${t.text}</div>
       </div></div></div>
     </div>`;
@@ -407,7 +407,7 @@ function renderDays(){
           <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
         </div>
         <div class="fold"><div class="fold-inner"><div class="cday-body">
-          ${t.fig?`<div class="fig">${S[t.fig]}</div>`:''}
+          ${figFor(techId)}
           <div class="tech">${t.text}</div>
         </div></div></div>`;
       bindFold(c.querySelector('.cday-head'), c);
@@ -545,7 +545,7 @@ function renderDays(){
             </div>
             <button class="step-toggle" type="button">Как делать</button>
             <div class="step-detail" hidden>
-              ${t.fig?`<div class="fig">${S[t.fig]}</div>`:''}
+              ${figFor(s.tech,s.name)}
               <div class="tech">${t.text}</div>
             </div>
           </div>
@@ -1135,7 +1135,7 @@ function exCard(day, ex){
       <div class="logslot"></div>
       ${ex.warm?`<div class="warmsets${/^Не нужна/.test(ex.warm)?' none':''}">
         <span class="ws-l">Подводка</span><span>${ex.warm}</span></div>`:''}
-      ${t.fig?`<div class="fig">${S[t.fig]}</div>`:''}
+      ${figFor(ex.tech,ex.name)}
       <div class="tech">${t.text}</div>
       ${subRow(ex)}
     </div></div></div>`;

@@ -39,6 +39,7 @@
 | `index.html` | разметка вкладок, подключает стили и скрипты |
 | `css/app.css` | все стили |
 | `js/figures.js` · `js/tech.js` | схемы движений и техника упражнений |
+| `js/photos.js` · `img/ex/` | фото «начало → конец» для 38 упражнений ([free-exercise-db](https://github.com/yuhonas/free-exercise-db), Unlicense) |
 | `js/plan.js` · `js/plan-extra.js` | план: разминка, веса, тренировки по неделям, кардио, справка |
 | `js/food-data.js` · `js/food.js` | блюда и рецепты · дневник и калькулятор питания |
 | `js/store.js` | состояние, хранение, версия формата данных и миграции |

@@ -3,7 +3,7 @@
    17 · IPHONE: ЗАДАЧИ, РЕЗЕРВНАЯ КОПИЯ, УСТАНОВКА, ОФЛАЙН
    ############################################################ */
 /* Дата сборки — видна в «Справка → Данные», чтобы проверить, что обновление пришло */
-const APP_VERSION='проще: старт и финиш тренировки, меню пропусков';
+const APP_VERSION='фото упражнений вместо схем';
 let toastTimer=0;
 function toast(msg){
   const t=document.getElementById('toast');
@@ -156,6 +156,7 @@ function renderBackup(){
       <button class="btn" type="button" id="icsGet">Скачать .ics</button>
     </div>
     ${customDates ? `<p style="font-size:12.5px;color:var(--warn,#F5B841);margin-top:10px">У тебя своя дата старта или длина сессии. «Подписаться» ведёт на общий календарь с датами по умолчанию — бери «Скачать .ics»: он собран по твоим датам.</p>` : ''}
+    <p style="font-size:12.5px;color:var(--muted);margin-top:10px">Фото упражнений — <a href="https://github.com/yuhonas/free-exercise-db" style="color:inherit">free-exercise-db</a>, общественное достояние (Unlicense).</p>
     <p style="font-size:12.5px;color:var(--muted);margin-top:10px">Версия приложения: <b>${APP_VERSION}</b>. Если я сказал, что обновил, а тут старая дата — закрой приложение смахиванием и открой через пару минут.</p>
     <p style="font-size:12.5px;color:var(--muted);margin-top:10px">«Подписаться» добавляет календарь, который обновляется сам. Если перенёс тренировку в приложении, в календаре она останется на старом месте — календарь только напоминает.</p>
     <p style="font-size:12.5px;color:var(--muted);margin-top:10px">«Сохранить копию» открывает меню iPhone: выбери «Сохранить в Файлы» или отправь себе в Telegram. «Восстановить» — выбери этот файл, текущие данные заменятся.</p>`;
