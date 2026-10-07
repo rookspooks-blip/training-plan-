@@ -78,13 +78,13 @@ function weekInfo(){
                     where:'Сессия · поддержка формы, калории на поддержании'};
   if(c===1) return {kind, shift:sh, label: kind==='deload'?'Разгрузочная неделя':kind==='test'?'Тестовая неделя':'Рабочая неделя',
                     where:'Цикл 1 · сушка · свой вес, связки и сухожилия · зал у дома'};
-  if(c===2){ const x=C2[Math.min(lw,12)];
-    return {kind, shift:sh, label: kind==='deload'?'Разгрузочная неделя':kind==='test'?'Тестовая неделя':`Присед ${x.sq} · тяга ${x.tr} · жим ${x.oh}`,
+  if(c===2){ const x=plannedBar();   /* те же веса, что в карточках упражнений */
+    return {kind, shift:sh, label: kind==='deload'?'Разгрузочная неделя':kind==='test'?'Тестовая неделя':`Присед ${fmtW(x.sq)} · тяга ${fmtW(x.tr)} · жим ${x.oh?fmtW(x.oh):'гантели'}`,
             where:'Цикл 2 · абсолютная сила · зал со штангой'}; }
-  const x=cycle3(Math.min(lw,24));
+  const x={...cycle3(Math.min(lw,24)), ...plannedBar()};
   if(w===24 && posForDate(isoDay()).end) return {kind, shift:0, label:'План пройден · повторяй последний блок',
           where:'Год закончен. Новый план — с новой датой старта в настройках недели'};
-  return {kind, shift:sh, label: kind==='deload'?'Разгрузочная неделя':`${x.blockName} · присед ${x.sq} · тяга ${x.tr}`,
+  return {kind, shift:sh, label: kind==='deload'?'Разгрузочная неделя':`${x.blockName} · присед ${fmtW(x.sq)} · тяга ${fmtW(x.tr)}`,
           where:'Цикл 3 · гипертрофия и реконверсия · зал со штангой'};
 }
 

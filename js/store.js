@@ -4,7 +4,8 @@
    ############################################################ */
 let state={cycle:1,week:1};
 /* Настройки: неделя по дате, длина сессионного блока, поправка калорий */
-let settings={auto:true, start:'2026-10-05', session:4, kcalAdj:{}};
+const SETTINGS_DEFAULT={auto:true, start:'2026-10-05', session:4};
+let settings={...SETTINGS_DEFAULT, kcalAdj:{}};
 /* Цикл 1: недели 1–12 сушка, дальше — сессионный блок (зима, экзамены) */
 const isSession=(c,w)=>{ c=c??state.cycle; w=w??state.week; return c===1 && w>12; };
 let marks={};    // галочки: "цикл-неделя-день-упражнение"

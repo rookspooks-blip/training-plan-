@@ -3,7 +3,7 @@
    17 · IPHONE: ЗАДАЧИ, РЕЗЕРВНАЯ КОПИЯ, УСТАНОВКА, ОФЛАЙН
    ############################################################ */
 /* Дата сборки — видна в «Справка → Данные», чтобы проверить, что обновление пришло */
-const APP_VERSION='правила плана: перерыв, колено, замены';
+const APP_VERSION='справка и календарь из дат плана';
 let toastTimer=0;
 function toast(msg){
   const t=document.getElementById('toast');
@@ -121,6 +121,7 @@ function renderBackup(){
   const box=document.getElementById('backupBox');
   if(!box) return;
   const auto=asObj(store.get('planAutoBackup',null),null);
+  const customDates = settings.start!==SETTINGS_DEFAULT.start || (settings.session|0)!==SETTINGS_DEFAULT.session;
   box.innerHTML=`
     <p>Галочки, дневник питания, переносы и выбранная неделя хранятся <b>только на этом телефоне</b>, внутри приложения. Интернет для работы не нужен.</p>
     <p>Приложение на экране «Домой» и сайт в Safari хранят данные <b>раздельно</b>. Отмечай всё в приложении, а раз в неделю сохраняй копию: она спасёт при смене телефона или удалении иконки.</p>
@@ -131,17 +132,21 @@ function renderBackup(){
     <input type="file" id="restoreFile" accept="application/json,.json" hidden>
     ${auto ? `<p style="font-size:12.5px;color:var(--muted);margin-top:10px">Автокопия от ${esc(new Date(auto.saved).toLocaleString('ru-RU',{day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'}))} — ${esc(auto.reason||'')}. <button class="linkbtn" type="button" id="btnAuto">Вернуть её</button></p>` : ''}
     <h5 style="margin-top:16px">Календарь</h5>
-    <p>Тренировки сушки и сессионного блока (с 05.10) и напоминания взвеситься — в стандартный Календарь iPhone. За 30 минут до тренировки придёт уведомление.</p>
+    <p>Тренировки сушки и сессионного блока (с ${shortDate(settings.start)}) и напоминания взвеситься — в стандартный Календарь iPhone. За 30 минут до тренировки придёт уведомление.</p>
     <div class="btn-row">
       <a class="btn" style="text-align:center;text-decoration:none" id="icsSub" href="plan.ics">Подписаться</a>
-      <a class="btn" style="text-align:center;text-decoration:none" href="plan.ics" download="plan.ics">Скачать .ics</a>
+      <button class="btn" type="button" id="icsGet">Скачать .ics</button>
     </div>
+    ${customDates ? `<p style="font-size:12.5px;color:var(--warn,#F5B841);margin-top:10px">У тебя своя дата старта или длина сессии. «Подписаться» ведёт на общий календарь с датами по умолчанию — бери «Скачать .ics»: он собран по твоим датам.</p>` : ''}
     <p style="font-size:12.5px;color:var(--muted);margin-top:10px">Версия приложения: <b>${APP_VERSION}</b>. Если я сказал, что обновил, а тут старая дата — закрой приложение смахиванием и открой через пару минут.</p>
     <p style="font-size:12.5px;color:var(--muted);margin-top:10px">«Подписаться» добавляет календарь, который обновляется сам. Если перенёс тренировку в приложении, в календаре она останется на старом месте — календарь только напоминает.</p>
     <p style="font-size:12.5px;color:var(--muted);margin-top:10px">«Сохранить копию» открывает меню iPhone: выбери «Сохранить в Файлы» или отправь себе в Telegram. «Восстановить» — выбери этот файл, текущие данные заменятся.</p>`;
   box.querySelector('#btnBackup').addEventListener('click', exportBackup);
   /* webcal:// — подписка в Календаре iPhone */
   if(location.protocol==='https:') box.querySelector('#icsSub').href='webcal://'+location.host+location.pathname.replace(/[^/]*$/,'')+'plan.ics';
+  /* календарь по датам из настроек — та же функция, что собирает plan.ics */
+  box.querySelector('#icsGet').addEventListener('click',()=>
+    shareFile('tri-cikla.ics', buildIcs(settings.start, settings.session), 'text/calendar', 'Три цикла · календарь'));
   const inp=box.querySelector('#restoreFile');
   box.querySelector('#btnRestore').addEventListener('click',()=>inp.click());
   inp.addEventListener('change',()=>{ if(inp.files[0]) importBackup(inp.files[0]); inp.value=''; });

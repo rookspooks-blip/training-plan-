@@ -22,8 +22,8 @@ DTEND;TZID=Europe/Moscow:20261005T183000
 RRULE:FREQ=WEEKLY;UNTIL=20261227T205959Z
 SUMMARY:Силовая А
 DESCRIPTION:Сплит-присед\, подтягивания\, отжим
- ания\, нордические. Веса и повторы — в пр
- иложении.
+ ания\, скольжение пяток. Веса и повторы —
+  в приложении.
 BEGIN:VALARM
 ACTION:DISPLAY
 DESCRIPTION:Силовая А

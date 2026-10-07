@@ -147,6 +147,70 @@ const W7 = '2026-11-16';
   await ctx.close();
 }
 
+/* ---------- Связь плана и приложения ---------- */
+/* 9. plan.ics на сайте = календарь, который собирает приложение */
+{
+  const { ctx, p } = await at('2026-10-06');
+  const r = await p.evaluate(async () => {
+    const file = await (await fetch('plan.ics', { cache: 'no-store' })).text();
+    return { same: file === buildIcs(SETTINGS_DEFAULT.start, SETTINGS_DEFAULT.session) };
+  });
+  check('plan.ics собран из тех же дат', r.same, 'запусти node tools/make-ics.mjs');
+  /* калории в календаре = цели питания приложения */
+  const k = await p.evaluate(() => {
+    const T = (c, w) => withWeek(c, w, () => nutritionTarget());
+    const cut = T(1, 1), ses = T(1, 13), c2 = [1, 2, 3].map(w => T(2, w).k);
+    return { cut: `${cut.k} ккал · Б${cut.p} · Ж${cut.f} · У${cut.c}` === ICS_KCAL_DEFAULT.cut,
+             ses: ses.k === ICS_KCAL_DEFAULT.session, c2: c2.join() === ICS_KCAL_DEFAULT.c2.join(),
+             jump: [1,2,3,4,5,6,7,8,9,10,11,12].filter(w => jumpTestWeek(1, w)).join() === ICS_JUMP_WEEKS.join() };
+  });
+  check('калории и тесты прыжка в календаре = в приложении', k.cut && k.ses && k.c2 && k.jump, JSON.stringify(k));
+  await ctx.close();
+}
+/* 10. Своя длина сессии: справка и календарь пересчитываются */
+{
+  const { ctx, p } = await at('2026-10-06', { planSet: { auto: true, start: '2026-10-05', session: 2, kcalAdj: {} } });
+  const r = await p.evaluate(() => {
+    const ics = buildIcs(settings.start, settings.session);
+    const txt = EXTRA.find(e => e[0] === 'Сессия и переход на набор')[1]();
+    return { c2: ics.includes('DTSTART;VALUE=DATE:20270111'), txt: /2 нед\., с 28 декабря до 10 января/.test(txt) && /11 января/.test(txt) };
+  });
+  check('сессия 2 недели → цикл 2 с 11.01 в календаре и справке', r.c2 && r.txt, JSON.stringify(r));
+  check('предупреждение про подписку при своих датах', await p.evaluate(() => /своя дата старта/.test(document.getElementById('backupBox').innerText)));
+  await ctx.close();
+}
+/* 11. Шапка недели показывает те же веса, что карточка упражнения */
+{
+  const { ctx, p } = await at('2027-02-01', { planLog: {
+    '2-1-d1-a2': { n: 'Присед со штангой', d: '2027-01-25', sets: [{ w: '70', r: '5' }, { w: '70', r: '5' }, { w: '70', r: '5' }, { w: '70', r: '5' }], rpe: 7, tr: 5, ns: 4, wk: 'build' } } });
+  const r = await p.evaluate(() => {
+    const d = buildWeek().find(e => e.id === 'd1').day, ex = d.ex.find(x => x.tech === 'squat');
+    return { label: weekInfo().label, card: planFor(ex, parseDose(ex.dose), logKey('d1', ex.id)).w, pos: [state.cycle, state.week] };
+  });
+  /* по таблице на неделе 2 — 65; по журналу (70×5 на тяжести 7) — 70: шапка обязана показать журнал */
+  check('шапка = карточка, а не таблица', r.card === 70 && r.label.startsWith('Присед 70 '), JSON.stringify(r));
+  await ctx.close();
+}
+/* 12. Сон: тяжёлая неделя — перед разгрузкой, в цикле 3 это 5-я */
+{
+  const { ctx, p } = await at('2026-10-06');
+  const r = await p.evaluate(() => [[1, 3], [1, 11], [3, 5], [3, 3]].map(([c, w]) => withWeek(c, w, () => /8–8\.5/.test(sleepPlan()))));
+  check('сон: +полчаса перед разгрузкой и тестом', r.join() === 'true,true,true,false', r.join());
+  await ctx.close();
+}
+/* 13. Красное колено держится неделю без новых отметок */
+{
+  const { ctx, p } = await at('2026-11-24', { planBody: { '2026-11-19': { knee: 7 } } });
+  const r = await p.evaluate(() => { const s = kneeStatus(); return s && s.lvl; });
+  check('красное колено через 5 дней всё ещё красное', r === 'r', String(r));
+  await ctx.close();
+}
+{
+  const { ctx, p } = await at('2026-11-27', { planBody: { '2026-11-19': { knee: 7 } } });
+  check('через 8 дней — снято', await p.evaluate(() => kneeStatus() === null));
+  await ctx.close();
+}
+
 await browser.close();
 server.close();
 console.log(fails ? `\n${fails} проверок не прошли` : '\nВсе проверки прошли');

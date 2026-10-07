@@ -192,7 +192,7 @@ function renderExtra(){
         <span>${b[0]}</span>
         <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
       </div>
-      <div class="fold"><div class="fold-inner"><div class="sub-body">${b[1]}</div></div></div>
+      <div class="fold"><div class="fold-inner"><div class="sub-body">${typeof b[1]==='function'?b[1]():b[1]}</div></div></div>
     </div>`).join('');
   body.querySelectorAll('.sub').forEach(s=>bindFold(s.querySelector('.sub-head'), s));
 }
@@ -237,9 +237,18 @@ function updateProgress(){
   document.getElementById('progBar').style.width = total ? (done/total*100)+'%' : '0%';
 }
 
+/* Тексты справки, где есть даты плана: перерисовать, только если даты сменились */
+let textsSig='';
+function renderPlanTexts(){
+  const sig=`${settings.start}|${settings.session}`;
+  if(sig===textsSig) return;
+  if(textsSig){ renderExtra(); renderNow(); renderBackup(); }
+  textsSig=sig;
+}
 function renderAll(){
   renderHeader(); renderDays(); renderDaily(); renderNutrition();
   renderSleep(); renderRecovery(); renderProgress(); updateProgress();
+  renderPlanTexts();
 }
 
 /* ############################################################

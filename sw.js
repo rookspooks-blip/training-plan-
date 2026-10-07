@@ -3,12 +3,13 @@
    обновления приходили сами, без сети — из кэша.
    Иконки и картинки: сначала кэш.
    При изменении списка файлов увеличь VERSION. */
-const VERSION = 'v17';
+const VERSION = 'v18';
 const CACHE = 'tri-cikla-' + VERSION;
 const FILES = [
   './',
   './index.html',
   './css/app.css',
+  './js/calendar.js',
   './js/export.js',
   './js/figures.js',
   './js/food-data.js',

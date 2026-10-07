@@ -36,7 +36,14 @@ const median = a => { const b=[...a].sort((x,y)=>x-y); return b.length ? b[Math.
 
 /* Светофор колена: последняя оценка за 3 дня и динамика */
 function kneeStatus(){
-  const ks=Object.keys(body).filter(d=>num(body[d].knee)!=null).sort().reverse();
+  const ks=Object.keys(body).filter(d=>num(body[d].knee)!=null && d<=isoDay()).sort().reverse();
+  /* красный держится неделю: «неделю без прыжков», даже если потом не отмечал */
+  const red=ks.find(d=>daysBetween(d, isoDay())<7 && num(body[d].knee)>=6);
+  if(red && (!ks.length || daysBetween(ks[0], isoDay())>3 || num(body[ks[0]].knee)<6)){
+    const till=addDays(red,7);
+    return {lvl:'r', v:num(body[red].knee), d:red, title:`Колено: красный с ${shortDate(red)} — до ${shortDate(till)} без прыжков`,
+      text:`${shortDate(red)} было ${num(body[red].knee)}/10. Неделя без прыжков и ускорений нужна сухожилию, даже если сегодня стало легче. Изометрия у стены 5 × 45 сек каждый день.`};
+  }
   if(!ks.length || daysBetween(ks[0], isoDay())>3) return null;
   const v=num(body[ks[0]].knee), p1=ks[1]?num(body[ks[1]].knee):null, p2=ks[2]?num(body[ks[2]].knee):null;
   const worse = p1!=null && v>p1, worse2 = worse && p2!=null && p1>p2;

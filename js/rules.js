@@ -187,6 +187,25 @@ function adjustDays(S){
   return S;
 }
 
+/* ---------- Веса недели для шапки ----------
+   Те же числа, что в карточках упражнений: по журналу, а не по таблице.
+   Нет записей — числа из таблицы. */
+function plannedBar(){
+  return memo('bar', ()=>{
+    const c=state.cycle, out={};
+    const tbl = c===2 ? C2[Math.min(loadWeek(),12)] : cycle3(Math.min(loadWeek(),24));
+    const want={squat:'sq', trap:'tr'};
+    buildDays(c, state.week).forEach(day=>day.ex.forEach(ex0=>{
+      const ex=applySub(ex0);
+      const f = want[ex.tech] || (ex.name==='Жим стоя' ? 'oh' : null);
+      if(!f) return;
+      const pl=planFor(ex, parseDose(ex.dose), logKey(day.id, ex.id));
+      out[f] = pl.w || tbl[f];
+    }));
+    return {sq:out.sq ?? tbl.sq, tr:out.tr ?? tbl.tr, oh:('oh' in out) ? out.oh : null};
+  });
+}
+
 /* ---------- Подсказка веса с поправками дня ----------
    planBase считает от прошлых записей, здесь — перерыв и усталость */
 function planFor(ex, P, k){
