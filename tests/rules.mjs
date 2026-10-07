@@ -191,6 +191,19 @@ const W7 = '2026-11-16';
   await ctx.close();
 }
 
+/* 7г. Торможение в пятницу — с 5-й недели; тибиальные и стена — в любой разминке */
+{
+  const { ctx, p } = await at('2026-11-06');
+  const r = await p.evaluate(() => ({
+    w5: buildWeek().find(x => x.id === 'd4').day.ex.map(x => x.name),
+    w2: withWeek(1, 2, () => buildWeek().find(x => x.id === 'd4').day.ex.map(x => x.name)),
+    warm: [1, 2, 3, 4].every(w => { const l = warmupFor(w).list.map(x => x.id); return l.includes('wt') && l.includes('wv'); })
+  }));
+  check('пятница: остановки с 5-й недели, раньше нет', r.w5.includes('Ускорение с остановкой') && !r.w2.includes('Ускорение с остановкой'), JSON.stringify(r));
+  check('тибиальные и скольжение по стене во всех разминках', r.warm);
+  await ctx.close();
+}
+
 /* ---------- Связь плана и приложения ---------- */
 /* 9. plan.ics на сайте = календарь, который собирает приложение */
 {

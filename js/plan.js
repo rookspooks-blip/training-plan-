@@ -13,18 +13,23 @@ const WP = {
   lunge   :{id:'wu',name:'Выпад с поворотом', dose:'5 на сторону',         sec:120,tech:'w_lunge'},
   inchworm:{id:'wi',name:'Инчворм',           dose:'5 повторов',           sec:90, tech:'w_inchworm'},
   shortfoot:{id:'wf',name:'Short foot',       dose:'10 × 10 сек на ногу',  sec:150,tech:'w_shortfoot'},
-  balance:{id:'wn',name:'Баланс на одной ноге',dose:'30 сек, потом с закрытыми глазами', sec:120,tech:'w_balance'}
+  balance:{id:'wn',name:'Баланс на одной ноге',dose:'30 сек, потом с закрытыми глазами', sec:120,tech:'w_balance'},
+  tibialis:{id:'wt',name:'Тибиальные подъёмы',dose:'2 × 20',               sec:90, tech:'w_tibialis'},
+  wallslide:{id:'wv',name:'Скольжение руками по стене',dose:'2 × 12',      sec:90, tech:'w_wallslide'}
 };
 
 function warmupFor(week){
   const lvl = ((week - 1) % 4) + 1;
   /* Short foot и баланс стоят на всех уровнях: стопа и голеностоп
-     тренируются частотой, а не объёмом, и режутся последними. */
+     тренируются частотой, а не объёмом, и режутся последними.
+     Тибиальные подъёмы (голень принимает приземления) и скольжение
+     руками по стене (лопатки перед подтягиваниями и жимом) — тоже везде. */
+  const base=[WP.joints,WP.wallsit,WP.groin,WP.shortfoot,WP.tibialis,WP.wallslide];
   const sets = {
-    1:{list:[WP.joints,WP.wallsit,WP.groin,WP.shortfoot],                                 label:'Базовая',                           dur:'7–9 мин'},
-    2:{list:[WP.joints,WP.wallsit,WP.groin,WP.shortfoot,WP.legswing,WP.balance],          label:'Базовая + мобильность',             dur:'10–12 мин'},
-    3:{list:[WP.joints,WP.wallsit,WP.groin,WP.shortfoot,WP.legswing,WP.balance,WP.bridge,WP.birddog], label:'Базовая + мобильность + активация', dur:'13–15 мин'},
-    4:{list:[WP.joints,WP.wallsit,WP.groin,WP.shortfoot,WP.legswing,WP.balance,WP.bridge,WP.birddog,WP.lunge,WP.inchworm], label:'Полная с динамической растяжкой', dur:'16–18 мин'}
+    1:{list:[...base],                                                                    label:'Базовая',                           dur:'10–12 мин'},
+    2:{list:[...base,WP.legswing,WP.balance],                                             label:'Базовая + мобильность',             dur:'13–15 мин'},
+    3:{list:[...base,WP.legswing,WP.balance,WP.bridge,WP.birddog],                        label:'Базовая + мобильность + активация', dur:'16–18 мин'},
+    4:{list:[...base,WP.legswing,WP.balance,WP.bridge,WP.birddog,WP.lunge,WP.inchworm],   label:'Полная с динамической растяжкой',   dur:'19–21 мин'}
   };
   return {level:lvl, ...sets[lvl]};
 }
@@ -170,7 +175,12 @@ function fridayDay(cycle, week){
        dose:dl?'4 × 5 м':'6 × 5–10 м · 2 прямо, 2 кроссовер вправо, 2 влево',rest:'60–90 сек',tech:'sprint',
        warm:'Не нужна после физры. Первый старт на 80 %. Стойка как в защите: колени согнуты, вес на передней части стопы.'},
       {id:'f2',name:'Ускорения 20 м',badge:['Скорость','b-speed'],
-       dose:dl?'пропустить':'3 × 20 м',rest:'2 мин',tech:'sprint',warm:'Не нужна — ты размят стартами.'}
+       dose:dl?'пропустить':'3 × 20 м',rest:'2 мин',tech:'sprint',warm:'Не нужна — ты размят стартами.'},
+      /* торможение: колено учится гасить скорость так же, как прыжок.
+         Первые 4 недели цикла 1 эту роль играет приземление с фиксацией */
+      ...((cycle>1 || week>=5) ? [{id:'f3',name:'Ускорение с остановкой',badge:['Скорость','b-speed'],
+       dose:dl?'2 × 10 м · стоп в 2 шага':'4 × 10–15 м · стоп в 2 шага',rest:'90 сек',tech:'decel',
+       warm:'Не нужна. Тормози низко: таз назад, грудь над коленями, колени смотрят туда же, куда носки, а не внутрь.'}] : [])
     ]};
 }
 
