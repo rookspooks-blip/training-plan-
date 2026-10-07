@@ -139,7 +139,7 @@ function mealTiming(d){
   const w=buildWeek();
   const e=w.find(x=>(x.dow===0?6:x.dow-1)===d);
   const kind = !e ? 'rest'
-             : e.type==='gym' ? (e.id==='d2'||e.id==='d4' ? 'pe' : 'gym')
+             : e.type==='gym' ? ((e.id==='d2'||e.id==='d4') && !summerMode() ? 'pe' : 'gym')
              : e.type==='run' ? 'cardio' : 'rest';
 
   const T=nutritionTarget();

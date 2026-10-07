@@ -3,7 +3,7 @@
    обновления приходили сами, без сети — из кэша.
    Иконки и картинки: сначала кэш.
    При изменении списка файлов увеличь VERSION. */
-const VERSION = 'v24';
+const VERSION = 'v25';
 const CACHE = 'tri-cikla-' + VERSION;
 const FILES = [
   './',

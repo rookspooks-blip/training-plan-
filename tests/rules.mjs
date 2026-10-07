@@ -219,6 +219,26 @@ const W7 = '2026-11-16';
   await ctx.close();
 }
 
+/* 7е. Лето: июнь — сессия, июль — практика, август — каникулы */
+{
+  const { ctx, p } = await at('2027-06-02');
+  const r = await p.evaluate(() => {
+    const at = (c, w) => withWeek(c, w, () => { const W = buildWeek(); const d1 = W.find(x => x.id === 'd1').day, d2 = W.find(x => x.id === 'd2').day, d4 = W.find(x => x.id === 'd4');
+      return { mode: summerMode(), d1: d1.ex[1].dose, d2when: d2.when, d4: d4 && d4.day.title, kind: weekKind(c, w), pe: noPE() }; });
+    return { jun: at(3, 7), jul: at(3, 12), aug: at(3, 16), oct: at(1, 1), y: summerDates() };
+  });
+  check('июнь — сессия: на подход меньше, без «после физры»', r.jun.mode === 'exam' && /^3 ×/.test(r.jun.d1) && !/физр/.test(r.jun.d2when) && r.jun.d4 === 'Первый шаг', JSON.stringify(r.jun));
+  check('июль — практика: вечером, по пятницам данки', r.jul.mode === 'practice' && /вечер/.test(r.jul.d2when) && r.jul.d4 === 'Данки', JSON.stringify(r.jul));
+  check('август — каникулы: днём, блок силы вместо массы', r.aug.mode === 'vacation' && /днём/.test(r.aug.d2when) && r.aug.kind !== 'hyper', JSON.stringify(r.aug));
+  check('осенью летнего режима нет', r.oct.mode === null, JSON.stringify(r.oct));
+  await ctx.close();
+}
+{
+  const { ctx, p } = await at('2027-07-07', { planSet: { auto: true, start: '2026-10-05', session: 4, kcalAdj: {}, practiceEnd: '2027-07-04' } });
+  check('практика закончилась раньше — сразу каникулы', await p.evaluate(() => summerMode() === 'vacation'));
+  await ctx.close();
+}
+
 /* ---------- Связь плана и приложения ---------- */
 /* 9. plan.ics на сайте = календарь, который собирает приложение */
 {

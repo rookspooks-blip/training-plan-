@@ -165,9 +165,46 @@ function kneeAdjust(list, lvl){
   return out;
 }
 
+/* ---------- Лето ----------
+   Сессия (июнь): пар нет, только подготовка — держим форму.
+   Практика (с начала июля, конец в настройках): днём занят, вечером тренировка.
+   Каникулы (до 31 августа): главный блок года — днём, на свежие ноги.
+   Физры летом нет, поэтому скоростные дни не «после физры».
+   Режим считается по дате недели, а не по номеру цикла */
+function summerDates(){
+  const st=settings.start||SETTINGS_DEFAULT.start;
+  const y=+st.slice(0,4) + (+st.slice(5,7)>=7 ? 1 : 0);
+  return {y, exam:[`${y}-06-01`,`${y}-06-30`], practiceEnd:settings.practiceEnd||`${y}-07-24`, end:`${y}-08-31`};
+}
+function summerModeOf(c,w){
+  const d=dateOfCW(c,w,2), S=summerDates();     /* середина недели */
+  if(d>=S.exam[0] && d<=S.exam[1]) return 'exam';
+  if(d>S.exam[1] && d<=S.practiceEnd) return 'practice';
+  if(d>S.practiceEnd && d<=S.end) return 'vacation';
+  return null;
+}
+const summerMode=()=>summerModeOf(state.cycle,state.week);
+const SUMMER_WHEN={exam:'любой день · зал с кольцом', practice:'вечер после практики', vacation:'днём, на свежие ноги'};
+const SUMMER_NOTE={
+  exam:'<b>Летняя сессия</b>Держим форму, а не растём: на подход меньше, вес как в прошлый раз. Тренировка — перерыв между билетами, а не ещё один экзамен.',
+  practice:'<b>Практика</b>Днём занят, тренировки вечером. Физры нет — скоростные дни на свежих ногах, без спешки.',
+  vacation:'<b>Каникулы — главный блок года</b>Тренируйся днём, спи 8–9 часов. Это лучшее окно для прыжка: к осеннему отбору выходишь на пике.'
+};
+
 /* ---------- Всё вместе: план недели с поправками ---------- */
 function adjustDays(S){
   S.forEach(day=>{ day.ex=day.ex.map(applySub); });
+  /* лето: дни без физры, в сессию — поддержание. Действует на все недели лета, не только текущую */
+  const sm=summerMode();
+  if(sm) S.forEach(day=>{
+    if(!day) return;
+    if(day.id==='d2' || day.id==='d4'){
+      day.when=day.when.replace(/универ, после физры|зал с кольцом, днём/, SUMMER_WHEN[sm]);
+      day.note=day.note.replace(/^.*?(физр|Физр)[^.]*\.\s*/,'');
+    }
+    if(sm==='exam' && day.ex.some(isLogged)) day.ex=day.ex.map(ex=>isLogged(ex)?lessSets(ex):ex);
+    if(!day.alert) day.alert={lvl:sm==='exam'?'y':'g', html:SUMMER_NOTE[sm]};
+  });
   if(!isNowWeek()) return S;
   const rt=returnInfo(), ft=fatigueInfo(), ks=kneeStatus();
   const k=weekKind(state.cycle,state.week);
@@ -212,7 +249,7 @@ function plannedBar(){
 function planFor(ex, P, k){
   const pl=planBase(ex, P, k);
   if(!isNowWeek() || pl.kind==='back') return pl;
-  const rt=returnInfo(), ft=rt?null:fatigueInfo();
+  const rt=returnInfo(), ft=rt?null:(fatigueInfo() || (summerMode()==='exam' ? {exam:true} : null));
   if(!rt && !ft) return pl;
   const isBar=weightKind(ex,P).ph==='штанга';
   /* прибавки нет ни после перерыва, ни при усталости: от прошлого реального веса */
@@ -229,6 +266,6 @@ function planFor(ex, P, k){
   const w=pl.sets[0]&&pl.sets[0].w;
   pl.t = rt
     ? `<b>после перерыва</b>: ${w?`${fmtW(w)} кг, `:''}${pl.sets[0]&&pl.sets[0].r!=null?`по ${pl.sets[0].r} повт., `:''}запас 2–3 повтора. <span style="color:var(--muted)">По плану было: ${pl.t}</span>`
-    : `<b>лёгкий день</b>: ${w?`${fmtW(w)} кг, `:''}без отказа. <span style="color:var(--muted)">По плану было: ${pl.t}</span>`;
+    : `<b>${ft.exam?'сессия, держим':'лёгкий день'}</b>: ${w?`${fmtW(w)} кг, `:''}без отказа. <span style="color:var(--muted)">По плану было: ${pl.t}</span>`;
   return pl;
 }

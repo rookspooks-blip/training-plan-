@@ -1090,7 +1090,7 @@ function dayMenu(e, dropped, moved){
     box.firstChild.addEventListener('click',()=>unskip(e.id));
     return box;
   }
-  const speed=e.id==='d2'||e.id==='d4', pe=e.id==='d2' && !isSession();
+  const speed=e.id==='d2'||e.id==='d4', pe=e.id==='d2' && !isSession() && !summerMode();
   const opts=[
     {a:'skip', t:moved?'Снова не сделал':'Пропустил',
      s:moved?'отменить тренировку на этой неделе':(speed?'скоростная не переносится — просто отменится':'перенести на ближайший подходящий день')},

@@ -58,7 +58,10 @@ const r25 = x => Math.round(x/2.5)*2.5;
 function cycle3(week){
   const base={sq:105,tr:125,oh:52.5};
   const blk=Math.floor((week-1)/6), wIn=((week-1)%6)+1;
-  const hyper=(blk%2===0), gain=Math.ceil(blk/2)*12.5;
+  /* июль–август — каникулы, главный блок года: сила и мощность, а не масса,
+     чтобы к осеннему отбору прийти на пике прыжка */
+  const holiday = typeof summerModeOf==='function' && summerModeOf(3,week)==='vacation';
+  const hyper=(blk%2===0) && !holiday, gain=Math.ceil(blk/2)*12.5;
   let lvl={sq:base.sq+gain, tr:base.tr+gain, oh:base.oh+gain*0.4};
   if(!hyper) lvl={sq:lvl.sq+2.5*(wIn-1), tr:lvl.tr+2.5*(wIn-1), oh:lvl.oh+1.25*(wIn-1)};
   const dl=(wIn===6), k=hyper?0.78:1, d=dl?0.82:1;
@@ -170,8 +173,8 @@ function fridayDay(cycle, week){
   const dl = weekKind(cycle,week)==='deload';
   /* Лето цикла 3 (июнь–август): пар и физры нет, зал свободен — пятница
      становится днём данков. Это то, ради чего весь год */
-  const m = +dateOfCW(cycle, week, 4).slice(5,7);
-  if(cycle===3 && m>=6 && m<=8) return {id:'d4', title:'Данки', when:'Пятница · зал с кольцом', noWarm:false,
+  const sm = summerModeOf(cycle, week);
+  if(sm==='practice' || sm==='vacation') return {id:'d4', title:'Данки', when:'Пятница · зал с кольцом, днём', noWarm:false,
     note:'Свежие ноги, после разминки. Прыжки на максимум — только пока высота не падает: как только данк перестал заходить, день закончен.',
     ex:[
       {id:'f1',name:'Старты из баскетбольной стойки',badge:['Скорость','b-speed'],dose:dl?'3 × 5 м':'4 × 5–10 м',rest:'60–90 сек',tech:'sprint',warm:'Не нужна — после разминки. Первый старт на 80 %.'},

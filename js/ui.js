@@ -240,6 +240,10 @@ function renderHeader(){
   if(settings.auto && settings.start && daysBetween(isoDay(), settings.start)>0)
     notes.push(`<b>Старт плана — пн ${shortDate(settings.start)}.</b> До него можно осмотреться и сделать первый замер прыжка.`);
   if(/План пройден/.test(info.label)) notes.push(`<b>${info.label}.</b> ${info.where}.`);
+  const sm=summerMode();
+  if(sm) notes.push({exam:'<b>Летняя сессия.</b> Держим форму: на подход меньше, вес без прибавки.',
+                     practice:'<b>Практика.</b> Тренировки вечером, физры нет — скоростные на свежих ногах.',
+                     vacation:'<b>Каникулы — главный блок года.</b> Днём, на свежие ноги; в цикле 3 — сила и прыжок, а не масса.'}[sm]);
   if(info.kind==='deload') notes.push('<b>Разгрузка.</b> Меньше подходов и веса — так закрепляется рост прошлых недель.');
   if(info.kind==='test') notes.push('<b>Тестовая неделя.</b> Замеры на свежую голову: прыжок, тесты, рабочие максимумы.');
   el.className='status'+(info.kind==='deload'||info.kind==='test'?' is-deload':(info.shift?' is-shift':''));
@@ -315,6 +319,7 @@ function renderModal(){
   document.getElementById('setAuto').checked=!!settings.auto;
   document.getElementById('setStart').value=settings.start||'';
   document.getElementById('sesN').textContent=settings.session|0;
+  document.getElementById('setPractice').value=summerDates().practiceEnd;
 }
 
 function openModal(){
@@ -341,6 +346,10 @@ document.getElementById('setStart').addEventListener('change',e=>{
   settings.start=e.target.value; saveSettings();
   if(settings.auto){ const p=posForDate(isoDay()); draft={cycle:p.cycle, week:p.week}; }
   renderModal();
+});
+document.getElementById('setPractice').addEventListener('change',e=>{
+  if(!e.target.value) return;
+  settings.practiceEnd=e.target.value; saveSettings(); renderModal();
 });
 const setSes=d=>{
   settings.session=Math.max(0, Math.min(8, (settings.session|0)+d)); saveSettings();
