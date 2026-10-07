@@ -166,6 +166,31 @@ const W7 = '2026-11-16';
   await ctx.close();
 }
 
+/* 7в. Сплит-присед цикла 1: своим весом 4 недели, дальше гантели и всё меньше повторов */
+{
+  const { ctx, p } = await at('2026-11-02', { planLog: {
+    '1-4-d1-a1': { n: 'Болгарский сплит-присед', d: '2026-10-26', sets: [{ w: '', r: '12' }, { w: '', r: '12' }, { w: '', r: '12' }], rpe: 7, tr: 8, ns: 3, wk: 'deload' } } });
+  const r = await p.evaluate(() => {
+    const dose = (c, w) => withWeek(c, w, () => buildWeek().find(e => e.id === 'd1').day.ex.find(x => x.id === 'a1').dose);
+    const d = buildWeek().find(e => e.id === 'd1').day, ex = d.ex.find(x => x.id === 'a1');
+    const pl = planFor(ex, parseDose(ex.dose), logKey('d1', 'a1'));
+    return { w2: dose(1, 2), w5: dose(1, 5), w7: dose(1, 7), w10: dose(1, 10), start: pl.w, kind: weightKind(ex, parseDose(ex.dose)).ph };
+  });
+  check('сплит-присед: 8–12 своим весом → 10–12 → 8–10 → 6–8 с гантелями',
+    /8–12 .*свой вес/.test(r.w2) && /10–12 .*вес в руках/.test(r.w5) && /8–10 .*вес в руках/.test(r.w7) && /6–8 .*вес в руках/.test(r.w10), JSON.stringify(r));
+  check('5-я неделя: старт 10 кг в каждой руке', r.start === 10 && r.kind === 'гантель', JSON.stringify(r));
+  await ctx.close();
+}
+{
+  /* 6-я неделя: 4 × 12 по 14 кг, тяжесть 8 → на 7-й неделе 15 кг */
+  const { ctx, p } = await at('2026-11-16', { planLog: {
+    '1-6-d1-a1': { n: 'Болгарский сплит-присед', d: '2026-11-09', sets: [{ w: '14', r: '12' }, { w: '14', r: '12' }, { w: '14', r: '12' }, { w: '14', r: '12' }], rpe: 8, tr: 10, ns: 4, wk: 'build' } } });
+  const r = await p.evaluate(() => { const d = buildWeek().find(e => e.id === 'd1').day, ex = d.ex.find(x => x.id === 'a1');
+    return { w: planFor(ex, parseDose(ex.dose), logKey('d1', 'a1')).w, pos: [state.cycle, state.week] }; });
+  check('все по верху диапазона → +1 кг на гантель', r.w === 15 && r.pos.join('/') === '1/7', JSON.stringify(r));
+  await ctx.close();
+}
+
 /* ---------- Связь плана и приложения ---------- */
 /* 9. plan.ics на сайте = календарь, который собирает приложение */
 {
