@@ -3,7 +3,7 @@
    обновления приходили сами, без сети — из кэша.
    Иконки и картинки: сначала кэш.
    При изменении списка файлов увеличь VERSION. */
-const VERSION = 'v23';
+const VERSION = 'v24';
 const CACHE = 'tri-cikla-' + VERSION;
 const FILES = [
   './',
@@ -31,6 +31,8 @@ const FILES = [
   './icons/icon-512.png',
   './icons/icon-maskable-512.png',
   './plan.ics',
+  './img/ex/barbell-bench-press---medium-grip-0.webp',
+  './img/ex/barbell-bench-press---medium-grip-1.webp',
   './img/ex/barbell-full-squat-0.webp',
   './img/ex/barbell-full-squat-1.webp',
   './img/ex/bent-over-barbell-row-0.webp',

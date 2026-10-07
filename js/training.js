@@ -649,6 +649,7 @@ function lastSummary(L, P){
 
 /* Стартовые веса, пока нет истории (вес одной гантели / штанги) */
 const START_W={
+  'Жим штанги лёжа':50,
   'Тяга гантели в наклоне':12, 'Жим гантелей стоя':12, 'Румынская тяга на одной ноге':4,
   'Сгибания на бицепс':10, 'Разгибания на трицепс':14, 'Тяга штанги в наклоне':40,
   'Подтягивания с весом':5, 'Брусья с весом':5, 'Болгарский сплит-присед':8
@@ -732,7 +733,7 @@ function planBase(ex, P, k){
       const prev=hist.filter(h=>h!==base && h.L.wk!=='deload' && h.L.wk!=='test')[0];
       const P2=prev?sessionStats(prev.L,lo,n):null;
       const twoFails = B.comp<1 && P2 && P2.comp<1 && Math.abs(P2.top-bw)<0.1;
-      const small = /Жим стоя|наклоне/.test(ex.name);
+      const small = /Жим стоя|наклоне|лёжа/.test(ex.name);
       if(B.comp>=1){
         const rpe=B.rpe||8;
         const inc = rpe<=7 ? (small?2.5:5) : rpe>=9.5 ? 0 : rpe===9 ? (small?0:2.5) : 2.5;

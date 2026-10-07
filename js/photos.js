@@ -28,6 +28,7 @@ const PHOTO_BY_NAME={
   'Жим гантелей сидя со спинкой':'dumbbell-shoulder-press',
   'Тяга штанги в наклоне':'bent-over-barbell-row',
   'Подтягивания обратным хватом':'chin-up',
+  'Жим штанги лёжа':'barbell-bench-press---medium-grip',
   'Отжимания на брусьях':'dips---chest-version', 'Брусья с весом':'dips---chest-version',
   'Прыжки на тумбу':'front-box-jump', 'Выпрыгивания на тумбу':'front-box-jump',
   'Латеральные прыжки':'lateral-cone-hops',

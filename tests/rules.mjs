@@ -204,6 +204,21 @@ const W7 = '2026-11-16';
   await ctx.close();
 }
 
+/* 7д. Жим лёжа — только цикл 2, 3 × 5; день данков — пятницы лета цикла 3 */
+{
+  const { ctx, p } = await at('2026-10-06');
+  const r = await p.evaluate(() => {
+    const names = (c, w, id) => withWeek(c, w, () => (buildWeek().find(x => x.id === id) || { day: { ex: [] } }).day.ex.map(x => x.name + ': ' + x.dose));
+    const date = (c, w) => dateOfCW(c, w, 4);
+    return { c2: names(2, 3, 'd3'), c1: names(1, 3, 'd3'), c3: names(3, 3, 'd3'),
+             apr: names(3, 2, 'd4'), jul: names(3, 12, 'd4'), dates: [date(3, 2), date(3, 12)],
+             photo: photoOf('bench', 'Жим штанги лёжа') };
+  });
+  check('жим лёжа 3 × 5 в цикле 2, в циклах 1 и 3 нет', r.c2.some(x => /^Жим штанги лёжа: 3 × 5/.test(x)) && !r.c1.concat(r.c3).some(x => /лёжа/.test(x)) && !!r.photo, JSON.stringify(r.c2));
+  check('пятница летом цикла 3 — данки, весной — первый шаг', r.jul.some(x => /^Данки/.test(x)) && !r.apr.some(x => /^Данки/.test(x)), JSON.stringify({ apr: r.apr, jul: r.jul, d: r.dates }));
+  await ctx.close();
+}
+
 /* ---------- Связь плана и приложения ---------- */
 /* 9. plan.ics на сайте = календарь, который собирает приложение */
 {
