@@ -254,12 +254,11 @@ function renderHeader(){
 /* На «Сегодня» виден один день, поэтому неделю считаем по данным, а не по экрану */
 function updateProgress(){
   let total=0, done=0;
-  const warm=warmupFor(state.week);
   const add=k=>{ total++; if(marks[k]) done++; };
   buildWeek().forEach(e=>{
     if(e.type==='gym'){
       if(isDropped(e.id)) return;
-      if(!e.day.noWarm) warm.list.forEach(x=>add(key(e.day.id,x.id)));
+      if(!e.day.noWarm) warmupOf(e.day, state.week).list.forEach(x=>add(key(e.day.id,x.id)));
       e.day.ex.forEach(x=>add(key(e.day.id,x.id)));
     } else if(e.type==='run'){
       if(isSkipped(e.id)) return;

@@ -16,6 +16,8 @@ const PHOTO_BY_TECH={
   triceps:'dumbbell-one-arm-triceps-extension', facepull:'face-pull', jump:'freehand-jump-squat',
   nordic:'natural-glute-ham-raise', hamslide:'platform-hamstring-slides', plyo:'hurdle-hops',
   w_inchworm:'inchworm', w_bridge:'butt-lift-bridge',
+  lateral:'side-lateral-raise', reardelt:'seated-bent-over-rear-delt-raise',
+  legext:'leg-extensions', legcurl:'seated-leg-curl',
   st_calf:'calf-stretch-hands-against-wall', st_soleus:'standing-soleus-and-achilles-stretch',
   st_ham:'hamstring-stretch', st_glute:'it-band-and-glute-stretch', st_hipflex:'kneeling-hip-flexor',
   roll_quad:'quadriceps-smr', roll_ham:'hamstring-smr', roll_it:'iliotibial-tract-smr',
@@ -33,7 +35,12 @@ const PHOTO_BY_NAME={
   'Отжимания на брусьях':'dips---chest-version', 'Брусья с весом':'dips---chest-version',
   'Прыжки на тумбу':'front-box-jump', 'Выпрыгивания на тумбу':'front-box-jump',
   'Латеральные прыжки':'lateral-cone-hops',
-  'Тяга гантели лёжа грудью на скамье':null, 'Тяга гантелей лёжа грудью на скамье':null
+  'Тяга гантели лёжа грудью на скамье':null, 'Тяга гантелей лёжа грудью на скамье':null,
+  'Разгибания из-за головы':'standing-dumbbell-triceps-extension',
+  'Отжимания с ногами на опоре':'decline-push-up',
+  'Подтягивания широким хватом':'pullups',
+  /* прыжки в метку — схема прыжка на касание точнее, чем фото выпрыгивания */
+  'Прыжки в метку · проверка готовности':null
 };
 function photoOf(tech, name){
   if(name && name in PHOTO_BY_NAME) return PHOTO_BY_NAME[name];

@@ -18,7 +18,7 @@ function isNowWeek(){
 /* ---------- Когда реально тренировался ----------
    День тренировки считается сделанным, если в нём есть галочка,
    запись подходов или данные с часов. Дата — по расписанию недели. */
-const DAY_DOW={d1:0, d2:3, d3:5, d4:4};
+const DAY_DOW={d1:0, d2:3, d3:5, d4:4, d5:2, d6:4};
 
 /* Расчёты по всей истории дорогие, а за одну перерисовку их зовут
    десятки раз. Запоминаем результат, пока не поменялись данные, дата или неделя */
@@ -33,7 +33,7 @@ function memo(name, fn){
 /* Дни, в которых что-то сделано: "цикл-неделя-день" */
 function activeDays(){
   return memo('active', ()=>{
-    const set=new Set(), re=/^([123]-\d+-d[1-4])(?:-|$)/;
+    const set=new Set(), re=/^([123]-\d+-d[1-6])(?:-|$)/;
     for(const k in watch){ const m=k.match(re); if(m) set.add(m[1]); }
     for(const k in marks){ const m=marks[k] && k.match(re); if(m) set.add(m[1]); }
     for(const k in logs){ const m=k.match(re); if(m && hasData(logs[k])) set.add(m[1]); }
@@ -47,7 +47,7 @@ function activityDates(){ return memo('dates', activityDatesRaw); }
 function activityDatesRaw(){
   const set=new Set(), today=isoDay();
   const add=(c,w,id)=>{ if(DAY_DOW[id]!=null) set.add(dateOfCW(c,w,DAY_DOW[id])); };
-  const parse=k=>k.match(/^([123])-(\d+)-(d[1-4])(?:-|$)/);
+  const parse=k=>k.match(/^([123])-(\d+)-(d[1-6])(?:-|$)/);
   for(const k in logs){ const L=logs[k]; if(L && hasData(L)){ if(L.d) set.add(L.d); else { const m=parse(k); if(m) add(+m[1],+m[2],m[3]); } } }
   for(const k in marks){ const m=marks[k] && parse(k); if(m) add(+m[1],+m[2],m[3]); }
   for(const k in watch){ const m=parse(k); if(m) add(+m[1],+m[2],m[3]); }
@@ -105,6 +105,8 @@ const ALTS={
     warm:'Один подход 8 повторов без веса, медленно. Задняя нога на носке, почти не участвует.'},
   'Румынская тяга на одной ноге':{name:'Ягодичный мостик на одной ноге', tech:'hipthrust', why:'поясница реагирует на наклоны',
     dose:ex=>`${setsOf(ex)} × 10–12 на ногу`},
+  'Румынская тяга в разноножке':{name:'Румынская тяга на одной ноге', tech:'rdl', why:'хочется больше работы на равновесие и стопу',
+    dose:ex=>ex.dose},
   'Тяга гантели в наклоне':{name:'Тяга гантели лёжа грудью на скамье', tech:'row', why:'поясница: спина лежит на опоре',
     dose:ex=>`${setsOf(ex)} × 10–12 на руку`},
   'Тяга штанги в наклоне':{name:'Тяга гантелей лёжа грудью на скамье', tech:'row', why:'поясница: спина лежит на опоре',
@@ -140,6 +142,14 @@ function applySub(ex){
   if(!A || !subOn(ex.name) || /пропустить/.test(ex.dose)) return ex;
   return {...ex, name:A.name, tech:A.tech, dose:A.dose(ex), warm:A.warm||ex.warm, sub:{from:ex.name, why:A.why}};
 }
+
+/* ---------- Проверка готовности ----------
+   Три прыжка в метку в начале Силовой А. Не достал обычную метку 2 из 3 —
+   нервная система не восстановилась: день лёгкий. Средняя высота прыжка
+   ловит усталость раньше ощущений (Claudino 2017) */
+const readyKey=()=>`${state.cycle}-${state.week}-ready`;
+const readyLow=()=>!!marks[readyKey()];
+function setReadyLow(on){ if(on) marks[readyKey()]=true; else delete marks[readyKey()]; saveMarks(); }
 
 /* ---------- Объём меньше на подход ---------- */
 function lessSets(ex){
@@ -204,7 +214,7 @@ function exSeconds(ex){
   return sets*sides*work + Math.max(0,sets-1)*r + sets*(sides-1)*15 + warm + TIME_SETUP;
 }
 function dayMinutes(day, week){
-  const warm = day.noWarm ? 0 : (()=>{ const w=warmupFor(week).dur.match(/(\d+)\D+(\d+)/); return w?(+w[1]+ +w[2])/2*60:0; })();
+  const warm = day.noWarm ? 0 : (()=>{ const w=warmupOf(day,week).dur.match(/(\d+)\D+(\d+)/); return w?(+w[1]+ +w[2])/2*60:0; })();
   const body = day.ex.reduce((a,x)=>a+exSeconds(x),0);
   return Math.round((warm+body+TIME_AFTER)/60/5)*5;   /* до 5 минут */
 }
@@ -223,6 +233,7 @@ function typicalMinutes(){
   };
   const c1=Array.from({length:12},(_,i)=>i+1);
   ['d1','d2','d3','d4'].forEach(id=>run(id,1,c1,id));
+  run('d5',1,c1.filter(w=>w>=3),'d5');        /* Силовая В — с 3-й недели */
   const ses=Array.from({length:Math.max(1,settings.session|0)},(_,i)=>13+i);
   run('s1',1,ses,'d1'); run('s2',1,ses,'d2'); run('s3',1,ses,'d3');
   return out;
@@ -284,6 +295,13 @@ function adjustDays(S){
         : {lvl:'y', html:'<b>Лёгкий день</b>Две прошлые тренировки были на пределе (тяжесть 9–10). Сегодня на подход меньше и без прибавки веса — так прогресс не встанет.'};
     }
     if(ks && ks.lvl!=='g' && day.ex.some(ex=>ex.badge[0]==='Скорость')) day.ex=kneeAdjust(day.ex, ks.lvl);
+    /* прыжок не дотянул до метки — ноги на подход меньше, старты на 80 %, верх по плану */
+    if(day.id==='d1' && readyLow()){
+      day.ex=day.ex.map(ex=> ex.action==='ready' ? ex
+        : (isLogged(ex) && ex.badge[0]==='Ноги' && !light) ? lessSets(ex)
+        : (ex.tech==='stairstart' || ex.tech==='curve') ? {...ex, dose:ex.dose+' · на 80 %'} : ex);
+      if(!day.alert) day.alert={lvl:'y', html:'<b>Лёгкий день по прыжку</b>Не достал обычную метку — нервная система ещё не восстановилась. На подход меньше на ноги, старты на 80 %, верх по плану. Это не откат: так прогресс не встанет.'};
+    }
   });
   return S;
 }

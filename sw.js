@@ -3,7 +3,7 @@
    обновления приходили сами, без сети — из кэша.
    Иконки и картинки: сначала кэш.
    При изменении списка файлов увеличь VERSION. */
-const VERSION = 'v31';
+const VERSION = 'v32';
 const CACHE = 'tri-cikla-' + VERSION;
 const FILES = [
   './',
@@ -49,6 +49,8 @@ const FILES = [
   './img/ex/chin-up-1.webp',
   './img/ex/dead-bug-0.webp',
   './img/ex/dead-bug-1.webp',
+  './img/ex/decline-push-up-0.webp',
+  './img/ex/decline-push-up-1.webp',
   './img/ex/dips---chest-version-0.webp',
   './img/ex/dips---chest-version-1.webp',
   './img/ex/dumbbell-bicep-curl-0.webp',
@@ -83,6 +85,8 @@ const FILES = [
   './img/ex/kneeling-hip-flexor-1.webp',
   './img/ex/lateral-cone-hops-0.webp',
   './img/ex/lateral-cone-hops-1.webp',
+  './img/ex/leg-extensions-0.webp',
+  './img/ex/leg-extensions-1.webp',
   './img/ex/natural-glute-ham-raise-0.webp',
   './img/ex/natural-glute-ham-raise-1.webp',
   './img/ex/one-arm-dumbbell-row-0.webp',
@@ -99,19 +103,28 @@ const FILES = [
   './img/ex/pushups-1.webp',
   './img/ex/quadriceps-smr-0.webp',
   './img/ex/quadriceps-smr-1.webp',
+  './img/ex/seated-bent-over-rear-delt-raise-0.webp',
+  './img/ex/seated-bent-over-rear-delt-raise-1.webp',
+  './img/ex/seated-leg-curl-0.webp',
+  './img/ex/seated-leg-curl-1.webp',
   './img/ex/side-bridge-0.webp',
   './img/ex/side-bridge-1.webp',
+  './img/ex/side-lateral-raise-0.webp',
+  './img/ex/side-lateral-raise-1.webp',
   './img/ex/single-leg-glute-bridge-0.webp',
   './img/ex/single-leg-glute-bridge-1.webp',
   './img/ex/split-squat-with-dumbbells-0.webp',
   './img/ex/split-squat-with-dumbbells-1.webp',
   './img/ex/standing-dumbbell-press-0.webp',
   './img/ex/standing-dumbbell-press-1.webp',
+  './img/ex/standing-dumbbell-triceps-extension-0.webp',
+  './img/ex/standing-dumbbell-triceps-extension-1.webp',
   './img/ex/standing-military-press-0.webp',
   './img/ex/standing-military-press-1.webp',
   './img/ex/standing-soleus-and-achilles-stretch-0.webp',
   './img/ex/standing-soleus-and-achilles-stretch-1.webp',
   './img/ex/trap-bar-deadlift-0.webp',
+  './img/ex/trap-bar-deadlift-1.webp',
   './img/ex/trap-bar-deadlift-1.webp'
 ];
 

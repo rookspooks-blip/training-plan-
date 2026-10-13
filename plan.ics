@@ -18,12 +18,13 @@ BEGIN:VEVENT
 UID:tri-cikla-1@training-plan
 DTSTAMP:20260930T120000Z
 DTSTART;TZID=Europe/Moscow:20261005T170000
-DTEND;TZID=Europe/Moscow:20261005T183000
+DTEND;TZID=Europe/Moscow:20261005T182500
 RRULE:FREQ=WEEKLY;UNTIL=20261227T205959Z
 SUMMARY:Силовая А
-DESCRIPTION:Сплит-присед\, подтягивания\, отжим
- ания\, скольжение пяток. Веса и повторы —
-  в приложении.
+DESCRIPTION:Сначала старты и торможение в подъ
+ езде\, потом сплит-присед\, румынская\, по
+ дтягивания\, отжимания\, махи. Веса и повт
+ оры — в приложении.
 BEGIN:VALARM
 ACTION:DISPLAY
 DESCRIPTION:Силовая А
@@ -49,11 +50,13 @@ BEGIN:VEVENT
 UID:tri-cikla-3@training-plan
 DTSTAMP:20260930T120000Z
 DTSTART;TZID=Europe/Moscow:20261008T114000
-DTEND;TZID=Europe/Moscow:20261008T124500
+DTEND;TZID=Europe/Moscow:20261008T130000
 RRULE:FREQ=WEEKLY;UNTIL=20261227T205959Z
 SUMMARY:Скоростная после физры
-DESCRIPTION:Перед прыжками — изометрия у стен
- ы 5 × 45 сек. В конце 5 мин бросков у кольца.
+DESCRIPTION:Ускорения\, торможение на скорости
+ \, боковые старты\, прыжки. Колено ноет — 
+ перед прыжками изометрия у стены 5 × 45 се
+ к. В конце 5 мин бросков у кольца.
 BEGIN:VALARM
 ACTION:DISPLAY
 DESCRIPTION:Скоростная после физры
@@ -67,8 +70,9 @@ DTSTART;TZID=Europe/Moscow:20261010T130000
 DTEND;TZID=Europe/Moscow:20261010T141500
 RRULE:FREQ=WEEKLY;UNTIL=20261227T205959Z
 SUMMARY:Силовая Б
-DESCRIPTION:Присед на одной ноге\, брусья\, мост
- ик\, копенгаген. Веса — в приложении.
+DESCRIPTION:Присед на одной ноге\, мостик\, скол
+ ьжение пяток\, подтягивания\, жим\, копенг
+ аген. Веса — в приложении.
 BEGIN:VALARM
 ACTION:DISPLAY
 DESCRIPTION:Силовая Б
@@ -262,6 +266,22 @@ DESCRIPTION:Старты из стойки 6 × 5–10 м\, ускорен
 BEGIN:VALARM
 ACTION:DISPLAY
 DESCRIPTION:Первый шаг после физры
+TRIGGER:-PT30M
+END:VALARM
+END:VEVENT
+BEGIN:VEVENT
+UID:tri-cikla-19@training-plan
+DTSTAMP:20260930T120000Z
+DTSTART;TZID=Europe/Moscow:20261021T180000
+DTEND;TZID=Europe/Moscow:20261021T184000
+RRULE:FREQ=WEEKLY;UNTIL=20261227T205959Z
+SUMMARY:Силовая В · верх
+DESCRIPTION:Тяга гантели\, брусья\, махи\, задня
+ я дельта\, руки. Дома\, только верх. Если в 
+ среду вечером пара — утром до пар.
+BEGIN:VALARM
+ACTION:DISPLAY
+DESCRIPTION:Силовая В · верх
 TRIGGER:-PT30M
 END:VALARM
 END:VEVENT

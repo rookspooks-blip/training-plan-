@@ -90,13 +90,16 @@ function weekShift(){
   return (prevMoved && !prevDrop) ? 1 : 0;
 }
 
-/* Куда встают три тренировки на этой неделе */
+/* Куда встают тренировки на этой неделе.
+   Силовая В (верх) — среда, Силовая Г (верх, блоки массы цикла 3) — пятница вечером */
 function layout(){
   const sh=weekShift();
   const L={
     d1:{dow:1, note:''},
     d2:{dow:4, note:''},
-    d3:{dow:6, note:''}
+    d3:{dow:6, note:''},
+    d5:{dow:3, note:''},
+    d6:{dow:5, note:''}
   };
 
   /* Входящий сдвиг двигает только Силовую А: скоростная привязана
@@ -112,13 +115,28 @@ function layout(){
     L.d1.dow = sh ? 3 : 2;
     L.d1.note = sh
       ? 'Перенесена на среду. До скоростной остаётся день — этого хватает, но жать по весам не надо.'
-      : 'Перенесена на вторник. До скоростной 48 часов, интервалы не сломаны.';
+      : 'Перенесена на вторник.';
   }
 
   /* Силовая Б переезжает на воскресенье, следующая неделя сдвигается */
   if(isMoved('d3') && !isDropped('d3')){
     L.d3.dow=0;
     L.d3.note='Перенесена на воскресенье. Следующая неделя начнётся со вторника — между силовыми нужно 48 часов.';
+  }
+
+  /* Силовая А уехала на среду — верх уступает ей среду и переезжает на пятницу вечером */
+  if(L.d1.dow===3){
+    L.d5.dow=5;
+    L.d5.note='Сдвинута на пятницу вечером: в среду стоит перенесённая Силовая А.';
+  }
+  /* Пропущенный верх — на четверг вечером: ногам и скоростной он не мешает */
+  if(isMoved('d5') && !isDropped('d5')){
+    L.d5.dow=4;
+    L.d5.note='Перенесена на четверг вечером — через 3+ часа после скоростной. Это только верх, ногам не мешает.';
+  }
+  if(isMoved('d6') && !isDropped('d6')){
+    L.d6.dow=0;
+    L.d6.note='Перенесена на воскресенье вечером, через 6+ часов после велосипеда.';
   }
 
   return L;
@@ -129,19 +147,32 @@ function buildWeek(){
   const S=buildDays(state.cycle,state.week), C=cardioFor();
   if(noPE() && !isSession()) S[1]=homeSpeedDay();          /* четверг: физры не было */
   if(!isSession()) S[3]=fridayDay(state.cycle,state.week);  /* пятница: первый шаг после физры */
+  const U=upperDay(state.cycle,state.week);  if(U) S[4]=U;   /* среда: верх дома */
+  const G=massDay(state.cycle,state.week);   if(G) S[5]=G;   /* пятница вечером: верх в блоках массы */
   adjustDays(S);                                            /* замены, колено, перерыв, усталость */
   const L=layout();
   const MODE={bike:'Велосипед', run:'Бег', walk:'Ходьба'};
 
+  /* Силовая А не в понедельник (пропуск или сдвиг недели) — до скоростной меньше 48 часов:
+     без подъезда и на подход меньше на ноги. Верх по плану */
+  if(S[0] && (L.d1.dow===2 || L.d1.dow===3) && !isDropped('d1') && !isSession() && S[0].ex.some(ex=>ex.badge[0]==='Скорость')){
+    S[0]={...S[0], ex:S[0].ex.filter(ex=>ex.badge[0]!=='Скорость').map(ex=>isLogged(ex)&&ex.badge[0]==='Ноги'?lessSets(ex):ex)};
+    L.d1.note+=' До скоростной меньше 48 часов: без стартов и прыжков в начале и на подход меньше на ноги.';
+  }
+
   /* Дни, занятые силовыми — туда кардио не ставим */
   const taken=new Set([L.d1.dow, L.d3.dow]);
   if(!isDropped('d2')) taken.add(L.d2.dow);
+  if(S[4] && !isDropped('d5')) taken.add(L.d5.dow);
+  if(S[5] && !isDropped('d6')) taken.add(L.d6.dow);
 
   const out=[];
   out.push({dow:L.d1.dow, id:'d1', type:'gym', day:S[0], moveNote:L.d1.note});
   if(!isDropped('d2')) out.push({dow:L.d2.dow, id:'d2', type:'gym', day:S[1], moveNote:L.d2.note});
+  if(S[4]) out.push({dow:L.d5.dow, id:'d5', type:'gym', day:S[4], moveNote:L.d5.note});
   out.push({dow:L.d3.dow, id:'d3', type:'gym', day:S[2], moveNote:L.d3.note});
   if(S[3] && !isDropped('d4')){ out.push({dow:5, id:'d4', type:'gym', day:S[3], moveNote:''}); taken.add(5); }
+  if(S[5]) out.push({dow:L.d6.dow, id:'d6', type:'gym', day:S[5], moveNote:L.d6.note});
 
   /* Кардио: вторник и воскресенье, но уступают силовым */
   const dropped=[];
@@ -160,7 +191,7 @@ function buildWeek(){
   /* Остальные дни — отдых */
   const RESTS={
     3:{title:'Отдых', why:'Полный день без нагрузки между силовой и скоростной. Нервной системе нужен именно он, а не лёгкая тренировка.'},
-    5:{title:'Только учёба', why:'Физра, пары до 19:05 и 80 минут дороги. Сюда не влезает ни тренировка, ни ДЗ.'},
+    5:{title:'Отдых', why:'Физра утром и пары — вечер свободен, ноги отдыхают перед субботой.'},
     2:{title:'Отдых', why:''},
     0:{title:'Отдых', why:''},
     6:{title:'Отдых', why:''},
@@ -230,6 +261,8 @@ function loadWeek(){
 /* Что делать с пропущенным днём — совет зависит от того, что именно пропало */
 const MOVE_NOTE={
   d1:'Силовая А переехала — смотри новый день в расписании выше. Веса те же, менять ничего не надо.',
+  d5:'Силовая В переехала на четверг вечером — это только верх, ногам и скоростной не мешает.',
+  d6:'Силовая Г переехала на воскресенье вечером.',
   d2:'Скоростная не переносится: после физры её делать негде, а на уставших ногах она тренирует медленный бег. Пропуск раз в месяц ничего не стоит.',
   d3:'Силовая Б переехала на воскресенье. Следующая неделя начнётся со вторника — приложение само это учтёт.',
   run:'Кардио догонять не надо. Одна сессия на базу почти не влияет.'
@@ -238,6 +271,8 @@ const DROP_ADVICE={
   d1:'Силовая А отменена на этой неделе. Если отменишь и Силовую Б, прогрессия сдвинется на неделю назад — веса следующей недели повторят эти.',
   d2:'Скоростная отменена. На прогрессию весов не влияет, но прыжковой работы на этой неделе не было — учти в отчёте.',
   d3:'Силовая Б отменена. Если на этой неделе отменены обе силовые, прогрессия сдвинется: веса следующей недели повторят текущие.',
+  d5:'Силовая В отменена. На веса ног и прогрессию не влияет: верх на этой неделе получит нагрузку в понедельник и субботу.',
+  d6:'Силовая Г отменена. Догонять не надо — это добавка к верху в блоке массы.',
   run:'Кардио отменено. Догонять не надо.'
 };
 
@@ -330,15 +365,22 @@ function renderDaily(){
 
 function renderDays(){
   const week=buildWeek();
-  const warm=warmupFor(state.week);
   const today=new Date().getDay();
   const root=document.getElementById('days');
   root.innerHTML='';
 
   /* полоса недели сверху */
-  document.getElementById('weekstrip').innerHTML = week.map(e=>{
-    const cls = e.type==='rest' ? 'rest' : (e.type==='run' ? 'cardio' : '');
+  /* в один день бывает две тренировки (скоростная и перенесённый верх) — один чип на день */
+  const chips=[];
+  week.forEach(e=>{
     const label = e.type==='gym' ? e.day.title.split(' · ')[0] : e.title;
+    const c=chips.find(x=>x.dow===e.dow);
+    if(c){ if(e.type!=='rest'){ c.label = c.type==='rest' ? label : `${c.label} + ${label}`; if(c.type==='rest') c.type=e.type; } return; }
+    chips.push({dow:e.dow, type:e.type, label});
+  });
+  document.getElementById('weekstrip').innerHTML = chips.map(e=>{
+    const cls = e.type==='rest' ? 'rest' : (e.type==='run' ? 'cardio' : '');
+    const label = e.label;
     const sel = e.dow===selDow ? ' sel' : '';
     return `<button type="button" class="wchip ${cls}${e.dow===today?' today':''}${sel}" data-dow="${e.dow}">
       <span class="wd">${e.dow===today?'Сегодня':DOW_FULL[e.dow]}</span><span class="wt">${label}</span></button>`;
@@ -507,13 +549,14 @@ function renderDays(){
     sec.appendChild(sessionBar(e, day));
 
     /* --- разминка (после физры не нужна) --- */
+    const warm=warmupOf(day, state.week);
     const wb=document.createElement('div');
     if(day.noWarm) wb.hidden=true;
     wb.className='warmblock';
     wb.innerHTML=`
       <div class="warm-head" tabindex="0" role="button" aria-expanded="false">
         <div class="warm-title">
-          <div class="t">Разминка · уровень ${warm.level}</div>
+          <div class="t">Разминка${warm.level?` · уровень ${warm.level}`:''}</div>
           <div class="s">${warm.label}</div>
         </div>
         <span class="warm-dur">${warm.dur}</span>
@@ -636,11 +679,13 @@ const START_W={
   'Жим штанги лёжа':50,
   'Тяга гантели в наклоне':12, 'Жим гантелей стоя':12, 'Румынская тяга на одной ноге':4,
   'Сгибания на бицепс':10, 'Разгибания на трицепс':14, 'Тяга штанги в наклоне':40,
-  'Подтягивания с весом':5, 'Брусья с весом':5, 'Болгарский сплит-присед':8
+  'Подтягивания с весом':5, 'Брусья с весом':5, 'Болгарский сплит-присед':8,
+  'Махи гантелями в стороны':4, 'Разведения в наклоне':3, 'Разгибания из-за головы':10,
+  'Румынская тяга в разноножке':8, 'Разгибания ног в тренажёре':25, 'Сгибания ног в тренажёре':20
 };
 /* Первый вес на 5-й неделе цикла 1, кг одной гантели: сплит-присед — по 10
    в каждой руке; румынская — 4 кг, поясница на 12 кг уже ныла */
-const HEAVY_START={bulgarian:10, rdl:4};
+const HEAVY_START={bulgarian:10, rdl:4, rdlb:6};
 /* С какой гантели начинать, когда без веса стало легко */
 const OPT_W={calf:10, hipthrust:10, pistol:4, bulgarian:8, rdl:4};
 /* Как усложнить упражнение со своим весом, когда упёрся в верх диапазона */
@@ -666,7 +711,7 @@ function planBase(ex, P, k){
   const WK=weightKind(ex,P);
   /* поясница жёлтая/красная — наклонные упражнения без веса или пропуск */
   const bk=backStatus();
-  if(bk && bk.lvl!=='g' && ['rdl','row','trap'].includes(ex.tech)){
+  if(bk && bk.lvl!=='g' && ['rdl','rdlb','row','trap'].includes(ex.tech)){
     const n=P.sets;
     return {w:0, kind:'back', sets:Array.from({length:n},()=>({w:0, r:bk.lvl==='r'?null:P.lo})),
       t: bk.lvl==='r' ? '<b>сегодня пропусти</b> — поясница красная. Вместо этого ягодичный мостик без веса'
@@ -682,7 +727,7 @@ function planBase(ex, P, k){
     sets:Array.from({length:n},(_,i)=>({w, r:Array.isArray(r)?(r[i]??r[r.length-1]??null):r})), t});
   const isBar=WK.ph==='штанга';
   const optional=/пусто, если без веса/.test(WK.hint);
-  const loaded=WK.ph==='гантель'||WK.ph==='рюкзак'||WK.ph==='доп.'||optional||/без веса/.test(ex.dose);
+  const loaded=WK.ph==='гантель'||WK.ph==='рюкзак'||WK.ph==='доп.'||WK.ph==='тренажёр'||optional||/без веса/.test(ex.dose);
 
   /* --- на время --- */
   if(P.timed){
@@ -711,7 +756,7 @@ function planBase(ex, P, k){
       w=r25(e1/(1+lo/30)*0.92);   /* 4 подхода, а не один — нужен запас */
       t=`новая схема (${lo} повт.): пересчёт с прошлых ${fmtW(bw)}×${B.tr} → <b>${fmtW(w)} кг</b>`;
     }
-    else if(deload){ w=r25(bw*0.8); t=`разгрузка: ~80 % от рабочих ${fmtW(bw)} → <b>${fmtW(w)} кг</b>, без предела`; }
+    else if(deload){ w=r25(bw*0.9); t=`разгрузка: ~90 % от рабочих ${fmtW(bw)} → <b>${fmtW(w)} кг</b>, подходов меньше, запас 3–4 повтора`; }
     else if(session){ w=bw; t=`сессия: держим <b>${fmtW(w)} кг</b>, запас 2–3 повтора`; }
     else {
       const prev=hist.filter(h=>h!==base && h.L.wk!=='deload' && h.L.wk!=='test')[0];
@@ -741,7 +786,7 @@ function planBase(ex, P, k){
   /* --- гантели, рюкзак, добавленный вес, «по желанию с гантелями» --- */
   if(loaded && lo!=null){
     const fine = !!WK.fine;
-    const step = fine ? 1 : (WK.ph==='доп.' ? 2.5 : 2);
+    const step = fine ? 1 : (WK.ph==='доп.'||WK.ph==='тренажёр' ? 2.5 : 2);
     const ruck = (ex.dose.match(/рюкзак (\d+)/)||[])[1];
     const bodyNow = /свой вес/.test(ex.dose);
     const noLoad = /без веса/.test(ex.dose);
@@ -758,7 +803,7 @@ function planBase(ex, P, k){
     const bw=B.top;
     const allTop=B.n>=B.ns && B.min>=hi && (!B.rpe||B.rpe<=8);
     /* с этой недели вес в руках, а раньше было своим весом */
-    if(fine && !bw){
+    if(fine && !bw && /вес в руках/.test(ex.dose)){
       const w0=HEAVY_START[ex.tech]||8;
       return out(w0, lo, `с этой недели с весом: <b>${fmtW(w0)} кг</b> в каждой руке, ${lo}${hi>lo?'–'+hi:''} повт., темп тот же. Последние 2 повтора тяжёлые — иначе в следующий раз +1 кг`, 'load');
     }
@@ -767,6 +812,9 @@ function planBase(ex, P, k){
     if(deload) return out(bw, lo, `разгрузка: тот же вес${bw?` <b>${fmtW(bw)} кг</b>`:''}, по ${lo} повт., без отказа`, 'load');
     if(session) return out(bw, lo, `сессия: держим${bw?` <b>${fmtW(bw)} кг</b>`:''} × ${lo}, запас 2–3 повтора`, 'load');
     if(allTop){
+      /* дома гантели собираются максимум до 30 кг: дальше ноги переезжают в зал */
+      if(bw>=30 && WK.ph==='гантель' && ex.badge[0]==='Ноги')
+        return out(bw, hi, `все подходы по ${hi} с ${fmtW(bw)} кг — тяжелее дома не собрать. <b>Пора в зал со штангой</b>: дни ног переезжают туда, верх остаётся дома. Пока — тот же вес, пауза 2 сек внизу`, 'load');
       if(noLoad) return out(0, lo, `все подходы по ${hi}, поясница спокойна — <b>всё ещё без веса</b>, но уже без опоры руки. Вес — после 4-й недели`, 'body');
       if(bodyNow) return out(0, lo, `все подходы по ${hi} — можно надеть <b>рюкзак 4–6 кг</b> уже сейчас, повторы снова от ${lo}`, 'body');
       const w = bw ? rDb(bw+step) : (OPT_W[ex.tech] ?? step);
@@ -813,6 +861,7 @@ function planBadge(ex, P, pl){
   if(WK.ph==='штанга') return `${w} кг`;
   if(WK.ph==='доп.') return `+${w} кг`;
   if(WK.ph==='рюкзак') return `рюкзак ${w} кг`;
+  if(WK.ph==='тренажёр') return `${w} кг`;
   return `гантель ${w} кг`;
 }
 
@@ -831,7 +880,10 @@ function weightKind(ex, P){
   if(t==='squat' || /штанг/i.test(n) || (n==='Жим стоя')) return {hint:'кг — общий вес: гриф (20 кг) + блины', ph:'штанга'};
   if(/с весом/.test(n)) return {hint:'кг — только добавленный вес: блин на поясе, гантель между ног или рюкзак. Свой вес не пиши', ph:'доп.'};
   if(/без веса/.test(d)) return {hint:'кг — пусто: рукой за опору, без веса. Вес появится позже, когда поясница совсем не реагирует', ph:'—'};
-  if(/гантел/i.test(n) || ['rdl','row','curl','triceps'].includes(t)) return {hint:'кг — вес <b>одной</b> гантели', ph:'гантель'};
+  if(/тренажёр/.test(n)) return {hint:'кг — вес, выставленный на тренажёре', ph:'тренажёр'};
+  /* мелкие мышцы: гантели разборные, шаг 0,5 кг — прибавка по 1 кг, а не по 2 */
+  if(['lateral','reardelt','curl','triceps'].includes(t)) return {hint:'кг — вес <b>одной</b> гантели. Прибавляй по 1 кг', ph:'гантель', fine:true};
+  if(/гантел/i.test(n) || ['rdl','rdlb','row'].includes(t)) return {hint:'кг — вес <b>одной</b> гантели', ph:'гантель'};
   if(/рюкзак/.test(d)) return {hint:'кг — вес рюкзака', ph:'рюкзак'};
   if(/свой вес/.test(d)) return BODY;
   if(/без веса/.test(d)) return {hint:'кг — пусто: рукой за опору, без веса. Вес появится позже, когда поясница совсем не реагирует', ph:'—'};
@@ -1155,6 +1207,14 @@ function exCard(day, ex){
   chk.addEventListener('click',e=>{ e.stopPropagation(); setDone(!marks[k]); });
   const slot=card.querySelector('.logslot');
   if(isLogged(ex)) slot.appendChild(logBlock(day, ex, card, setDone));
+  if(ex.action==='ready' && isNowWeek()){
+    const low=readyLow();
+    const b=document.createElement('button');
+    b.type='button'; b.className='btn actbtn'+(low?' on':''); b.style.width='100%';
+    b.textContent= low ? 'Метку достал — вернуть обычный день' : 'Не достал метку 2 из 3 → лёгкий день';
+    b.addEventListener('click',()=>{ setReadyLow(!low); renderAll(); });
+    slot.appendChild(b);
+  }
   if(ex.action==='jump'){
     const b=document.createElement('button');
     b.type='button'; b.className='btn btn-primary actbtn'; b.style.width='100%';

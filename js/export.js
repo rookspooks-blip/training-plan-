@@ -39,7 +39,7 @@ function dayExport(iso){
     let tr={type:'rest', title:'Отдых'};
     if(e && e.type==='gym'){
       const day=e.day, dropped=isDropped(e.id), moved=isMoved(e.id)&&!dropped;
-      const warm=warmupFor(state.week);
+      const warm=warmupOf(day, state.week);
       const exs=day.ex.map(x=>{
         const L=logs[logKey(day.id,x.id)];
         const sets=L?L.sets.filter(s=>num(s.r)!=null).map(s=>({kg:num(s.w)||0, reps:num(s.r)})):[];
