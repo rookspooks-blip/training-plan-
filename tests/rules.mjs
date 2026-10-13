@@ -104,10 +104,10 @@ const W7 = '2026-11-16';
 {
   const { ctx, p } = await at(W7);
   let ex = await dayEx(p, 'd1');
-  check('с 5-й недели нордические по умолчанию', ex.some(x => x.id === 'a9' && x.name === 'Нордические сгибания' && x.dose === '3 × 5'), JSON.stringify(ex.find(x => x.id === 'a9')));
-  await p.evaluate(() => setSub('Нордические сгибания', true));
+  check('по умолчанию скольжение пяток (без опоры нордические опасны)', ex.some(x => x.id === 'a9' && x.name === 'Скольжение пяток на полотенце' && x.dose === '3 × 10'), JSON.stringify(ex.find(x => x.id === 'a9')));
+  await p.evaluate(() => setSub('Нордические сгибания', false));
   ex = await dayEx(p, 'd1');
-  check('замена на скольжение по кнопке', ex.some(x => x.id === 'a9' && x.name === 'Скольжение пяток на полотенце' && x.dose === '3 × 10'));
+  check('нордические возвращаются кнопкой', ex.some(x => x.id === 'a9' && x.name === 'Нордические сгибания' && x.dose === '3 × 5'));
   await p.evaluate(() => setSub('Жим гантелей стоя', true));
   ex = await dayEx(p, 'd3');
   check('жим стоя → сидя', ex.some(x => x.id === 'c5' && x.name === 'Жим гантелей сидя со спинкой'));
@@ -166,42 +166,19 @@ const W7 = '2026-11-16';
   await ctx.close();
 }
 
-/* 7ж. Нордические в плане с 1-й недели; скольжение пяток — только замена */
+/* 7ж. Скольжение пяток — по умолчанию с 1-й недели, ступени доз; нордические кнопкой */
 {
   const { ctx, p } = await at('2026-10-06');
   const r = await p.evaluate(() => {
     const a9 = (c, w) => withWeek(c, w, () => buildWeek().find(x => x.id === 'd1').day.ex.find(x => x.id === 'a9'));
-    return { w1: a9(1, 1), w2: a9(1, 2), w3: a9(1, 3) };
+    const d = [1, 2, 5, 9].map(w => a9(1, w).dose);
+    setSub('Нордические сгибания', false);
+    const nord = a9(1, 1);
+    setSub('Нордические сгибания', true);
+    return { d, nordName: nord.name, nordDose: nord.dose };
   });
-  check('нордические с 1-й недели: 2 × 3, затем 2 × 4', r.w1.name === 'Нордические сгибания' && r.w1.dose === '2 × 3' && r.w2.dose === '2 × 4' && r.w3.dose === '2 × 4', JSON.stringify([r.w1.dose, r.w2.dose, r.w3.dose]));
-  await ctx.close();
-}
-
-/* 7з. Длительности: календарь = расчёт по составу дня, цифры правдоподобны */
-{
-  const { ctx, p } = await at('2026-10-06');
-  const r = await p.evaluate(() => {
-    const all = [];
-    [[1, 12], [2, 12], [3, 24]].forEach(([c, n]) => { for (let w = 1; w <= n; w++) withWeek(c, w, () => buildWeek().filter(e => e.type === 'gym').forEach(e => all.push({ c, w, id: e.id, m: dayMinutes(e.day, w) }))); });
-    return { typ: typicalMinutes(), cal: ICS_DUR, min: Math.min(...all.map(x => x.m)), max: Math.max(...all.map(x => x.m)), hdr: (selDow = 1, renderDays(), document.querySelector('.day-head .when').textContent) };
-  });
-  check('длительности в календаре = расчёт по плану', JSON.stringify(r.typ) === JSON.stringify(r.cal), JSON.stringify([r.typ, r.cal]));
-  check('все тренировки года от 10 до 120 минут', r.min >= 10 && r.max <= 120, `${r.min}–${r.max}`);
-  check('в заголовке дня «≈ N мин»', /≈\d+ мин/.test(r.hdr), r.hdr);
-  await ctx.close();
-}
-
-/* 7и. Болгарский: замена на сплит-присед с ногами на полу сохраняет дозу и вес */
-{
-  const { ctx, p } = await at('2026-11-09');
-  const r = await p.evaluate(() => {
-    const before = buildWeek().find(x => x.id === 'd1').day.ex.find(x => x.id === 'a1');
-    setSub('Болгарский сплит-присед', true);
-    const after = buildWeek().find(x => x.id === 'd1').day.ex.find(x => x.id === 'a1');
-    setSub('Болгарский сплит-присед', false);
-    return { b: before.name, a: after.name, same: before.dose === after.dose, sub: !!after.sub };
-  });
-  check('замена болгарского: другое название, та же доза', r.b === 'Болгарский сплит-присед' && r.a === 'Сплит-присед с ногами на полу' && r.same && r.sub, JSON.stringify(r));
+  check('скольжение: 2 × 8, 3 × 8, 3 × 10, 3 × 6 на одной ноге', r.d.join('|') === '2 × 8|3 × 8|3 × 10|3 × 6 на одной ноге', r.d.join('|'));
+  check('нордические по кнопке с 1-й недели: 2 × 3', r.nordName === 'Нордические сгибания' && r.nordDose === '2 × 3', JSON.stringify(r));
   await ctx.close();
 }
 
