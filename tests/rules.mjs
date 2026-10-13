@@ -191,6 +191,20 @@ const W7 = '2026-11-16';
   await ctx.close();
 }
 
+/* 7и. Болгарский: замена на сплит-присед с ногами на полу сохраняет дозу и вес */
+{
+  const { ctx, p } = await at('2026-11-09');
+  const r = await p.evaluate(() => {
+    const before = buildWeek().find(x => x.id === 'd1').day.ex.find(x => x.id === 'a1');
+    setSub('Болгарский сплит-присед', true);
+    const after = buildWeek().find(x => x.id === 'd1').day.ex.find(x => x.id === 'a1');
+    setSub('Болгарский сплит-присед', false);
+    return { b: before.name, a: after.name, same: before.dose === after.dose, sub: !!after.sub };
+  });
+  check('замена болгарского: другое название, та же доза', r.b === 'Болгарский сплит-присед' && r.a === 'Сплит-присед с ногами на полу' && r.same && r.sub, JSON.stringify(r));
+  await ctx.close();
+}
+
 /* 7в. Сплит-присед цикла 1: своим весом 4 недели, дальше гантели и всё меньше повторов */
 {
   const { ctx, p } = await at('2026-11-02', { planLog: {
