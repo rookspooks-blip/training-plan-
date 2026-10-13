@@ -456,7 +456,7 @@ function renderDays(){
     const whenText = moved || e.moveNote
       ? `${DOW_FULL[e.dow]} · ${day.when.split(' · ').slice(1).join(' · ')}`
       : day.when;
-    sec.innerHTML=`<div class="day-head"><h2>${day.title}${tag}</h2><span class="when">${whenText}</span></div>
+    sec.innerHTML=`<div class="day-head"><h2>${day.title}${tag}</h2><span class="when">${whenText} · ≈${dayMinutes(day,state.week)} мин</span></div>
                    <p class="day-note">${day.note}</p>`;
 
     /* «Не получается?» — все отклонения от плана в одном месте, а не три кнопки на виду */

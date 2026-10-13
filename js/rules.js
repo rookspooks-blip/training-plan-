@@ -165,6 +165,65 @@ function kneeAdjust(list, lvl){
   return out;
 }
 
+/* ---------- Сколько длится тренировка ----------
+   Считается по составу дня, а не вписывается руками:
+   подход = работа + отдых, плюс подводка перед первым рабочим подходом и
+   смена снаряда между упражнениями. Разминка берётся из её уровня */
+const TIME_SETUP=45;       /* сек: подойти, взять снаряд, настроиться */
+const TIME_AFTER=300;      /* сек: сборы, душ не считаем, запись в журнал */
+function exSeconds(ex){
+  const d=ex.dose;
+  if(/пропустить/.test(d)) return 0;
+  const P=parseDose(d);
+  let sets=P.sets||3;
+  const sides=/на ногу|на руку|на сторону/.test(d) ? 2 : 1;
+  /* минуты: «5 мин бросков», «10 минут дриблинга» */
+  let m=d.match(/^(\d+)\s*мин/); if(m) return (+m[1])*60+TIME_SETUP;
+  /* одна работа в секундах: «3 × 30 сек» */
+  let work;
+  const sec=d.match(/×\s*(\d+)(?:–(\d+))?\s*сек/);
+  const dist=d.match(/×\s*(\d+)(?:–(\d+))?\s*м\b/);
+  if(sec) work=+(sec[2]||sec[1]);
+  else if(dist) work=Math.max(4, Math.round((+(dist[2]||dist[1]))/4)+3);   /* бег: ~4 м/с + возврат */
+  else if(/до дальней|штрафная|челнок/i.test(d+ex.name)) work=/челнок|штрафная/i.test(d+ex.name)?35:12;
+  else if(P.hi){
+    /* темп: «3–3» — 6 сек на повтор, «3 сек вниз» — 4, остальное — 3 */
+    const tempo=/темп 3–3/.test(d)?6:(/сек вниз|5 сек/.test(d)?4:3);
+    work=Math.round((P.lo+P.hi)/2)*tempo;     /* по середине диапазона */
+  } else work=40;
+  const rest=restSec(ex.rest);
+  /* «в паре с …» — суперсет: отдых делится на двоих */
+  const r=/в паре/.test(ex.rest||'') ? 45 : (rest||0);
+  /* подводка: «Не нужна» — нет, иначе минута */
+  const warm=/^Не нужна/.test(ex.warm||'') ? 0 : (/× 5 · /.test(ex.warm||'')||/·.*×/.test(ex.warm||'') ? 150 : 75);
+  /* одна нога → вторая почти без паузы (15 сек), полный отдых — между парами подходов */
+  return sets*sides*work + Math.max(0,sets-1)*r + sets*(sides-1)*15 + warm + TIME_SETUP;
+}
+function dayMinutes(day, week){
+  const warm = day.noWarm ? 0 : (()=>{ const w=warmupFor(week).dur.match(/(\d+)\D+(\d+)/); return w?(+w[1]+ +w[2])/2*60:0; })();
+  const body = day.ex.reduce((a,x)=>a+exSeconds(x),0);
+  return Math.round((warm+body+TIME_AFTER)/60/5)*5;   /* до 5 минут */
+}
+
+/* Типичная длительность дня по плану: медиана рабочих недель (без разгрузок) */
+function typicalMinutes(){
+  const med=a=>{ a=a.slice().sort((x,y)=>x-y); return a[Math.floor(a.length/2)]; };
+  const out={};
+  const run=(key, c, weeks, id)=>{
+    const v=[];
+    weeks.forEach(w=>withWeek(c,w,()=>{
+      if(weekKind(c,w)==='deload') return;
+      const e=buildWeek().find(x=>x.id===id); if(e && e.type==='gym') v.push(dayMinutes(e.day,w));
+    }));
+    out[key]=med(v);
+  };
+  const c1=Array.from({length:12},(_,i)=>i+1);
+  ['d1','d2','d3','d4'].forEach(id=>run(id,1,c1,id));
+  const ses=Array.from({length:Math.max(1,settings.session|0)},(_,i)=>13+i);
+  run('s1',1,ses,'d1'); run('s2',1,ses,'d2'); run('s3',1,ses,'d3');
+  return out;
+}
+
 /* ---------- Лето ----------
    Сессия (июнь): пар нет, только подготовка — держим форму.
    Практика (с начала июля, конец в настройках): днём занят, вечером тренировка.

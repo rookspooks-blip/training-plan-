@@ -177,6 +177,20 @@ const W7 = '2026-11-16';
   await ctx.close();
 }
 
+/* 7з. Длительности: календарь = расчёт по составу дня, цифры правдоподобны */
+{
+  const { ctx, p } = await at('2026-10-06');
+  const r = await p.evaluate(() => {
+    const all = [];
+    [[1, 12], [2, 12], [3, 24]].forEach(([c, n]) => { for (let w = 1; w <= n; w++) withWeek(c, w, () => buildWeek().filter(e => e.type === 'gym').forEach(e => all.push({ c, w, id: e.id, m: dayMinutes(e.day, w) }))); });
+    return { typ: typicalMinutes(), cal: ICS_DUR, min: Math.min(...all.map(x => x.m)), max: Math.max(...all.map(x => x.m)), hdr: (selDow = 1, renderDays(), document.querySelector('.day-head .when').textContent) };
+  });
+  check('длительности в календаре = расчёт по плану', JSON.stringify(r.typ) === JSON.stringify(r.cal), JSON.stringify([r.typ, r.cal]));
+  check('все тренировки года от 10 до 120 минут', r.min >= 10 && r.max <= 120, `${r.min}–${r.max}`);
+  check('в заголовке дня «≈ N мин»', /≈\d+ мин/.test(r.hdr), r.hdr);
+  await ctx.close();
+}
+
 /* 7в. Сплит-присед цикла 1: своим весом 4 недели, дальше гантели и всё меньше повторов */
 {
   const { ctx, p } = await at('2026-11-02', { planLog: {
