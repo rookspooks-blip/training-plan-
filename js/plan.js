@@ -26,11 +26,15 @@ function warmupFor(week){
      руками по стене (лопатки перед подтягиваниями и жимом) — тоже везде. */
   const base=[WP.joints,WP.wallsit,WP.groin,WP.shortfoot,WP.tibialis,WP.wallslide];
   const sets = {
-    1:{list:[...base],                                                                    label:'Базовая',                           dur:'10–12 мин'},
-    2:{list:[...base,WP.legswing,WP.balance],                                             label:'Базовая + мобильность',             dur:'13–15 мин'},
-    3:{list:[...base,WP.legswing,WP.balance,WP.bridge,WP.birddog],                        label:'Базовая + мобильность + активация', dur:'16–18 мин'},
-    4:{list:[...base,WP.legswing,WP.balance,WP.bridge,WP.birddog,WP.lunge,WP.inchworm],   label:'Полная с динамической растяжкой',   dur:'19–21 мин'}
+    1:{list:[...base],                                                                    label:'Базовая'},
+    2:{list:[...base,WP.legswing,WP.balance],                                             label:'Базовая + мобильность'},
+    3:{list:[...base,WP.legswing,WP.balance,WP.bridge,WP.birddog],                        label:'Базовая + мобильность + активация'},
+    4:{list:[...base,WP.legswing,WP.balance,WP.bridge,WP.birddog,WP.lunge,WP.inchworm],   label:'Полная с динамической растяжкой'}
   };
+  /* Длительность — сумма таймеров пунктов плюс 30 % на переходы и чтение карточек
+     (по часам: уровень 2 занимает около 24 минут, а не 13–15, как было вписано) */
+  const L=sets[lvl], mins=Math.round(L.list.reduce((a,x)=>a+x.sec,0)*1.3/60);
+  L.dur=`${mins-2}–${mins+2} мин`;
   return {level:lvl, ...sets[lvl]};
 }
 

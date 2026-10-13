@@ -10,7 +10,7 @@ const ICS_KCAL_DEFAULT={cut:'2600 ккал · Б165 · Ж78 · У310', session:2
 const ICS_JUMP_WEEKS=[1,4,8,12];
 /* Длительность силовых и скоростных в минутах. Считается по составу дня
    (dayMinutes → typicalMinutes в js/rules.js), тест сверяет эту таблицу с расчётом */
-const ICS_DUR={d1:95, d2:70, d3:80, d4:30, s1:50, s2:50, s3:55};
+const ICS_DUR={d1:105, d2:75, d3:90, d4:30, s1:65, s2:60, s3:65};
 
 function buildIcs(start, session, kcal){
   kcal=kcal||ICS_KCAL_DEFAULT;
