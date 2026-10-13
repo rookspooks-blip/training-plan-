@@ -166,6 +166,17 @@ const W7 = '2026-11-16';
   await ctx.close();
 }
 
+/* 7ж. Нордические в плане с 1-й недели; скольжение пяток — только замена */
+{
+  const { ctx, p } = await at('2026-10-06');
+  const r = await p.evaluate(() => {
+    const a9 = (c, w) => withWeek(c, w, () => buildWeek().find(x => x.id === 'd1').day.ex.find(x => x.id === 'a9'));
+    return { w1: a9(1, 1), w2: a9(1, 2), w3: a9(1, 3) };
+  });
+  check('нордические с 1-й недели: 2 × 3, затем 2 × 4', r.w1.name === 'Нордические сгибания' && r.w1.dose === '2 × 3' && r.w2.dose === '2 × 4' && r.w3.dose === '2 × 4', JSON.stringify([r.w1.dose, r.w2.dose, r.w3.dose]));
+  await ctx.close();
+}
+
 /* 7в. Сплит-присед цикла 1: своим весом 4 недели, дальше гантели и всё меньше повторов */
 {
   const { ctx, p } = await at('2026-11-02', { planLog: {

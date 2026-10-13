@@ -94,7 +94,7 @@ function fatigueRaw(){
 const setsOf=ex=>parseDose(ex.dose).sets;
 const isDl=()=>weekKind(state.cycle,state.week)==='deload';
 const ALTS={
-  'Нордические сгибания':{name:'Скольжение пяток на полотенце', tech:'hamslide', why:'нет партнёра или опоры для пяток',
+  'Нордические сгибания':{name:'Скольжение пяток на полотенце', tech:'hamslide', why:'не за что зацепить пятки',
     dose:()=>{ if(isDl()) return '2 × 6';
       const c=state.cycle, lw=loadWeek();
       if(c===1) return lw<=8 ? '3 × 10' : '3 × 6 на одной ноге';
