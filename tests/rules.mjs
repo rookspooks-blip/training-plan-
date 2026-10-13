@@ -153,10 +153,10 @@ const W7 = '2026-11-16';
   const r = await p.evaluate(() => {
     const e = buildWeek().find(x => x.id === 'd4');
     return { dow: e && e.dow, names: e ? e.day.ex.map(x => x.name) : [], noWarm: e && e.day.noWarm,
-             daily: gymDays().has(4), ses: withWeek(1, 13, () => buildWeek().some(x => x.id === 'd4')) };
+             ses: withWeek(1, 13, () => buildWeek().some(x => x.id === 'd4')) };
   });
   check('пятница: старты и ускорения после физры', r.dow === 5 && r.names.join() === 'Старты из баскетбольной стойки,Ускорения 20 м' && r.noWarm, JSON.stringify(r));
-  check('пятница: ежедневный блок нужен, в сессию дня нет', r.daily === false && r.ses === false, JSON.stringify(r));
+  check('в сессию пятницы-«первого шага» нет', r.ses === false, JSON.stringify(r));
   await ctx.close();
 }
 {
@@ -179,6 +179,22 @@ const W7 = '2026-11-16';
   });
   check('скольжение: 2 × 8, 3 × 8, 3 × 10, 3 × 6 на одной ноге', r.d.join('|') === '2 × 8|3 × 8|3 × 10|3 × 6 на одной ноге', r.d.join('|'));
   check('нордические по кнопке с 1-й недели: 2 × 3', r.nordName === 'Нордические сгибания' && r.nordDose === '2 × 3', JSON.stringify(r));
+  await ctx.close();
+}
+
+/* 7к. Ежедневный блок — отдельно от разминки, все 7 дней; разминка — подготовка к тренировке */
+{
+  const { ctx, p } = await at('2026-10-12', { planOnboarded: true });
+  const r = await p.evaluate(() => {
+    const ids = w => warmupFor(w).list.map(x => x.id);
+    renderDaily();
+    return { cells: document.querySelectorAll('.dcell[data-k]').length, box: document.getElementById('dailyBox').innerHTML.length > 0,
+             warm1: ids(1), warm2: ids(2), noDaily: [1, 2, 3, 4].every(w => ids(w).every(x => !['ww', 'wg', 'wf', 'wn'].includes(x))),
+             dur: [1, 2, 3, 4].map(w => warmupFor(w).dur), daily: DAILY.map(x => x.id).join(), mins: dailyMinutes() };
+  });
+  check('ежедневный блок на все 7 дней, в том числе тренировочный', r.cells === 7 && r.box, JSON.stringify(r.cells));
+  check('в разминке нет пунктов ежедневного блока', r.noDaily && r.daily === 'ww,wg,wf,wn', JSON.stringify(r));
+  check('разминка не длиннее 22 минут на любом уровне', r.dur.every(d => +d.match(/(\d+)\D+(\d+)/)[2] <= 22), r.dur.join(' | '));
   await ctx.close();
 }
 

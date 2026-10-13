@@ -62,7 +62,7 @@ const visible = (p, sel) => p.evaluate(s => { const e = document.querySelector(s
 {
   const { ctx, p } = await at('2026-10-12T17:00:00', { planOnboarded: true });
   check('пустых подсказок колена/поясницы нет', !(await p.evaluate(() => /Утром оцени, как она/.test(document.body.innerText))));
-  check('блок «Каждый день» скрыт в день тренировки', (await p.evaluate(() => document.getElementById('dailyBox').innerHTML)) === '');
+  check('блок «Каждый день» виден и в день тренировки', (await p.evaluate(() => document.getElementById('dailyBox').innerHTML)) !== '');
   await p.click('.sb-start');
   check('идёт тренировка', await visible(p, '.sessbar.run'));
   await p.clock.runFor(45 * 60 * 1000);

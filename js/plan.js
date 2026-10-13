@@ -20,16 +20,16 @@ const WP = {
 
 function warmupFor(week){
   const lvl = ((week - 1) % 4) + 1;
-  /* Short foot и баланс стоят на всех уровнях: стопа и голеностоп
-     тренируются частотой, а не объёмом, и режутся последними.
-     Тибиальные подъёмы (голень принимает приземления) и скольжение
-     руками по стене (лопатки перед подтягиваниями и жимом) — тоже везде. */
-  const base=[WP.joints,WP.wallsit,WP.groin,WP.shortfoot,WP.tibialis,WP.wallslide];
+  /* Разминка — подготовка к тренировке. Полуприсед у стены, изометрия паха,
+     short foot и баланс — это ежедневный блок (DAILY), он отдельно и каждый день.
+     Тибиальные подъёмы (голень принимает приземления) и скольжение руками
+     по стене (лопатки перед подтягиваниями и жимом) стоят на всех уровнях. */
+  const base=[WP.joints,WP.tibialis,WP.wallslide];
   const sets = {
     1:{list:[...base],                                                                    label:'Базовая'},
-    2:{list:[...base,WP.legswing,WP.balance],                                             label:'Базовая + мобильность'},
-    3:{list:[...base,WP.legswing,WP.balance,WP.bridge,WP.birddog],                        label:'Базовая + мобильность + активация'},
-    4:{list:[...base,WP.legswing,WP.balance,WP.bridge,WP.birddog,WP.lunge,WP.inchworm],   label:'Полная с динамической растяжкой'}
+    2:{list:[...base,WP.legswing],                                                        label:'Базовая + мобильность'},
+    3:{list:[...base,WP.legswing,WP.bridge,WP.birddog],                                   label:'Базовая + мобильность + активация'},
+    4:{list:[...base,WP.legswing,WP.bridge,WP.birddog,WP.lunge,WP.inchworm],              label:'Полная с динамической растяжкой'}
   };
   /* Длительность — сумма таймеров пунктов плюс 30 % на переходы и чтение карточек
      (по часам: уровень 2 занимает около 24 минут, а не 13–15, как было вписано) */

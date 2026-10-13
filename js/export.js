@@ -57,7 +57,7 @@ function dayExport(iso){
           watch:wd?{start:wd.s||null, end:wd.e||null, minutes:watchMinutes(wd), avgHr:num(wd.hr), maxHr:num(wd.mx), kcal:num(wd.kc)}:null};
     } else if(e){ tr={type:'rest', title:e.title}; }
     D.training=tr;
-    D.dailyBlock = gymDays().has(dow) ? null : !!marks[`${state.cycle}-${state.week}-daily-${dow}`];
+    D.dailyBlock = !!marks[`${state.cycle}-${state.week}-daily-${dow}`];
 
     /* --- еда --- */
     const fe=foodLog[`${state.cycle}-${state.week}-${dow}`];
@@ -132,7 +132,6 @@ function dayText(D){
     if(T.watch) L.push(watchLine(T.watch));
   } else L.push(`  ${T.title}`);
   if(D.dailyBlock!==null) L.push(`  Ежедневный блок: ${D.dailyBlock?'сделан':'не отмечен'}`);
-  else L.push('  Ежедневный блок: входит в разминку');
   L.push('');
   const tg=D.target, F=D.food;
   L.push(`ЕДА · цель ${tg.kcal} ккал, Б${tg.p} Ж${tg.f} У${tg.c}`);
@@ -159,7 +158,7 @@ function dayRow(D){
     T.type==='gym'?T.done:'', T.type==='gym'?T.total:'', sets, T.type==='gym'?T.volumeKg:'', rp||'',
     T.type==='gym'&&T.warmupTotal?`${T.warmupDone}/${T.warmupTotal}`:'',
     T.type==='cardio'?(T.done?1:0):'', T.type==='cardio'?(T.ball?1:0):'',
-    D.dailyBlock===null?'в разминке':(D.dailyBlock?1:0),
+    D.dailyBlock===null?'':(D.dailyBlock?1:0),
     F.meals.length?F.total.kcal:'', D.target.kcal, F.meals.length?F.total.p:'', D.target.p, F.meals.length?F.total.f:'', F.meals.length?F.total.c:'',
     F.meals.length, times[0]||'', times[times.length-1]||'',
     B.w??'', B.hr??'', B.back??'', B.knee??'', B.feel??'',

@@ -554,10 +554,8 @@ function buildReport(){
   });
 
   /* --- ЕЖЕДНЕВНЫЙ БЛОК --- */
-  const gym=gymDays();
   const need=[], got=[];
   for(let i=0;i<7;i++){
-    if(gym.has(i)) continue;
     need.push(DOW_IDX[i]);
     if(marks[`${state.cycle}-${state.week}-daily-${i}`]) got.push(DOW_IDX[i]);
   }

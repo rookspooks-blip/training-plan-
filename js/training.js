@@ -257,33 +257,18 @@ const DOW_FULL=['Воскресенье','Понедельник','Вторни�
 
 /* ############################################################
    ЕЖЕДНЕВНЫЙ БЛОК
-   Ядро, которое делается каждый день без исключений.
-   В тренировочные дни оно входит в разминку и отдельно не нужно —
-   такие дни помечены и не требуют галочки.
+   Ядро, которое делается каждый день без исключений, в том числе
+   в тренировочные: отдельно от разминки, в любое удобное время
+   (утром, в перерыве, вечером). Разминка перед тренировкой — другое.
    ############################################################ */
 const DAILY=[WP.wallsit, WP.groin, WP.shortfoot, WP.balance];
-
-/* В какие дни недели есть тренировка (там блок закрыт разминкой) */
-function gymDays(){
-  const set=new Set();
-  /* пятничный «первый шаг» без разминки — там ежедневный блок нужен отдельно */
-  buildWeek().forEach(e=>{ if(e.type==='gym' && !isDropped(e.id) && !e.day.noWarm) set.add(e.dow===0?6:e.dow-1); });
-  return set;
-}
+const dailyMinutes=()=>Math.round(DAILY.reduce((a,x)=>a+x.sec,0)*1.15/60);
 
 function renderDaily(){
   const box=document.getElementById('dailyBox');
-  const gym=gymDays();
-  /* в день тренировки блок входит в разминку — отдельная карточка не нужна */
-  if(gym.has((selDow+6)%7)){ box.innerHTML=''; return; }
   const td=todayIdx();
 
-  const gymList  = DOW_IDX.filter((n,i)=>gym.has(i)).join(', ');
-  const freeList = DOW_IDX.filter((n,i)=>!gym.has(i)).join(', ');
-
   const cells=DOW_IDX.map((n,i)=>{
-    if(gym.has(i)) return `<div class="dcell gym${i===td?' today':''}" title="в разминке">
-      <span class="dn">${n}</span><span class="dm"><span class="gm">тр</span></span></div>`;
     const k=`${state.cycle}-${state.week}-daily-${i}`;
     return `<button class="dcell${marks[k]?' done':''}${i===td?' today':''}" type="button" data-k="${k}">
       <span class="dn">${n}</span><span class="dm"></span></button>`;
@@ -311,15 +296,14 @@ function renderDaily(){
         <div class="t">Каждый день</div>
         <div class="s">Колени, пах и стопа. Не режется никогда</div>
       </div>
-      <span class="daily-dur">6–8 мин</span>
+      <span class="daily-dur">≈ ${dailyMinutes()} мин</span>
       <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
     </div>
     <div class="fold"><div class="fold-inner"><div class="daily-body">
       <div class="dweek">${cells}</div>
       <p style="font-size:12.5px;color:var(--muted);margin:0 0 14px">
-        ${gymList ? `<b style="color:var(--warmc)">${gymList}</b> — тренировочные дни, блок уже входит в разминку. Галочка там не нужна и не нажимается.`
-                  : 'Тренировок на этой неделе не отмечено, поэтому блок нужен во все семь дней.'}
-        ${freeList ? `<br>Отмечать нужно: <b>${freeList}</b>.` : ''}
+        Все семь дней, в том числе тренировочные. Делай отдельно от разминки в любое время:
+        утром, в перерыве между парами, вечером.
       </p>
       ${list}
       <div class="tip" style="margin-top:14px">
