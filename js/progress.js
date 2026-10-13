@@ -154,14 +154,15 @@ function coachItems(){
       } else if(pw<-0.8) out.push({c:'r',b:'Худеешь слишком быстро',x:`${pwT}. Быстрее 0,7 кг в неделю уходят мышцы и прыжок — плюс 150 ккал.`, act:+150});
       else out.push({c:'g',b:'Темп сушки в норме',x:`${pwT}. Ничего не меняй.`});
     } else if(gain){
-      if(pw>0.25) out.push({c:'y',b:'Набор слишком быстрый',x:`${pwT}. Больше 0,8 кг в месяц — это жир. Минус 150 ккал.`, act:-150});
-      else if(pw<0.05) out.push({c:'y',b:'Вес не растёт',x:`${pwT}. Для набора нужен плюс 0,5–0,8 кг в месяц — плюс 150 ккал.`, act:+150});
+      /* набор 0,6–1,0 кг в месяц: быстрее 1 кг — жир, медленнее 0,5 — мышцам не из чего расти (Iraki 2019) */
+      if(pw>0.25) out.push({c:'y',b:'Набор слишком быстрый',x:`${pwT}. Больше 1 кг в месяц — это уже жир. Минус 150 ккал.`, act:-150});
+      else if(pw<0.12) out.push({c:'y',b:'Вес растёт медленно',x:`${pwT}. Для набора нужно плюс 0,6–1,0 кг в месяц — плюс 150 ккал.`, act:+150});
       else out.push({c:'g',b:'Темп набора в норме',x:`${pwT}.`});
     } else {
       out.push({c: Math.abs(pw)>0.3?'y':'g', b:'Сессия: поддержание', x:`${pwT}. ${Math.abs(pw)>0.3?'Вес заметно гуляет — проверь, хватает ли еды в дни экзаменов.':'Вес стабилен, так и надо.'}`});
     }
   } else {
-    out.push({c:'',b:'Мало данных по весу',x:'Взвешивайся 3 раза в неделю утром натощак. Через две недели здесь появится вывод: держать калории или двигать.'});
+    out.push({c:'',b:'Мало данных по весу',x:'Взвешивайся каждое утро натощак (минимум 3 раза в неделю). Через две недели здесь появится вывод: держать калории или двигать.'});
   }
   if(adj) out.push({c:'',b:`Поправка калорий: ${adj>0?'+':''}${adj} ккал`,x:`Действует в цикле ${state.cycle}, уже учтена во вкладке «Еда».`, reset:true});
 
@@ -318,8 +319,12 @@ function renderTests(){
     const best=L.reduce((b,x)=> (T.better>0 ? x.v>b.v : x.v<b.v) ? x : b, L[0]);
     let delta='';
     if(prev){ const d=last.v-prev.v, good=d*T.better>0; if(d) delta=`<span class="${good?'up':'down'}">${d>0?'+':''}${String(Math.round(d*100)/100).replace('.',',')} ${T.u}</span> к прошлому · `; }
-    return `<div class="tcard"><div class="th"><span class="tn">${T.n}</span><span class="tv">${String(last.v).replace('.',',')}<small>${T.u}</small></span></div>
-      <div class="ts">${delta}лучший ${String(best.v).replace('.',',')} · ${shortDate(last.d)}</div>${spark(L)}</div>`;
+    /* прыжок: лучшая попытка дня — в зачёт, средняя за день точнее показывает усталость (Claudino 2017) */
+    const day=L.filter(x=>x.d===last.d), avg = t==='jump' && day.length>=2 ? Math.round(day.reduce((a,x)=>a+x.v,0)/day.length) : null;
+    const top=day.reduce((b,x)=> (T.better>0 ? x.v>b.v : x.v<b.v) ? x : b, day[0]);
+    const shown = t==='jump' ? top : last;
+    return `<div class="tcard"><div class="th"><span class="tn">${T.n}</span><span class="tv">${String(shown.v).replace('.',',')}<small>${T.u}</small></span></div>
+      <div class="ts">${delta}${avg!=null?`средняя за день ${avg} · `:''}лучший ${String(best.v).replace('.',',')} · ${shortDate(last.d)}</div>${spark(L)}</div>`;
   }).join('');
   box.innerHTML=`<div class="card"><h3>Тесты</h3>
     <div class="tests">${cards}</div>
