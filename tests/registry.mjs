@@ -72,6 +72,8 @@ const close = async p => { ok('_errors', p.errs.length === 0, p.errs.join(' | ')
   ok(24, await E(p, () => document.querySelectorAll('#scr-plan .wk .wd').length === 7 && !!document.querySelector('#scr-plan .wd.today')), '7 дней цветом, сегодня в рамке');
   ok(26, await E(p, () => document.querySelectorAll('#scr-plan .dots7 [data-di]').length === 7), '7 кружков «Каждый день»');
   await p.click('#scr-plan [data-di="0"]');
+  ok(26, await E(p, () => /Понедельник/.test(document.querySelector('#sheets .sheet .kick').textContent) && document.querySelectorAll('#sheets .sheet [data-dx]').length === 4), 'кружок дня открывает «Каждый день» этого дня');
+  await p.click('#sheets .sheet [data-t]');
   ok(26, await E(p, () => !!marks['1-3-daily-0']), 'прошлый день отмечается');
   ok(20, await E(p, () => !document.querySelector('#toast button').hidden), 'тост с «Отменить»');
   await p.click('#toast button');

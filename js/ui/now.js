@@ -131,7 +131,8 @@ function toggleRunDone(e){
 function dailySheet(i){
   i = i ?? todayIdx();
   const html=()=>{ const done=!!marks[dailyKey(i)];
-    return `<h2>Каждый день · ≈${dailyMinutes()} мин</h2>
+    const today=i===todayIdx() && isNowWeek();
+    return `<div class="kick">${today?'Сегодня':`${DOW_FULL[(i+1)%7]}, ${shortDate(dateOfCW(state.cycle,state.week,i))}`}</div><h2>Каждый день · ≈${dailyMinutes()} мин</h2>
     <div class="sub">Колени, пах и стопа. Делается каждый день, даже в разгрузку и в дни тренировок: отдельно от разминки, в любое время — утром, в перерыве между парами, вечером. Отмечай каждое упражнение кружком.</div>
     <div class="doc">${DAILY.map((x,n)=>{ const t=TECH[x.tech]||{text:''}, on=dailyItemOn(i,n);
       return `<div class="dxrow"><button type="button" class="ck${on?' on':''}" data-dx="${n}" aria-pressed="${on}" aria-label="${esc(x.name)} — ${on?'сделано':'не сделано'}">${IC.check}</button>

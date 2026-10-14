@@ -167,6 +167,56 @@ function habitRows(){
   ];
 }
 
+/* ---------- Полоса года: зажал — выросла, ведёшь пальцем — подпись недели, отпустил — её состав ---------- */
+function bindYearScrub(box, yw, nowI, selI){
+  const bar=box.querySelector('.year'), tip=box.querySelector('.ytip'), wrap=box.querySelector('.ywrap');
+  if(!bar) return;
+  const btns=[...bar.children];
+  const tipHTML=i=>{ const x=yw[i];
+    const when=i===nowI?'сейчас':i===selI?'открыта':i<nowI?'пройдена':'';
+    return `<b>${weekTitle(x.c,x.w)}</b><span>Цикл ${x.c} · ${cycleGoal(x.c,x.w)} · ${KIND_RU[x.k]||''}</span>
+      <span>${shortDate(dateOfCW(x.c,x.w,0))}–${shortDate(dateOfCW(x.c,x.w,6))} · ${i+1}-я неделя года из ${yw.length}${when?` · ${when}`:''}</span>`; };
+  let on=false, live=false, cur=-1, pid=null, x0=0, lx=0, hold=0;
+  const at=cx=>{ const r=bar.getBoundingClientRect(); return Math.max(0, Math.min(yw.length-1, Math.floor((cx-r.left)/r.width*yw.length))); };
+  const show=i=>{
+    if(i===cur) return;
+    if(cur>=0) haptic();
+    cur=i;
+    btns.forEach((b,j)=>{ const f=Math.max(0, 1-Math.abs(j-i)/4); b.style.setProperty('--f', f.toFixed(2)); b.classList.toggle('hot', j===i); });
+    tip.innerHTML=tipHTML(i); tip.hidden=false;
+    const wr=wrap.getBoundingClientRect(), br=btns[i].getBoundingClientRect(), w=tip.offsetWidth;
+    const cx=br.left+br.width/2-wr.left, left=Math.max(0, Math.min(wr.width-w, cx-w/2));
+    tip.style.transform=`translateX(${left}px)`; tip.style.setProperty('--ax', `${cx-left}px`);
+  };
+  /* полоса растёт не сразу: после короткого удержания или движения вбок — иначе мешала бы прокрутке */
+  const begin=()=>{ if(!on||live) return; live=true; clearTimeout(hold); try{ bar.setPointerCapture(pid); }catch(_){} bar.classList.add('scrub'); vibe(6); show(at(lx)); };
+  const stop=()=>{ clearTimeout(hold); on=false; live=false; cur=-1; bar.classList.remove('scrub'); tip.hidden=true; btns.forEach(b=>{ b.style.removeProperty('--f'); b.classList.remove('hot'); }); };
+  bar.addEventListener('pointerdown',e=>{
+    if(e.button>0) return;
+    on=true; live=false; pid=e.pointerId; x0=lx=e.clientX;
+    hold=setTimeout(begin, 170);
+  });
+  bar.addEventListener('pointermove',e=>{
+    if(!on||e.pointerId!==pid) return;
+    lx=e.clientX;
+    if(!live){ if(Math.abs(lx-x0)>6) begin(); return; }
+    show(at(lx));
+  });
+  /* короткий тап — обычный click по неделе ниже; после ведения пальцем лист открываем сами,
+     а «хвостовой» click гасим — иначе он попадёт в фон нового листа и сразу закроет его */
+  bar.addEventListener('pointerup',e=>{
+    if(!on||e.pointerId!==pid) return;
+    const was=live, i=cur; stop();
+    if(!was || i<0) return;
+    const kill=ev=>{ ev.stopPropagation(); ev.preventDefault(); };
+    document.addEventListener('click',kill,true); setTimeout(()=>document.removeEventListener('click',kill,true),400);
+    const x=yw[i]; weekPeekSheet(x.c,x.w);
+  });
+  bar.addEventListener('touchmove',e=>{ if(live && e.cancelable) e.preventDefault(); },{passive:false});   /* ведёшь пальцем — страница не едет */
+  bar.addEventListener('pointercancel',stop);   /* страницу повели вверх-вниз — это прокрутка, не выбор */
+  btns.forEach((b,i)=>b.addEventListener('click',()=>{ const x=yw[i]; weekPeekSheet(x.c,x.w); }));
+}
+
 /* ---------- Экран ---------- */
 function renderWeekTab(){
   const box=$('#scr-plan'); if(!box) return;
@@ -200,7 +250,9 @@ function renderWeekTab(){
   }).join('');
 
   /* каждый день */
-  const dots=DOW_IDX.map((n,i)=>`<button type="button" class="${marks[`${c}-${w}-daily-${i}`]?'on':''}${nowWeek&&i===todayIdx()?' today':''}" data-di="${i}" aria-label="${n}">${n}</button>`).join('');
+  /* полный кружок — все четыре упражнения, дуга — часть */
+  const dots=DOW_IDX.map((n,i)=>{ const k=dailyCount(i), all=k===DAILY.length;
+    return `<button type="button" class="${all?'on':k?'part':''}${nowWeek&&i===todayIdx()?' today':''}" ${k&&!all?`style="--p:${k/DAILY.length}"`:''} data-di="${i}" aria-label="${DOW_FULL[(i+1)%7]}: ${all?'сделано':k?`${k} из ${DAILY.length}`:'не отмечено'}">${n}</button>`; }).join('');
 
   /* еда за неделю */
   const F=weekFoodStats();
@@ -227,13 +279,13 @@ function renderWeekTab(){
       <button type="button" class="icbtn" data-set aria-label="Неделя и даты">${IC.gear}</button></div>
     ${statusNotes().map(n=>`<div class="note ${n.lvl}">${n.html}</div>`).join('')}
     <div class="card">
-      <div class="year" role="list">${yw.map((x,i)=>`<button type="button" class="${i<nowI?'past':''}${i===nowI?' now':''}" data-yi="${i}" aria-label="Цикл ${x.c}, ${weekTitle(x.c,x.w)}, ${KIND_RU[x.k]||''}" style="--c:${x.col}"><i style="height:${x.h}%;${i===selI?'box-shadow:0 0 0 2px var(--acc)':''}"></i></button>`).join('')}</div>
+      <div class="ywrap"><div class="ytip" aria-hidden="true" hidden></div><div class="year" role="list">${yw.map((x,i)=>`<button type="button" class="${i<nowI?'past':''}${i===nowI?' now':''}" data-yi="${i}" aria-label="Цикл ${x.c}, ${weekTitle(x.c,x.w)}, ${KIND_RU[x.k]||''}" style="--c:${x.col}"><i style="height:${x.h}%;${i===selI?'box-shadow:0 0 0 2px var(--acc)':''}"></i></button>`).join('')}</div></div>
       <div class="yleg"><span><i style="background:${CYC_COL.cut}"></i>сушка</span><span><i style="background:${CYC_COL.ses}"></i>сессия</span><span><i style="background:${CYC_COL.str}"></i>сила</span><span><i style="background:${CYC_COL.hyp}"></i>масса</span><span><i style="background:${CYC_COL.test}"></i>тест</span></div>
-      <div class="small t2" style="margin-top:8px">${nowI>=0?`▲ сейчас ${weekTitle(p.cycle,p.week).toLowerCase()}, цикл ${p.cycle}.`:'План ещё не начался.'} Низкие столбики — разгрузки. Нажми на неделю — увидишь её состав.</div>
+      <div class="small t2" style="margin-top:8px">${nowI>=0?`▲ сейчас ${weekTitle(p.cycle,p.week).toLowerCase()}, цикл ${p.cycle}.`:'План ещё не начался.'} Низкие столбики — разгрузки. Зажми полосу и веди пальцем — увидишь каждую неделю, отпусти — откроется её состав.</div>
     </div>
     <div class="sec">Неделя · ${KIND_RU[info.kind]||''}<span class="aux">${toDl}</span></div>
     <div class="wk">${tiles}</div>
-    <div class="small t2" style="margin-top:8px">${esc(info.label)}</div>
+    ${/^(Рабочая|Разгрузочная|Тестовая) неделя$/.test(info.label)?'':`<div class="small t2" style="margin-top:8px">${esc(info.label)}</div>`}
     <div class="sec">Каждый день · ≈${dailyMinutes()} мин<button type="button" class="aux link" data-daily>Что делать</button></div>
     <div class="dots7">${dots}</div>
     <div class="sec">Еда за неделю · цель ${kfmt(F.T.k)} ккал</div>
@@ -249,13 +301,10 @@ function renderWeekTab(){
   `;
 
   box.querySelector('[data-set]').addEventListener('click',()=>openSettings('week'));
-  box.querySelectorAll('[data-yi]').forEach(b=>b.addEventListener('click',()=>{ const x=yw[+b.dataset.yi]; weekPeekSheet(x.c,x.w); }));
+  bindYearScrub(box, yw, nowI, selI);
   box.querySelectorAll('[data-dow]').forEach(b=>b.addEventListener('click',()=>daySheet(+b.dataset.dow)));
-  box.querySelectorAll('[data-di]').forEach(b=>b.addEventListener('click',()=>{
-    const i=+b.dataset.di, was=!!marks[dailyKey(i)], undo=dailyUndo(i);
-    setDailyItems(i, DAILY.map(()=>!was)); vibe(); renderAll();
-    toast(`Каждый день — ${DOW_IDX[i]} ${was?'снят':'отмечен'}`, undo);
-  }));
+  /* день — открывает «Каждый день» именно этого дня, там отмечаются упражнения */
+  box.querySelectorAll('[data-di]').forEach(b=>b.addEventListener('click',()=>dailySheet(+b.dataset.di)));
   box.querySelector('[data-daily]').addEventListener('click',()=>dailySheet(todayIdx()));
   const adv=box.querySelector('[data-adv]');
   if(adv) adv.addEventListener('click',()=>openSheet(`<h2>Как не улетать в перебор</h2><div class="doc">${OVER_ADVICE.map(([b,t])=>`<p><b>${b}</b> ${t}</p>`).join('')}</div><button type="button" class="btn big" data-close>Понятно</button>`));
