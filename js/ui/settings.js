@@ -95,7 +95,9 @@ function settingsHTML(){
       <div class="small muted" style="margin-top:10px">«Подписаться» добавляет календарь, который обновляется сам. Если перенёс тренировку в приложении, в календаре она останется на старом месте — календарь только напоминает.</div></div>
 
     <div class="sec">О приложении</div>
-    <div class="card small t2"><p>Версия: <b>${APP_VERSION}</b>. Если обновление вышло, а тут старая версия — закрой приложение смахиванием и открой через пару минут.</p>
+    <div class="card small t2"><p>Версия: <b>${BUILD}</b> · ${APP_VERSION}. Если вышло обновление, сверху появится плашка «Обновить». Если не появилась, а картинка старая — нажми кнопку ниже: она сбросит сохранённую копию и загрузит приложение заново. Твои записи не удаляются.</p>
+      <button type="button" class="btn" data-hard>Обновить приложение сейчас</button>
+      <div class="small muted" data-hardmsg style="margin:8px 0 14px"></div>
       <p>Фото упражнений — <a href="https://github.com/yuhonas/free-exercise-db" style="color:inherit">free-exercise-db</a>, общественное достояние (Unlicense).</p>
       <button type="button" class="link" data-onb>Показать подсказку «Как пользоваться»</button></div>`;
 }
@@ -183,6 +185,12 @@ function openSettings(focus){
     on('[data-health]','click',pasteHealth);
     on('[data-sample]','click',async()=>{ toast(await copyText(HEALTH_SAMPLE)?'Пример скопирован':'Не удалось скопировать'); });
     on('[data-badge]','click',async()=>{ await enableBadge(); redraw(); });
+    on('[data-hard]','click',async b=>{
+      const m=el.querySelector('[data-hardmsg]'); m.textContent='Проверяю…';
+      const sv=await serverBuild();
+      m.textContent = sv ? (sv===BUILD ? `На сервере ${sv}, у тебя ${BUILD}: версия свежая. Перезагружаю на всякий случай…` : `На сервере ${sv}, у тебя ${BUILD}. Обновляю…`) : 'Сервер не отвечает — проверь интернет. Перезагружаю…';
+      setTimeout(hardReload, 900);
+    });
     /* копия */
     on('[data-backup]','click',async()=>{ await exportBackup(); renderAll(); redraw(); });
     const inp=el.querySelector('[data-file]');

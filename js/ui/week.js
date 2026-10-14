@@ -5,21 +5,33 @@
    еда за неделю → сон → привычки → отчёт.
    Карточка дня (лист) открывается отсюда и из ленты «Сейчас».
    ############################################################ */
-const CYC_COL={cut:'var(--str)', ses:'var(--rest)', str:'var(--spd)', hyp:'var(--up)', test:'var(--test)'};
+/* цвет — цикл: 1 сушка · сессия · 2 сила · 3 масса и сила. Высота — объём недели (подходы) */
+const CYC_COL={c1:'var(--str)', ses:'var(--rest)', c2:'var(--spd)', c3:'var(--up)'};
 const KIND_RU={build:'рабочая', hyper:'рабочая', deload:'разгрузка', test:'тестовая', session:'сессия'};
 
 /* Все недели года по порядку: цикл 1 + сессия, цикл 2, цикл 3 */
+/* Объём недели по плану: подходы силовых и скоростных (без мяча и теста). Считается из тех же дней, что показывает приложение */
+function weekVolume(c,w){
+  const days=[...buildDays(c,w)];
+  const U=upperDay(c,w); if(U) days.push(U);
+  const G=massDay(c,w); if(G) days.push(G);
+  let n=0;
+  days.forEach(d=>d.ex.forEach(x=>{
+    if(/пропустить/.test(x.dose) || x.action==='jump' || x.badge[0]==='Мяч' || x.badge[0]==='Тест') return;
+    n+=parseDose(x.dose).sets;
+  }));
+  return n;
+}
 function yearWeeks(){
   const out=[];
-  const add=(c,w)=>{ const k=weekKind(c,w); out.push({c,w,k}); };
+  const add=(c,w)=>{ const k=weekKind(c,w); out.push({c,w,k,v:weekVolume(c,w)}); };
   for(let w=1; w<=maxWeek(1); w++) add(1,w);
   for(let w=1; w<=12; w++) add(2,w);
   for(let w=1; w<=24; w++) add(3,w);
-  let run=0;
+  const vmax=Math.max(...out.map(x=>x.v),1);
   out.forEach(x=>{
-    if(x.k==='deload'||x.k==='test'||x.k==='session') run=0; else run++;
-    x.h = x.k==='deload' ? 30 : x.k==='test' ? 55 : x.k==='session' ? 40 : Math.min(100, (x.k==='hyper'?66:58)+run*9);
-    x.col = x.k==='test' ? CYC_COL.test : x.k==='session' ? CYC_COL.ses : x.c===1 ? CYC_COL.cut : x.k==='hyper' ? CYC_COL.hyp : CYC_COL.str;
+    x.h=Math.round(Math.max(18, x.v/vmax*100));
+    x.col = x.k==='session' ? CYC_COL.ses : x.c===1 ? CYC_COL.c1 : x.c===2 ? CYC_COL.c2 : CYC_COL.c3;
   });
   return out;
 }
@@ -360,8 +372,9 @@ function renderWeekTab(){
     ${statusNotes().map(n=>`<div class="note ${n.lvl}">${n.html}</div>`).join('')}
     <div class="card">
       <div class="ywrap"><div class="ytip" aria-hidden="true" hidden></div><div class="year" role="list">${yw.map((x,i)=>`<button type="button" class="${i<nowI?'past':''}${i===nowI?' now':''}${i===selI?' sel':''}" data-yi="${i}" aria-label="Цикл ${x.c}, ${weekTitle(x.c,x.w)}, ${KIND_RU[x.k]||''}${i===selI?', открыта':''}${i===nowI?', сейчас':''}" style="--c:${x.col}"><i style="height:${x.h}%"></i></button>`).join('')}</div></div>
-      <div class="yleg"><span><i style="background:${CYC_COL.cut}"></i>сушка</span><span><i style="background:${CYC_COL.ses}"></i>сессия</span><span><i style="background:${CYC_COL.str}"></i>сила</span><span><i style="background:${CYC_COL.hyp}"></i>масса</span><span><i style="background:${CYC_COL.test}"></i>тест</span></div>
-      <div class="small t2" style="margin-top:8px">${nowI>=0?`▲ сейчас ${weekTitle(p.cycle,p.week).toLowerCase()}, цикл ${p.cycle}.`:'План ещё не начался.'} Низкие столбики — разгрузки. Зажми полосу и веди пальцем — увидишь каждую неделю, отпусти — она откроется.</div>
+      <div class="yband" aria-hidden="true" style="grid-template-columns:repeat(${yw.length},1fr)">${[['c1','Цикл 1',yw.filter(x=>x.c===1&&x.k!=='session').length],['ses','Сессия',yw.filter(x=>x.k==='session').length],['c2','Цикл 2',12],['c3','Цикл 3',24]].filter(g=>g[2]).map(g=>`<i style="grid-column:span ${g[2]};background:${CYC_COL[g[0]]}"></i>`).join('')}</div>
+      <div class="yleg"><span><i style="background:${CYC_COL.c1}"></i>цикл 1 · сушка</span>${yw.some(x=>x.k==='session')?`<span><i style="background:${CYC_COL.ses}"></i>сессия</span>`:''}<span><i style="background:${CYC_COL.c2}"></i>цикл 2 · сила</span><span><i style="background:${CYC_COL.c3}"></i>цикл 3 · масса и сила</span></div>
+      <div class="small t2" style="margin-top:8px">${nowI>=0?`▲ сейчас ${weekTitle(p.cycle,p.week).toLowerCase()}, цикл ${p.cycle}.`:'План ещё не начался.'} Цвет — цикл, высота — сколько подходов в неделе: низкие — разгрузки и сессия, самые высокие — блоки массы. Зажми полосу и веди пальцем — увидишь каждую неделю, отпусти — она откроется.</div>
     </div>
     <div class="sec">Неделя · ${KIND_RU[info.kind]||''}<span class="aux">${toDl}</span></div>
     <div class="wk">${tiles}</div>

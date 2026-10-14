@@ -4,6 +4,8 @@
    ############################################################ */
 /* Версия — видна в «Настройках и данных», чтобы проверить, что обновление пришло */
 const APP_VERSION='новый дизайн: «Сейчас», плеер, контейнеры';
+/* Номер сборки — тот же, что VERSION в sw.js (тест сверяет). По нему приложение понимает, что открыта старая копия */
+const BUILD='v51';
 
 /* Цели и цифры — из заметки sport.md (обновлено 30.09.2026) */
 const NOW={
@@ -119,6 +121,37 @@ if('serviceWorker' in navigator && location.protocol.startsWith('http')){
     }).catch(()=>{});
   });
 }
+
+/* Старая копия: iPhone держит приложение «Домой» в памяти и не перезагружает страницу сам.
+   Раз в минуту при возврате на экран сверяем номер сборки на сервере; отличается — плашка «Обновить» */
+async function serverBuild(){
+  try{
+    const t=await (await fetch('sw.js',{cache:'no-store'})).text();
+    const m=t.match(/VERSION\s*=\s*'(v\d+)'/); return m?m[1]:null;
+  }catch(e){ return null; }
+}
+async function hardReload(){
+  try{
+    const regs=await navigator.serviceWorker.getRegistrations(); await Promise.all(regs.map(r=>r.unregister()));
+    const ks=await caches.keys(); await Promise.all(ks.map(k=>caches.delete(k)));
+  }catch(e){}
+  location.replace(location.pathname+'?v='+Date.now());
+}
+let updBarShown=false, lastBuildCheck=0;
+async function checkBuild(force){
+  if(!location.protocol.startsWith('http')) return false;
+  if(!force && Date.now()-lastBuildCheck<60000) return false;
+  lastBuildCheck=Date.now();
+  const sv=await serverBuild();
+  if(!sv || sv===BUILD) return false;
+  if(updBarShown) return true; updBarShown=true;
+  const bar=document.createElement('div'); bar.id='updbar'; bar.setAttribute('role','status');
+  bar.innerHTML=`<span>Вышла новая версия (${sv}), у тебя ${BUILD}</span><button type="button">Обновить</button>`;
+  bar.querySelector('button').addEventListener('click',hardReload);
+  document.body.appendChild(bar); return true;
+}
+window.addEventListener('load',()=>setTimeout(()=>checkBuild(true),1500));
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') checkBuild(); });
 
 /* Новый день: приложение на iPhone может неделями висеть в памяти,
    поэтому при возврате на экран перерисовываем «сегодня» */

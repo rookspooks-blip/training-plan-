@@ -120,7 +120,7 @@ const close = async p => { ok('_errors', p.errs.length === 0, p.errs.join(' | ')
   ok(5, await E(p, () => settings.auto === true && state.week === 3), 'включил снова — неделя по дате');
   ok(14, await E(p, () => ['[data-backup]', '[data-restore]', '[data-wipe]'].every(s => document.querySelector('#page ' + s))), 'сохранить, восстановить, удалить');
   ok(15, /хранят данные раздельно/.test(t) && /раз в неделю/.test(t), 'текст про раздельное хранение и копию раз в неделю');
-  ok(18, /Версия:/.test(t) && /закрой приложение смахиванием/.test(t), 'версия и как обновить');
+  ok(18, /Версия:/.test(t) && /Обновить приложение сейчас/.test(t), 'версия и кнопка обновления');
   ok(23, /free-exercise-db/.test(t) && /Unlicense/.test(t), 'источник фото');
   ok(193, await E(p, () => !!document.querySelector('#page [data-sub]') && !!document.querySelector('#page [data-ics]')) && /календарь только напоминает/.test(t), '«Подписаться», «Скачать .ics», «календарь только напоминает»');
   ok(151, await E(p, () => /Понедельник|Вторник|Среда|Четверг|Пятница|Суббота|Воскресенье/.test(document.querySelector('#page [data-pre]').textContent) && !!document.querySelector('#page [data-exd="-1"]') && !!document.querySelector('#page [data-exjson]')), 'день текстом с ‹ ›, «День · JSON»');

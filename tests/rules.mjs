@@ -282,6 +282,14 @@ const W7 = '2026-11-16';
   await ctx.close();
 }
 
+/* Номер сборки в приложении = VERSION в sw.js, иначе плашка «вышла новая версия» будет врать */
+{
+  const { ctx, p } = await at('2026-10-06');
+  const r = await p.evaluate(async () => ({ build: BUILD, sw: (await (await fetch('sw.js', { cache: 'no-store' })).text()).match(/VERSION\s*=\s*'(v\d+)'/)[1] }));
+  check('номер сборки приложения совпадает с sw.js', r.build === r.sw, JSON.stringify(r));
+  await ctx.close();
+}
+
 /* ---------- Связь плана и приложения ---------- */
 /* 9. plan.ics на сайте = календарь, который собирает приложение */
 {
