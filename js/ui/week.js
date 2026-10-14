@@ -130,7 +130,7 @@ function weekPeekSheet(c, w){
       return `<div class="row"><span class="bar ${typeClass(es.find(e=>e.type==='gym')||es.find(e=>e.type==='run')||es[0])}" style="width:6px;height:36px;border-radius:3px"></span>
         <span class="grow"><div class="nm">${DOW_FULL[d]}</div><div class="ds">${es.map(e=>e.type==='gym'?e.day.title:e.title).join(' + ')}</div></span></div>`; }).join('');
     return `<div class="kick">${KIND_RU[info.kind]||''} · цикл ${c}</div><h2>${weekTitle(c,w)}</h2>
-      <div class="sub">${esc(info.label)} · ${shortDate(dateOfCW(c,w,0))}–${shortDate(dateOfCW(c,w,6))} · ${kfmt(T.k)} ккал</div>
+      <div class="sub">${/^(Рабочая|Разгрузочная|Тестовая) неделя$/.test(info.label)?'':esc(info.label)+' · '}${shortDate(dateOfCW(c,w,0))}–${shortDate(dateOfCW(c,w,6))} · ${kfmt(T.k)} ккал</div>
       <div class="card" style="padding:4px 16px">${days}</div>`;
   });
   const cur=state.cycle===c && state.week===w;
@@ -159,11 +159,11 @@ function habitRows(){
   const gyms=buildWeek().filter(e=>e.type==='gym' && !isDropped(e.id) && dateOfCW(c,w,(e.dow+6)%7)<=isoDay());
   const loggedN=gyms.filter(e=>e.day.ex.some(x=>{ const L=logs[logKey(e.id,x.id)]; return L && hasData(L); })).length;
   return [
-    {t:'Лёг в одно и то же время', v:old('sl1')?'✓ за неделю':`${n('sl1')} из 7`, s:'кружок в итоге дня на «Сейчас»'},
-    {t:'Не пропустил ни одного приёма пищи', v:old('sl2')?'✓ за неделю':`${n('sl2')} из 7`, s:'кружок в итоге дня на «Сейчас»'},
+    {t:'Лёг в одно и то же время', v:old('sl1')?'✓ за неделю':`${n('sl1')} из 7`, s:'отмечается вечером в «Итогах дня»'},
+    {t:'Не пропустил ни одного приёма пищи', v:old('sl2')?'✓ за неделю':`${n('sl2')} из 7`, s:'отмечается вечером в «Итогах дня»'},
     {t:'Сделал ежедневный блок', v:`${dailyN} из 7`, s:'считается по отметкам «Каждый день»'},
-    {t:'Взвесился утром натощак', v:`${weighN} из 7`, s:'по утреннему замеру, минимум 3'},
-    {t:'Записал рабочие веса', v:gyms.length?`${loggedN} из ${gyms.length}`:'—', s:'по журналу подходов'}
+    {t:'Взвесился утром натощак', v:`${weighN} из 7`, s:'по утренним взвешиваниям, нужно минимум 3'},
+    {t:'Записал рабочие веса', v:gyms.length?`${loggedN} из ${gyms.length}`:'—', s:'по записанным подходам'}
   ];
 }
 
@@ -229,7 +229,7 @@ function renderWeekTab(){
     <div class="card">
       <div class="year" role="list">${yw.map((x,i)=>`<button type="button" class="${i<nowI?'past':''}${i===nowI?' now':''}" data-yi="${i}" aria-label="Цикл ${x.c}, ${weekTitle(x.c,x.w)}, ${KIND_RU[x.k]||''}" style="--c:${x.col}"><i style="height:${x.h}%;${i===selI?'box-shadow:0 0 0 2px var(--acc)':''}"></i></button>`).join('')}</div>
       <div class="yleg"><span><i style="background:${CYC_COL.cut}"></i>сушка</span><span><i style="background:${CYC_COL.ses}"></i>сессия</span><span><i style="background:${CYC_COL.str}"></i>сила</span><span><i style="background:${CYC_COL.hyp}"></i>масса</span><span><i style="background:${CYC_COL.test}"></i>тест</span></div>
-      <div class="small t2" style="margin-top:8px">${nowI>=0?`▲ сейчас ${weekTitle(p.cycle,p.week).toLowerCase()}, цикл ${p.cycle}.`:'План ещё не начался.'} Провалы — разгрузки. Тап по неделе — её состав.</div>
+      <div class="small t2" style="margin-top:8px">${nowI>=0?`▲ сейчас ${weekTitle(p.cycle,p.week).toLowerCase()}, цикл ${p.cycle}.`:'План ещё не начался.'} Низкие столбики — разгрузки. Нажми на неделю — увидишь её состав.</div>
     </div>
     <div class="sec">Неделя · ${KIND_RU[info.kind]||''}<span class="aux">${toDl}</span></div>
     <div class="wk">${tiles}</div>
@@ -252,9 +252,9 @@ function renderWeekTab(){
   box.querySelectorAll('[data-yi]').forEach(b=>b.addEventListener('click',()=>{ const x=yw[+b.dataset.yi]; weekPeekSheet(x.c,x.w); }));
   box.querySelectorAll('[data-dow]').forEach(b=>b.addEventListener('click',()=>daySheet(+b.dataset.dow)));
   box.querySelectorAll('[data-di]').forEach(b=>b.addEventListener('click',()=>{
-    const k=`${c}-${w}-daily-${b.dataset.di}`, was=!!marks[k];
-    if(was) delete marks[k]; else marks[k]=true; saveMarks(); vibe(); renderAll();
-    if(!was) toast(`Каждый день — ${DOW_IDX[+b.dataset.di]} отмечен`, ()=>{ delete marks[k]; saveMarks(); renderAll(); });
+    const i=+b.dataset.di, was=!!marks[dailyKey(i)], undo=dailyUndo(i);
+    setDailyItems(i, DAILY.map(()=>!was)); vibe(); renderAll();
+    toast(`Каждый день — ${DOW_IDX[i]} ${was?'снят':'отмечен'}`, undo);
   }));
   box.querySelector('[data-daily]').addEventListener('click',()=>dailySheet(todayIdx()));
   const adv=box.querySelector('[data-adv]');

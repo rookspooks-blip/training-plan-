@@ -21,7 +21,7 @@ function settingsHTML(){
   return `
     <div class="sec">Оформление</div>
     <div class="card"><div class="seg" data-theme>${[['auto','Как в iPhone'],['light','Светлая'],['dark','Тёмная']].map(([v,t])=>`<button type="button" class="${th===v?'on':''}" data-v="${v}">${t}</button>`).join('')}</div>
-      <div class="small muted" style="margin-top:8px">Светлая — «Чистый лист», тёмная — «Табло». «Как в iPhone» переключает сама.</div></div>
+      <div class="small muted" style="margin-top:8px">«Как в iPhone» — тема переключается вместе с телефоном.</div></div>
 
     <div class="sec" id="set-week">Неделя и даты</div>
     <div class="card"><div class="small t2" style="margin-bottom:6px">Меняет всё приложение: веса, разминку, калории, кардио и сон.</div>

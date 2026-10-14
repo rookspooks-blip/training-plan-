@@ -227,6 +227,8 @@ body.has-mini{ padding-bottom:calc(var(--navh) + env(safe-area-inset-bottom) + 9
 .sheet{ position:fixed; left:0; right:0; bottom:0; z-index:81; max-height:92vh; overflow-y:auto; overscroll-behavior:contain;
   background:var(--s1); border-radius:26px 26px 0 0; padding:10px 18px calc(env(safe-area-inset-bottom) + 22px); animation:up .18s ease-out; }
 .sheet .grab{ width:40px; height:5px; border-radius:3px; background:var(--s3); margin:0 auto 14px; }
+.sheet .grab{ position:relative; cursor:grab; touch-action:none; }
+.sheet .grab::before{ content:''; position:absolute; inset:-14px -70px; }   /* за полоску легко ухватиться */
 .sheet h2{ font-size:22px; font-weight:900; margin:0 0 6px; }
 .sheet .sub{ color:var(--t2); font-size:15px; margin-bottom:10px; }
 .opt{ display:flex; align-items:center; gap:12px; min-height:60px; border-top:1px solid var(--ln); width:100%; text-align:left; }
@@ -628,3 +630,13 @@ body.playing #toast{ top:calc(env(safe-area-inset-top) + 64px); bottom:auto; }
 .hero.c-kc{ background:linear-gradient(150deg,#FFD25E,#E39A00); color:#1a1300; }
 .hero.c-kc .chip{ background:rgba(0,0,0,.12); }
 .hero.c-kc .btn.white{ background:#1a1300; color:#fff; }
+
+/* ---------- «Каждый день»: упражнения отмечаются по одному ---------- */
+.chip.dx{ gap:6px; min-height:40px; padding:6px 14px 6px 8px; color:inherit; transition:background .18s, color .18s, transform .18s var(--spring); }
+.chip.dx svg{ width:20px; height:20px; padding:3px; border-radius:50%; border:2px solid rgba(255,255,255,.65); color:transparent; box-sizing:border-box; }
+.chip.dx.on{ background:#fff; color:#0B7F76; }
+.chip.dx.on svg{ background:#0B958A; border-color:#0B958A; color:#fff; }
+.chip.dx:active{ transform:scale(.94); }
+.dxrow{ display:grid; grid-template-columns:44px 1fr; gap:10px; align-items:start; border-top:1px solid var(--ln); }
+.dxrow .ck{ margin-top:4px; }
+.dxrow details.lx{ border-top:0; }

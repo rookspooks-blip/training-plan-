@@ -80,7 +80,7 @@ function favSheet(){
       toast(`${x.name} — убрано из избранного`, ()=>{ const a=getFavs(); a.splice(+b.dataset.del,0,x); setFavs(a); renderAll(); }); }));
     el.querySelectorAll('[data-add]').forEach(b=>b.addEventListener('click',()=>{ closeSheets(); addCustom(getFavs()[+b.dataset.add]); }));
   };
-  openSheet(`<h2>Избранное</h2><div class="sub">Частая еда в один тап.</div><div class="card" style="padding:4px 16px" data-list></div>
+  openSheet(`<h2>Избранное</h2><div class="sub">Частая еда — записать одним нажатием.</div><div class="card" style="padding:4px 16px" data-list></div>
     <button type="button" class="btn" data-close>Готово</button>`, el=>draw(el), {onClose:()=>renderAll()});
 }
 function timingSheet(d){
@@ -255,7 +255,7 @@ function renderFoodTab(){
         <span class="n" style="width:52px;font-weight:800;color:var(--t2)">${x.t||'—'}</span><span class="grow"><div class="nm">${esc(x.nm)}${x.bad?' <small style="color:var(--wn)">●</small>':''}</div></span><span class="val n">${x.k}</span></button>`).join('')
       : '<div class="t2" style="padding:14px 0">Пока ничего. Отмечай фишками выше или «+» у контейнера.</div>'}</div>
     <button type="button" class="card tap" style="width:100%;text-align:left;display:flex;align-items:center;gap:10px" data-timing>
-      <span class="grow" style="flex:1"><b>Режим дня</b><div class="small t2">${esc(mt.title)} · ${mt.rows.filter(r=>r[2]).length} приёма с белком</div></span><span class="chev">›</span></button>
+      <span class="grow" style="flex:1"><b>Режим дня</b><div class="small t2">${esc(mt.title)} · ${mt.rows.filter(r=>r[2]).length} ${plural(mt.rows.filter(r=>r[2]).length,'приём','приёма','приёмов')} с белком</div></span><span class="chev">›</span></button>
   `;
 
   box.querySelector('[data-menu]').addEventListener('click',foodMenu);

@@ -296,7 +296,7 @@ function plRender(){
     const rs = nx && nx.k!=='sum' && nx.k!=='rpe' && !(st.first && nx.k==='set' && st.mate && nx.ex===st.mate) ? restSec(ex.rest) : 0;
     dock = v.rec ? `<button type="button" class="pl-done neutral" data-next>${IC.check} Записано · дальше</button>`
       : v.r==null ? `<button type="button" class="pl-done" data-done>Ввести ${P.timed?'секунды':'повторы'}</button>`
-      : `<button type="button" class="pl-done" data-done>Готово${rs?` <small>· отдых ${mmss(rs)}</small>`:(st.first&&st.mate?' <small>· сразу пара</small>':'')}</button>`;
+      : `<button type="button" class="pl-done" data-done>Готово${rs?` <small>· отдых ${mmss(rs)}</small>`:(st.first&&st.mate?' <small>· пара без отдыха</small>':'')}</button>`;
   }
   else if(st.k==='rpe'){
     const L=plLog(st.ex), cur=L&&L.rpe;
@@ -434,7 +434,7 @@ function plBind(e, st){
       PL.passed.add('ex'+st.ex.id); PL.passed.add('rpe'+st.ex.id);
       const j=PL.steps.findIndex((s,i)=>i>PL.i && s.ex && s.ex.id!==st.ex.id && (!st.mate || s.ex.id!==st.mate.id) && !plStepDone(s,e));
       plGo(j>=0 ? j : PL.steps.length-1);
-      toast('Пропущено — можно вернуться к нему с полосок сверху');
+      toast('Пропущено. Вернуться к нему можно через полоски вверху.');
     });
   }
   if(st.k==='rpe'){

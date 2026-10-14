@@ -62,10 +62,11 @@ function openSheet(html, bind, opt){
   sh.innerHTML=`<div class="grab"></div>${html}`;
   root.appendChild(dim); root.appendChild(sh);
   document.body.classList.add('locked');
+  let dragged=false;   /* лист уже уехал вниз под пальцем — убираем без второй анимации */
   const close=()=>{
     if(!sh.isConnected) return;
     /* уходит плавно; при «уменьшить движение» — сразу */
-    if(reducedMotion()){ dim.remove(); sh.remove(); }
+    if(reducedMotion() || dragged){ dim.remove(); sh.remove(); }
     else{ const gone=()=>{ dim.remove(); sh.remove(); }; dim.classList.add('out'); sh.classList.add('out'); sh.style.pointerEvents='none'; dim.style.pointerEvents='none';
       sh.addEventListener('animationend',gone,{once:true}); setTimeout(gone,450); }
     sheetStack=sheetStack.filter(x=>x!==api);
@@ -74,10 +75,59 @@ function openSheet(html, bind, opt){
   };
   const api={el:sh, close};
   sheetStack.push(api);
+  sheetDrag(sh, dim, ()=>{ dragged=true; close(); });
   dim.addEventListener('click', close);
   $$('[data-close]', sh).forEach(b=>b.addEventListener('click', close));
   if(bind) bind(sh, close);
   return api;
+}
+/* Свайп вниз закрывает лист: тянем за полоску или за любое место, когда лист прокручен до верха.
+   Лист идёт за пальцем, фон гаснет; отпустил далеко или резко — уезжает, иначе пружиной назад */
+function sheetDrag(sh, dim, dismiss){
+  const NO='input,textarea,select,.sl,.wheel,[data-nodrag]';
+  let y0=0, x0=0, on=false, live=false, dy=0, hist=[];
+  const set=(y)=>{ dy=Math.max(0,y); sh.style.transform=`translateY(${dy}px)`; dim.style.opacity=String(Math.max(0,1-dy/(sh.offsetHeight||600))); };
+  const begin=(x,y,target)=>{
+    if(target.closest(NO)) return;
+    on=true; live=false; x0=x; y0=y; dy=0; hist=[{y,t:Date.now()}];
+  };
+  /* true — палец ведёт лист, прокрутку нужно гасить */
+  const move=(x,y,fromGrab)=>{
+    if(!on) return false;
+    if(!live){
+      const ddx=Math.abs(x-x0), ddy=y-y0;
+      if(Math.abs(ddy)<6 && ddx<6) return false;
+      if(ddx>Math.abs(ddy) || ddy<0 || (!fromGrab && sh.scrollTop>0)){ on=false; return false; }
+      live=true; y0=y; sh.style.animation='none'; sh.style.transition='none'; dim.style.animation='none'; dim.style.transition='none';
+    }
+    set(y-y0); hist.push({y,t:Date.now()}); if(hist.length>5) hist.shift();
+    return true;
+  };
+  const end=()=>{
+    if(!on) return; on=false;
+    if(!live) return; live=false;
+    const a=hist[0], b=hist[hist.length-1], v=(b.y-a.y)/Math.max(1,b.t-a.t);   /* px/мс */
+    if(dy>110 || (v>0.6 && dy>20)){
+      if(reducedMotion()){ dismiss(); return; }
+      sh.style.transition='transform .22s cubic-bezier(.4,0,1,1)'; dim.style.transition='opacity .22s';
+      sh.style.transform='translateY(100%)'; dim.style.opacity='0'; sh.style.pointerEvents='none'; dim.style.pointerEvents='none';
+      vibe(8); setTimeout(dismiss,230);
+    }else{
+      sh.style.transition=reducedMotion()?'none':'transform .38s var(--spring)'; dim.style.transition='opacity .25s';
+      sh.style.transform=''; dim.style.opacity='';
+    }
+  };
+  sh.addEventListener('touchstart',e=>{ if(e.touches.length===1) begin(e.touches[0].clientX,e.touches[0].clientY,e.target); else on=false; },{passive:true});
+  sh.addEventListener('touchmove',e=>{ const t=e.touches[0]; if(move(t.clientX,t.clientY,!!e.target.closest('.grab')) && e.cancelable) e.preventDefault(); },{passive:false});
+  sh.addEventListener('touchend',end); sh.addEventListener('touchcancel',end);
+  /* мышью — только за полоску, чтобы не мешать выделению текста */
+  const grab=sh.querySelector('.grab');
+  grab.addEventListener('mousedown',e=>{
+    begin(e.clientX,e.clientY,e.target); e.preventDefault();
+    const mm=ev=>move(ev.clientX,ev.clientY,true);
+    const mu=()=>{ end(); window.removeEventListener('mousemove',mm); window.removeEventListener('mouseup',mu); };
+    window.addEventListener('mousemove',mm); window.addEventListener('mouseup',mu);
+  });
 }
 document.addEventListener('keydown',e=>{ if(e.key==='Escape' && sheetStack.length) sheetStack[sheetStack.length-1].close(); });
 const closeSheets=()=>{ [...sheetStack].forEach(s=>s.close()); };
@@ -139,7 +189,7 @@ function ringSVG(size, stroke, frac, color){
 function sliderHTML(v, hint){
   const set=v!=null && v!=='';
   return `<div class="sl${set?'':' unset'}" role="slider" tabindex="0" aria-valuemin="0" aria-valuemax="10" aria-valuenow="${set?v:''}">
-    <div class="tr"></div><div class="hint">${hint||'Сдвинь или нажми'}</div>
+    <div class="tr"></div><div class="hint">${hint||'Оцени от 0 до 10'}</div>
     <div class="th" style="left:calc(26px + (100% - 52px) * ${set?(+v)/10:0})">${set?v:''}</div></div>
     <div class="ticks"><span>0</span><span>4</span><span>6</span><span>10</span></div>`;
 }
@@ -198,7 +248,7 @@ const dowIdx=dow=>dow===0?6:dow-1;
 const kfmt=n=>String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g,' ');
 const plural=(n,a,b,c)=>{ n=Math.abs(n)%100; const m=n%10; return n>10&&n<20?c:m>1&&m<5?b:m===1?a:c; };
 
-/* ---------- Тема: «Как в iPhone», «Светлая» («Чистый лист»), «Тёмная» («Табло») ---------- */
+/* ---------- Тема: «Как в iPhone», «Светлая», «Тёмная» ---------- */
 function applyTheme(){
   const t=settings.theme||'auto', r=document.documentElement;
   if(t==='light'||t==='dark') r.dataset.theme=t; else delete r.dataset.theme;

@@ -66,7 +66,7 @@ function openLibGroup(id){
     openPage('Техника', ()=>{
       const cat=techCatalog(), groups={};
       cat.forEach(x=>{ (groups[x.group]=groups[x.group]||[]).push(x); });
-      return `<p class="t2">Тап — фото начала и конца движения, как делать, частые ошибки.</p>`+Object.entries(groups).map(([gr,list])=>`<div class="sec">${esc(gr)}</div><div class="card" style="padding:4px 16px">${list.map(x=>`<button type="button" class="secrow" data-tech="${x.tech}" data-nm="${esc(x.name)}"><span>${esc(x.name)}</span><span class="chev" style="flex:none">›</span></button>`).join('')}</div>`).join('');
+      return `<p class="t2">Нажми на упражнение — фото начала и конца движения, как делать, частые ошибки.</p>`+Object.entries(groups).map(([gr,list])=>`<div class="sec">${esc(gr)}</div><div class="card" style="padding:4px 16px">${list.map(x=>`<button type="button" class="secrow" data-tech="${x.tech}" data-nm="${esc(x.name)}"><span>${esc(x.name)}</span><span class="chev" style="flex:none">›</span></button>`).join('')}</div>`).join('');
     }, el=>el.querySelectorAll('[data-tech]').forEach(b=>b.addEventListener('click',()=>techSheet(b.dataset.tech, b.dataset.nm))));
     return;
   }

@@ -7,7 +7,9 @@
 const cycleShort=()=> isSession() ? 'сессия' : state.cycle===1 ? 'сушка'
   : state.cycle===2 ? 'сила' : (weekKind(3,state.week)==='hyper' ? 'масса' : 'сила');
 const todayEntries=()=>{ const dow=new Date().getDay(); return buildWeek().filter(e=>e.dow===dow); };
-const isGymDone=e=> sessionState(e.id)==='done' || (e.day && e.day.ex.length && e.day.ex.every(x=>marks[key(e.id,x.id)]));
+/* сделана: закончена в плеере или отмечены все упражнения, кроме тех, что на этой неделе «пропустить» */
+const gymExToMark=e=> e.day ? e.day.ex.filter(x=>!plSkipDose(x)) : [];
+const isGymDone=e=>{ const xs=gymExToMark(e); return sessionState(e.id)==='done' || (xs.length>0 && xs.every(x=>marks[key(e.id,x.id)])); };
 const isRunDone=e=> !!marks[key(e.id,e.ex)];
 function morningOf(iso){ const b=body[iso]||{}; return {w:num(b.w), hr:num(b.hr), knee:num(b.knee), back:num(b.back), groin:num(b.groin), sleep:num(b.sleep)}; }
 const morningDone=iso=>{ const m=morningOf(iso); return m.w!=null || m.knee!=null || m.back!=null || m.hr!=null || m.groin!=null || m.sleep!=null; };
@@ -20,7 +22,7 @@ function setBody(iso, f, v){
 const lastWeightBefore=iso=>{ const ws=weightsSorted().filter(p=>p.d<iso); return ws.length ? ws[ws.length-1] : null; };
 
 /* ---------- Утренний замер: барабан веса, пульс, колено, поясница, пах ----------
-   Пишется сразу при каждом изменении. Карточка на «Сейчас» остаётся,
+   Сохраняется сразу при каждом изменении. Карточка на «Сейчас» остаётся,
    пока не нажал «Готово», даже если что-то уже записано */
 let mEdit=false;
 function morningFormHTML(iso){
@@ -63,7 +65,7 @@ function bindMorningForm(root, iso){
 }
 function morningSheet(){
   const iso=isoDay();
-  openSheet(`<h2>Утренний замер</h2><div class="sub">Пишется сразу. Вес — каждое утро натощак, минимум 3 раза в неделю; колено — утром после прыжкового дня.</div>
+  openSheet(`<h2>Утренний замер</h2><div class="sub">Сохраняется сразу. Вес — каждое утро натощак, минимум 3 раза в неделю; колено — утром после прыжкового дня.</div>
     ${morningFormHTML(iso)}<button type="button" class="btn big pri" style="margin-top:18px" data-close>Готово</button>`,
     el=>bindMorningForm(el, iso), {onClose:()=>{ mEdit=false; renderAll(); }});
 }
@@ -79,24 +81,76 @@ function morningLine(iso){
   return parts.join(' · ');
 }
 
-/* ---------- Ежедневный блок ---------- */
+/* ---------- Ежедневный блок ----------
+   Каждое из четырёх упражнений отмечается отдельно. Все четыре — день засчитан
+   (общая отметка дня, её читают неделя, привычки и выгрузка). Старые отметки дня без
+   упражнений считаются как «все четыре сделаны» */
 const dailyKey=i=>`${state.cycle}-${state.week}-daily-${i}`;
+const dailyItemKey=(i,n)=>`${state.cycle}-${state.week}-dailyx-${i}-${n}`;
+const dailyItemOn=(i,n)=>!!marks[dailyKey(i)] || !!marks[dailyItemKey(i,n)];
+const dailyCount=i=>DAILY.filter((_,n)=>dailyItemOn(i,n)).length;
+/* снимок отметок дня — для «Отменить» */
+function dailyUndo(i){
+  const ks=[dailyKey(i), ...DAILY.map((_,n)=>dailyItemKey(i,n))], was={};
+  ks.forEach(k=>{ was[k]=marks[k]; });
+  return ()=>{ ks.forEach(k=>{ if(was[k]) marks[k]=was[k]; else delete marks[k]; }); saveMarks(); renderAll(); };
+}
+function setDailyItems(i, ons){
+  ons.forEach((on,n)=>{ const k=dailyItemKey(i,n); if(on) marks[k]=true; else delete marks[k]; });
+  if(ons.every(Boolean)) marks[dailyKey(i)]=true; else delete marks[dailyKey(i)];
+  saveMarks();
+}
+function toggleDailyItem(i, n){
+  const undo=dailyUndo(i), ons=DAILY.map((_,m)=>dailyItemOn(i,m));
+  ons[n]=!ons[n];
+  setDailyItems(i, ons); vibe(); renderAll();
+  if(ons.every(Boolean)) toast('Каждый день — все четыре сделаны', undo);
+}
 function toggleDaily(i){
-  const k=dailyKey(i), was=!!marks[k];
-  if(was) delete marks[k]; else marks[k]=true;
+  const was=!!marks[dailyKey(i)], undo=dailyUndo(i);
+  setDailyItems(i, DAILY.map(()=>!was)); vibe(); renderAll();
+  toast(was?'Каждый день — отметка снята':'Каждый день — отмечено', undo);
+}
+/* Тренировка одним нажатием: отметить все упражнения или снять отметки. Подходы в журнале не трогаются */
+function toggleGymDone(e){
+  if(isDropped(e.id)){ daySheet(e.id); return; }
+  const st=sessionState(e.id);
+  if(st==='done'){ openPlayer(e.id,'sum'); return; }
+  if(st==='run'){ openPlayer(e.id); return; }
+  const xs=gymExToMark(e), was=isGymDone(e), prev={};
+  xs.forEach(x=>{ prev[x.id]=marks[key(e.id,x.id)]; if(was) delete marks[key(e.id,x.id)]; else marks[key(e.id,x.id)]=true; });
   saveMarks(); vibe(); renderAll();
-  if(!was) toast('Каждый день — отмечено', ()=>{ delete marks[k]; saveMarks(); renderAll(); });
+  toast(was?`${e.day.title} — отметки сняты`:`${e.day.title} — сделано`, ()=>{ xs.forEach(x=>{ if(prev[x.id]) marks[key(e.id,x.id)]=prev[x.id]; else delete marks[key(e.id,x.id)]; }); saveMarks(); renderAll(); });
+}
+function toggleRunDone(e){
+  if(isDropped(e.id)){ daySheet(e.id); return; }
+  const k=key(e.id,e.ex), was=!!marks[k];
+  if(was) delete marks[k]; else marks[k]=true; saveMarks(); vibe(); renderAll();
+  toast(was?'Велосипед — отметка снята':'Велосипед — сделано', ()=>{ if(was) marks[k]=true; else delete marks[k]; saveMarks(); renderAll(); });
 }
 function dailySheet(i){
   i = i ?? todayIdx();
-  const done=!!marks[dailyKey(i)];
-  openSheet(`<h2>Каждый день · ≈${dailyMinutes()} мин</h2>
-    <div class="sub">Колени, пах и стопа. Не режется никогда. Все семь дней, в том числе тренировочные: отдельно от разминки, в любое время — утром, в перерыве между парами, вечером.</div>
-    <div class="doc">${DAILY.map((x,n)=>{ const t=TECH[x.tech]||{text:''};
-      return `<details class="lx"><summary><b>${n+1}. ${x.name}</b><span>${x.dose}</span></summary>${figFor(x.tech,x.name)}<div class="tech">${t.text}</div></details>`; }).join('')}
+  const html=()=>{ const done=!!marks[dailyKey(i)];
+    return `<h2>Каждый день · ≈${dailyMinutes()} мин</h2>
+    <div class="sub">Колени, пах и стопа. Делается каждый день, даже в разгрузку и в дни тренировок: отдельно от разминки, в любое время — утром, в перерыве между парами, вечером. Отмечай каждое упражнение кружком.</div>
+    <div class="doc">${DAILY.map((x,n)=>{ const t=TECH[x.tech]||{text:''}, on=dailyItemOn(i,n);
+      return `<div class="dxrow"><button type="button" class="ck${on?' on':''}" data-dx="${n}" aria-pressed="${on}" aria-label="${esc(x.name)} — ${on?'сделано':'не сделано'}">${IC.check}</button>
+        <details class="lx"><summary><b>${n+1}. ${x.name}</b><span>${x.dose}</span></summary>${figFor(x.tech,x.name)}<div class="tech">${t.text}</div></details></div>`; }).join('')}
     <p style="margin-top:12px" class="t2">Эти четыре пункта работают медленно и только от частоты. Полуприсед у стены даёт первые изменения в колене через 4–6 недель ежедневной работы, изометрия паха примерно так же. Делать их три раза в неделю вместо семи — значит растянуть результат вдвое.</p></div>
-    <button type="button" class="btn big ${done?'':'pri'}" data-t>${done?'Снять отметку':'Сделано сегодня'}</button>`,
-    (el,close)=>el.querySelector('[data-t]').addEventListener('click',()=>{ close(); toggleDaily(i); }));
+    <button type="button" class="btn big ${done?'':'pri'}" data-t>${done?'Снять все отметки':'Сделал все четыре'}</button>`; };
+  const bind=(el,close)=>{
+    el.querySelector('[data-t]').addEventListener('click',()=>{ close(); toggleDaily(i); });
+    el.querySelectorAll('[data-dx]').forEach(b=>b.addEventListener('click',()=>{
+      const open=[...el.querySelectorAll('details.lx')].map(d=>d.open);
+      toggleDailyItem(i, +b.dataset.dx);
+      /* лист остаётся открытым — перерисовываем его содержимое на месте */
+      const y=el.scrollTop; [...el.children].forEach(c=>{ if(!c.classList.contains('grab')) c.remove(); });
+      el.insertAdjacentHTML('beforeend', html()); el.scrollTop=y;
+      el.querySelectorAll('details.lx').forEach((d,k)=>{ d.open=open[k]; });
+      bind(el,close);
+    }));
+  };
+  openSheet(html(), bind);
 }
 
 /* ---------- Карточки «следующего шага» ---------- */
@@ -149,7 +203,7 @@ function cardioHero(e){
     ${e.moveNote?`<div class="note" style="margin-top:12px"><b>Сдвинуто</b>${e.moveNote}</div>`:''}
     ${sk?`<button type="button" class="btn big white hb" data-unskip>Вернуть</button>`:`
     <div style="margin-top:14px">
-      <button type="button" class="row" style="width:100%;color:inherit" data-ck="${e.ex}"><span class="ck${d1?' on':''}" style="border-color:rgba(255,255,255,.6)">${IC.check}</span><span class="grow" style="text-align:left"><div class="nm">Велосипед ${e.dur}</div><div class="ds" style="color:inherit;opacity:.85">80–85 оборотов · пульс по плану</div></span></button>
+      <button type="button" class="row" style="width:100%;color:inherit" data-ck="${e.ex}"><span class="ck${d1?' on':''}" style="border-color:rgba(255,255,255,.6)">${IC.check}</span><span class="grow" style="text-align:left"><div class="nm">Велосипед ${e.dur}</div><div class="ds" style="color:inherit;opacity:.85">80–85 оборотов в минуту</div></span></button>
       <button type="button" class="row" style="width:100%;color:inherit;border-color:rgba(255,255,255,.25)" data-ck="ball"><span class="ck${d2?' on':''}" style="border-color:rgba(255,255,255,.6)">${IC.check}</span><span class="grow" style="text-align:left"><div class="nm">Мяч · дриблинг</div><div class="ds" style="color:inherit;opacity:.85">${BALL.dose}</div></span></button>
     </div>
     <div class="btnrow"><button type="button" class="btn white" data-how>Как настроить</button><button type="button" class="btn white" data-skip>Пропустил</button></div>`}
@@ -166,7 +220,7 @@ function restHero(e, week){
 function morningHero(){
   return `<div class="hero" id="morning"><div class="k" style="color:var(--t3)">Сначала замер · 30 секунд</div>
     ${morningFormHTML(isoDay())}
-    <div class="muted small" style="margin-top:12px">Пишется сразу. По колену, пояснице и паху план подстраивается.</div>
+    <div class="muted small" style="margin-top:12px">Сохраняется сразу. По колену, пояснице и паху план подстраивается.</div>
     <button type="button" class="link" data-health style="margin-top:8px">Вставить из «Здоровья»</button>
     <button type="button" class="btn big pri hb" data-mdone>Готово</button></div>`;
 }
@@ -176,13 +230,14 @@ function eveningHero(es){
   const hk=id=>`${state.cycle}-${state.week}-hab-${id}-${td}`;
   const S=sleepInfo(), sh=SHOWER[todayKind()];
   const lines=[];
-  es.filter(e=>e.type==='gym').forEach(e=>lines.push([isGymDone(e)||isDropped(e.id), e.day.title+(isDropped(e.id)?' — отменена':'')]));
-  es.filter(e=>e.type==='run').forEach(e=>lines.push([isRunDone(e)||isDropped(e.id), 'Велосипед + мяч']));
-  lines.push([morningDone(iso), morningDone(iso)?`Утро: ${morningLine(iso)}`:'Утренний замер не записан']);
-  lines.push([!!marks[dailyKey(td)], 'Каждый день']);
-  lines.push([t.k>0 && Math.abs(t.k-T.k)<=120, `Еда: ${kfmt(t.k)} из ${kfmt(T.k)} ккал`]);
+  es.filter(e=>e.type==='gym').forEach(e=>lines.push([isGymDone(e)||isDropped(e.id), e.day.title+(isDropped(e.id)?' — отменена':''), 'g:'+e.id]));
+  es.filter(e=>e.type==='run').forEach(e=>lines.push([isRunDone(e)||isDropped(e.id), 'Велосипед + мяч', 'r:'+e.id]));
+  lines.push([morningDone(iso), morningDone(iso)?`Утро: ${morningLine(iso)}`:'Утренний замер не записан', 'm']);
+  const dn=dailyCount(td);
+  lines.push([dn===DAILY.length, `Каждый день${dn&&dn<DAILY.length?` · ${dn} из ${DAILY.length}`:''}`, 'daily']);
+  lines.push([t.k>0 && Math.abs(t.k-T.k)<=120, `Еда: ${kfmt(t.k)} из ${kfmt(T.k)} ккал`, 'food']);
   return `<div class="hero"><div class="k" style="color:var(--t3)">Итоги дня</div><div class="t">Как прошёл день</div>
-    <div style="margin-top:10px">${lines.map(([ok,txt])=>`<div class="done-line" style="min-height:40px"><span class="ck${ok?' on':''}">${IC.check}</span>${esc(txt)}</div>`).join('')}</div>
+    <div style="margin-top:10px">${lines.map(([ok,txt,ev])=>`<button type="button" class="row" style="width:100%" data-ev="${ev}"><span class="ck${ok?' on':''}">${IC.check}</span><span class="grow" style="text-align:left"><div class="nm">${esc(txt)}</div></span></button>`).join('')}</div>
     <div class="sec" style="margin-top:14px">Привычки</div>
     ${[['sl1','Лёг в одно и то же время'],['sl2','Не пропустил ни одного приёма пищи']].map(([id,txt])=>`<button type="button" class="row" style="width:100%" data-hab="${hk(id)}"><span class="ck${marks[hk(id)]?' on':''}">${IC.check}</span><span class="grow" style="text-align:left"><div class="nm">${txt}</div></span></button>`).join('')}
     <div class="note" style="margin-top:12px"><b>Сон: ${S.target}, отбой 01:00</b>${S.why}</div>
@@ -200,11 +255,11 @@ function mealLogged(td, at){
   return times.some(t=>Math.abs(hm2min(t)-hm2min(at))<=90);
 }
 function dailyHero(){
-  const done=!!marks[dailyKey(todayIdx())];
-  return `<div class="hero c-car"><div class="k">${done?'Сделано':'Весь день'} · ≈${dailyMinutes()} мин</div><div class="t">Каждый день</div>
-    <div class="s">Колени, пах и стопа. Не режется никогда.</div>
-    <div class="chips">${DAILY.map(x=>`<span class="chip">${esc(x.name)}</span>`).join('')}</div>
-    <div class="btnrow"><button type="button" class="btn white" data-dhow>Что делать</button><button type="button" class="btn white" data-dtog>${done?'Снять отметку':'Сделано сегодня'}</button></div></div>`;
+  const td=todayIdx(), done=!!marks[dailyKey(td)], dn=dailyCount(td);
+  return `<div class="hero c-car"><div class="k">${done?'Сделано':dn?`${dn} из ${DAILY.length}`:'В любое время'} · ≈${dailyMinutes()} мин</div><div class="t">Каждый день</div>
+    <div class="s">Колени, пах и стопа. Нажми на упражнение, когда сделал.</div>
+    <div class="chips">${DAILY.map((x,n)=>{ const on=dailyItemOn(td,n); return `<button type="button" class="chip dx${on?' on':''}" data-dx="${n}" aria-pressed="${on}">${IC.check}${esc(x.name)}</button>`; }).join('')}</div>
+    <div class="btnrow"><button type="button" class="btn white" data-dhow>Как делать</button><button type="button" class="btn white" data-dtog>${done?'Снять все':'Сделал все'}</button></div></div>`;
 }
 function mealHero(r){
   const td=todayIdx(), done=mealLogged(td, r[0]), left=cookList().filter(c=>cookLeft(c)>0);
@@ -272,10 +327,11 @@ function bindPager(box, steps, ci, autoId){
 function timelineItems(es){
   const iso=isoDay(), td=todayIdx(), items=[];
   items.push({t:'08:30', c:'c-kc', nm:'Утренний замер', ds: morningDone(iso)?morningLine(iso):'вес, пульс, колено, поясница, пах', done:morningDone(iso), act:'morning'});
-  items.push({t:'весь день', sort:'08:31', c:'c-car', nm:'Каждый день', ds:`колени, пах, стопа · ${dailyMinutes()} мин`, done:!!marks[dailyKey(td)], act:'daily', ck:true});
+  const dn=dailyCount(td);
+  items.push({t:'любое время', sort:'08:31', c:'c-car', nm:'Каждый день', ds:dn&&dn<DAILY.length?`${dn} из ${DAILY.length} · колени, пах, стопа`:`колени, пах, стопа · ${dailyMinutes()} мин`, done:!!marks[dailyKey(td)], act:'daily', ck:true});
   es.forEach(e=>{
-    if(e.type==='gym') items.push({t:trainingTime(e)||'—', c:typeClass(e), nm:e.day.title+(isDropped(e.id)?' · отменена':''), ds:`≈${dayMinutes(e.day,state.week)} мин`, done:isGymDone(e)||isDropped(e.id), act:'gym', id:e.id});
-    if(e.type==='run') items.push({t:trainingTime(e), c:'c-car', nm:'Велосипед + мяч', ds:e.dur, done:isRunDone(e)||isDropped(e.id), act:'run', id:e.id});
+    if(e.type==='gym') items.push({t:trainingTime(e)||'—', c:typeClass(e), nm:e.day.title+(isDropped(e.id)?' · отменена':''), ds:`≈${dayMinutes(e.day,state.week)} мин`, done:isGymDone(e)||isDropped(e.id), act:'gym', id:e.id, ck:true});
+    if(e.type==='run') items.push({t:trainingTime(e), c:'c-car', nm:'Велосипед + мяч', ds:e.dur, done:isRunDone(e)||isDropped(e.id), act:'run', id:e.id, ck:true});
   });
   const mt=mealTiming(td);
   mt.rows.filter(r=>!/^(Подъём|Тренировка|Физра)/.test(r[1])).forEach(r=>{
@@ -289,7 +345,7 @@ function timelineItems(es){
 }
 function foodQuickSheet(at){
   const us=usualNow(6), conts=cookList().filter(c=>cookLeft(c)>0);
-  openSheet(`<h2>Что съел?</h2><div class="sub">${at?`По режиму в ${at}. `:''}Тап — записано на сейчас, с отменой.</div>
+  openSheet(`<h2>Что съел?</h2><div class="sub">${at?`По режиму в ${at}. `:''}Нажми — запишется на текущее время, можно отменить.</div>
     ${conts.length?`<div class="sec">Контейнеры</div><div class="pills">${conts.map((c,i)=>`<button type="button" class="pill" data-cont="${i}">${esc(dishById(c.m).name)}${c.g?` + ${esc(dishById(c.g).name.toLowerCase())}`:''} <small>${cookLeft(c)} ост.</small></button>`).join('')}</div>`:''}
     <div class="sec">Как обычно в это время</div><div class="pills">${us.map((u,i)=>quickPill(u,i)).join('')||'<span class="muted">Пока нет истории</span>'}</div>
     <button type="button" class="btn big pri" style="margin-top:18px" data-go>Открыть «Еду»</button>`,
@@ -350,7 +406,7 @@ function renderNowScreen(){
   box.innerHTML=`
     <div class="hd"><div class="tt"><div class="kick">${DOW_IDX[td]} · неделя ${isSession()?`сессии ${state.week-12}`:state.week} · ${cycleShort()}</div><div class="h1">${greet}</div></div>
       <div class="rings">
-        <div class="ring"><div class="rc">${ringSVG(58,8,planned?doneN/planned:0,'var(--str)')}<div class="rv n">${planned?`${doneN}/${planned}`:'—'}</div></div><div class="rl">${planned?'трен.':'отдых'}</div></div>
+        <div class="ring"><div class="rc">${ringSVG(58,8,planned?doneN/planned:0,'var(--str)')}<div class="rv n">${planned?`${doneN}/${planned}`:'—'}</div></div><div class="rl">${planned?'занятия':'отдых'}</div></div>
         <div class="ring"><div class="rc">${ringSVG(58,8,T.k?tk/T.k:0, tk>T.k+120?'var(--wn)':'var(--kc)')}<div class="rv n">${T.k?Math.round(tk/T.k*100):0}%</div></div><div class="rl">еда</div></div>
       </div></div>
     <div id="installSlot"></div><div id="onbSlot"></div>
@@ -361,7 +417,7 @@ function renderNowScreen(){
       <div class="it${it.done?' done':''} tap" data-act="${it.act}" ${it.id?`data-id="${it.id}"`:''} ${it.at?`data-at="${it.at}"`:''}>
         <span class="tm n">${it.t}</span><span class="bar ${it.c}"></span>
         <span><div class="nm">${esc(it.nm)}</div>${it.ds?`<div class="ds">${esc(it.ds)}</div>`:''}</span>
-        ${it.act==='sleep'?'<span></span>':`<button type="button" class="ck${it.done?' on':''}" ${it.ck?'data-tog':''} aria-label="${esc(it.nm)}">${IC.check}</button>`}
+        ${it.act==='sleep'?'<span></span>':`<button type="button" class="ck${it.done?' on':''}" ${it.ck?'data-tog':''} aria-label="${esc(it.nm)} — ${it.done?'сделано':it.ck?'отметить':'открыть'}">${IC.check}</button>`}
       </div>`).join('')}</div>`;
 
   renderInstallHint(); renderOnboard();
@@ -371,11 +427,12 @@ function renderNowScreen(){
   /* ежедневный блок и приём пищи */
   box.querySelectorAll('[data-dhow]').forEach(b=>b.addEventListener('click',()=>dailySheet()));
   box.querySelectorAll('[data-dtog]').forEach(b=>b.addEventListener('click',()=>toggleDaily(todayIdx())));
+  box.querySelectorAll('.hero [data-dx]').forEach(b=>b.addEventListener('click',()=>toggleDailyItem(todayIdx(), +b.dataset.dx)));
   box.querySelectorAll('[data-meal-eat]').forEach(b=>b.addEventListener('click',()=>foodQuickSheet(b.closest('[data-meal]').dataset.meal)));
 
   /* утренний замер в карточке */
   const mh=box.querySelector('#morning');
-  if(mh){ bindMorningForm(mh, iso); mh.querySelector('[data-health]').addEventListener('click',pasteHealth); mh.querySelector('[data-mdone]').addEventListener('click',()=>{ if(!morningDone(iso)){ toast('Ничего не записано — сдвинь хотя бы одно'); return; } mEdit=false; renderAll(); toast(`Замер записан: ${morningLine(iso)}`); }); }
+  if(mh){ bindMorningForm(mh, iso); mh.querySelector('[data-health]').addEventListener('click',pasteHealth); mh.querySelector('[data-mdone]').addEventListener('click',()=>{ if(!morningDone(iso)){ toast('Ничего не записано — оцени хотя бы одно'); return; } mEdit=false; renderAll(); toast(`Замер записан: ${morningLine(iso)}`); }); }
   /* тренировка */
   box.querySelectorAll('[data-start]').forEach(b=>b.addEventListener('click',()=>startWorkout(b.closest('[data-day]').dataset.day)));
   box.querySelectorAll('[data-play]').forEach(b=>b.addEventListener('click',()=>openPlayer(b.closest('[data-day]').dataset.day)));
@@ -394,11 +451,25 @@ function renderNowScreen(){
   }));
   /* итоги дня: привычки */
   box.querySelectorAll('[data-hab]').forEach(b=>b.addEventListener('click',()=>{ const k=b.dataset.hab; if(marks[k]) delete marks[k]; else marks[k]=true; saveMarks(); vibe(); renderAll(); }));
+  /* итоги дня: строки нажимаются — отметить сделанное или открыть, где это поправить */
+  box.querySelectorAll('[data-ev]').forEach(b=>b.addEventListener('click',()=>{
+    const ev=b.dataset.ev, e=week.find(x=>x.id===ev.slice(2));
+    if(ev==='m') morningSheet();
+    else if(ev==='daily') toggleDaily(todayIdx());
+    else if(ev==='food') goTab('food');
+    else if(ev.startsWith('g:') && e) toggleGymDone(e);
+    else if(ev.startsWith('r:') && e) toggleRunDone(e);
+  }));
   /* лента */
   box.querySelectorAll('.it').forEach(row=>{
     const act=row.dataset.act;
     const tog=row.querySelector('[data-tog]');
-    if(tog) tog.addEventListener('click',e=>{ e.stopPropagation(); toggleDaily(todayIdx()); });
+    if(tog) tog.addEventListener('click',ev=>{ ev.stopPropagation();
+      const e=week.find(x=>x.id===row.dataset.id);
+      if(act==='daily') toggleDaily(todayIdx());
+      else if(act==='gym' && e) toggleGymDone(e);
+      else if(act==='run' && e) toggleRunDone(e);
+    });
     row.addEventListener('click',()=>{
       if(act==='morning') morningSheet();
       else if(act==='daily') dailySheet();
