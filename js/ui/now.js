@@ -190,6 +190,84 @@ function eveningHero(es){
   </div>`;
 }
 
+/* ---------- Дела дня листаются свайпом, как треки ---------- */
+let nowPick=null;      /* {d, id}: куда пользователь пролистал сегодня */
+let nowAnim=0;         /* откуда въезжает новая карточка: 1 — справа, -1 — слева */
+/* Какие приёмы пищи уже записаны: время блюда или своей еды в пределах ±90 минут */
+function mealLogged(td, at){
+  const log=foodLog[`${state.cycle}-${state.week}-${td}`]||{};
+  const times=[...Object.entries(log.times||{}).filter(([id])=>log.dishOn&&log.dishOn[id]).map(([,t])=>t), ...(log.custom||[]).map(x=>x.t).filter(Boolean)];
+  return times.some(t=>Math.abs(hm2min(t)-hm2min(at))<=90);
+}
+function dailyHero(){
+  const done=!!marks[dailyKey(todayIdx())];
+  return `<div class="hero c-car"><div class="k">${done?'Сделано':'Весь день'} · ≈${dailyMinutes()} мин</div><div class="t">Каждый день</div>
+    <div class="s">Колени, пах и стопа. Не режется никогда.</div>
+    <div class="chips">${DAILY.map(x=>`<span class="chip">${esc(x.name)}</span>`).join('')}</div>
+    <div class="btnrow"><button type="button" class="btn white" data-dhow>Что делать</button><button type="button" class="btn white" data-dtog>${done?'Снять отметку':'Сделано сегодня'}</button></div></div>`;
+}
+function mealHero(r){
+  const td=todayIdx(), done=mealLogged(td, r[0]), left=cookList().filter(c=>cookLeft(c)>0);
+  const parts=String(r[1]).split(/ — |: /), title=parts.shift(), more=parts.join('. ');
+  return `<div class="hero c-kc" data-meal="${r[0]}"><div class="k">${r[0]} · ${done?'Записано':'Приём пищи'}</div><div class="t">${esc(title)}</div>
+    <div class="s">${[r[2]?`Белок ${r[2]} г.`:'', more?esc(more)+'.':''].filter(Boolean).join(' ')}</div>
+    ${left.length?`<div class="chips">${left.map(c=>`<span class="chip">${esc(dishById(c.m).name)} · ${cookLeft(c)} ост.</span>`).join('')}</div>`:''}
+    <button type="button" class="btn big white hb" data-meal-eat>Что съел?</button></div>`;
+}
+/* Все дела сегодняшнего дня по порядку времени: замер, ежедневный блок, тренировки, приёмы пищи, итоги */
+function nowSteps(es, week, rest){
+  const td=todayIdx(), S=[];
+  const gyms=es.filter(e=>e.type==='gym'), runs=es.filter(e=>e.type==='run');
+  if(rest && !gyms.length && !runs.length) S.push({id:'rest', t:'00:00', label:'Отдых', html:()=>restHero(rest, week)});
+  S.push({id:'m', t:'08:30', label:'Утренний замер', html:()=>morningHero()});
+  S.push({id:'daily', t:'08:31', label:'Каждый день', html:dailyHero});
+  gyms.forEach(e=>S.push({id:'g:'+e.id, t:trainingTime(e)||'17:00', label:e.day.title, html:()=>trainingHero(e)}));
+  runs.forEach(e=>S.push({id:'r:'+e.id, t:trainingTime(e)||'09:00', label:'Велосипед + мяч', html:()=>cardioHero(e)}));
+  mealTiming(td).rows.filter(r=>!/^(Подъём|Тренировка|Физра)/.test(r[1])).forEach(r=>S.push({id:'f:'+r[0], t:r[0], label:String(r[1]).split(/ — |: /)[0], html:()=>mealHero(r)}));
+  S.push({id:'eve', t:'23:30', label:'Итоги дня', html:()=>eveningHero(es)});
+  return S.map((x,i)=>({...x,i})).sort((a,b)=>(hm2min(a.t)-hm2min(b.t))||(a.i-b.i));
+}
+/* Свайп по карточке: палец ведёт её за собой, отпустил — уехала или вернулась пружиной */
+function bindPager(box, steps, ci, autoId){
+  const slot=box.querySelector('#heroSlot'); if(!slot) return;
+  const go=(to,dir)=>{
+    if(to<0||to>=steps.length) return;
+    const hero=slot.firstElementChild;
+    const commit=()=>{ nowPick={d:isoDay(), id:steps[to].id}; nowAnim=dir; renderNowScreen(); vibe(8); };
+    if(reducedMotion()||!hero){ nowAnim=0; commit(); return; }
+    hero.style.transition='transform .2s cubic-bezier(.4,0,1,1), opacity .2s'; hero.style.transform=`translateX(${-dir*110}%)`; hero.style.opacity='0';
+    let done=false; const fin=()=>{ if(done) return; done=true; commit(); };
+    hero.addEventListener('transitionend',fin,{once:true}); setTimeout(fin,260);
+  };
+  let x0=0,y0=0,dx=0,drag=false,locked=false,t0=0,pid=null;
+  const hero=()=>slot.firstElementChild;
+  slot.addEventListener('pointerdown',e=>{
+    if(e.target.closest('.sl,.wheel,input,textarea,select,[data-nodrag]')) return;
+    x0=e.clientX; y0=e.clientY; dx=0; drag=true; locked=false; t0=performance.now(); pid=e.pointerId;
+  });
+  slot.addEventListener('pointermove',e=>{
+    if(!drag||e.pointerId!==pid) return;
+    const mx=e.clientX-x0, my=e.clientY-y0;
+    if(!locked){ if(Math.abs(mx)>10 && Math.abs(mx)>Math.abs(my)*1.4){ locked=true; try{ slot.setPointerCapture(pid); }catch(_){} } else return; }
+    dx=mx;
+    const edge=(dx>0&&ci===0)||(dx<0&&ci===steps.length-1), k=edge?0.22:1, h=hero();
+    if(h){ h.style.transition='none'; h.style.transform=`translateX(${dx*k}px) rotate(${dx*k/60}deg)`; h.style.opacity=String(1-Math.min(.5,Math.abs(dx*k)/500)); }
+  });
+  const end=e=>{
+    if(!drag||(e&&e.pointerId!==pid)) return;
+    drag=false; if(!locked) return;
+    const v=dx/Math.max(1,performance.now()-t0), edge=(dx>0&&ci===0)||(dx<0&&ci===steps.length-1);
+    const next = !edge && (Math.abs(dx)>70 || Math.abs(v)>0.45) ? (dx<0?1:-1) : 0;
+    const h=hero();
+    if(next){ go(ci+next, next); return; }
+    if(h){ h.style.transition='transform .45s cubic-bezier(.34,1.56,.64,1), opacity .25s'; h.style.transform=''; h.style.opacity=''; }
+  };
+  slot.addEventListener('pointerup',end); slot.addEventListener('pointercancel',end);
+  slot.addEventListener('keydown',e=>{ if(e.target!==slot) return; if(e.key==='ArrowRight') go(ci-1,-1); else if(e.key==='ArrowLeft') go(ci+1,1); });
+  box.querySelectorAll('[data-pi]').forEach(b=>b.addEventListener('click',()=>{ const to=+b.dataset.pi; if(to!==ci) go(to, to>ci?1:-1); }));
+  const back=box.querySelector('[data-pcur]'); if(back) back.addEventListener('click',()=>{ const to=steps.findIndex(s=>s.id===autoId); go(to, to>ci?1:-1); });
+}
+
 /* ---------- Лента «дальше сегодня» ---------- */
 function timelineItems(es){
   const iso=isoDay(), td=todayIdx(), items=[];
@@ -199,10 +277,9 @@ function timelineItems(es){
     if(e.type==='gym') items.push({t:trainingTime(e)||'—', c:typeClass(e), nm:e.day.title+(isDropped(e.id)?' · отменена':''), ds:`≈${dayMinutes(e.day,state.week)} мин`, done:isGymDone(e)||isDropped(e.id), act:'gym', id:e.id});
     if(e.type==='run') items.push({t:trainingTime(e), c:'c-car', nm:'Велосипед + мяч', ds:e.dur, done:isRunDone(e)||isDropped(e.id), act:'run', id:e.id});
   });
-  const mt=mealTiming(td), log=foodLog[`${state.cycle}-${state.week}-${td}`]||{};
-  const times=[...Object.entries(log.times||{}).filter(([id])=>log.dishOn&&log.dishOn[id]).map(([,t])=>t), ...(log.custom||[]).map(x=>x.t).filter(Boolean)];
+  const mt=mealTiming(td);
   mt.rows.filter(r=>!/^(Подъём|Тренировка|Физра)/.test(r[1])).forEach(r=>{
-    const near=times.some(t=>Math.abs(hm2min(t)-hm2min(r[0]))<=90);
+    const near=mealLogged(td, r[0]);
     items.push({t:r[0], c:'c-kc', nm:r[1], ds:r[2]?`белок ${r[2]} г`:'', done:near, act:'food', at:r[0]});
   });
   items.push({t:'01:00', sort:'25:00', c:'c-rest', nm:'Отбой', ds:`норма ${sleepInfo().target}`, done:false, act:'sleep'});
@@ -244,16 +321,27 @@ function renderNowScreen(){
   if(running) greet='Идёт тренировка';
   else if(pendingGym && isNowWeek()){ const tt=hm2min(trainingTime(pendingGym)||'17:00'), dm=tt-now; if(dm>0 && dm<=180) greet = dm<60 ? `Через ${dm} мин` : `Через ${Math.floor(dm/60)} ч ${dm%60?dm%60+' мин':''}`.trim(); }
 
-  /* следующий шаг */
-  let hero='';
-  if((!mDone || mEdit) && now<12*60) hero=morningHero();
-  else if(running) hero=trainingHero(running);
-  else if(pendingGym && now<21*60) hero=trainingHero(pendingGym);
-  else if(pendingRun && now<21*60) hero=cardioHero(pendingRun);
-  else if(now>=20*60) hero=eveningHero(es);
-  else if(gyms.length) hero=trainingHero(gyms[0]);
-  else if(runs.length) hero=cardioHero(runs[0]);
-  else if(rest) hero=restHero(rest, week);
+  /* следующий шаг — по времени и по тому, что сделано; свайпом можно листать дела дня */
+  let autoId='rest';
+  if((!mDone || mEdit) && now<12*60) autoId='m';
+  else if(running) autoId='g:'+running.id;
+  else if(pendingGym && now<21*60) autoId='g:'+pendingGym.id;
+  else if(pendingRun && now<21*60) autoId='r:'+pendingRun.id;
+  else if(now>=20*60) autoId='eve';
+  else if(gyms.length) autoId='g:'+gyms[0].id;
+  else if(runs.length) autoId='r:'+runs[0].id;
+  else if(rest) autoId='rest';
+  const steps=nowSteps(es, week, rest);
+  if(nowPick && nowPick.d!==iso) nowPick=null;
+  let ci=steps.findIndex(s=>nowPick && s.id===nowPick.id);
+  if(ci<0){ ci=steps.findIndex(s=>s.id===autoId); nowPick=null; }
+  if(ci<0) ci=0;
+  const hero=steps[ci].html();
+  const away=steps[ci].id!==autoId;
+  const pager=`<div class="pager" role="region" aria-roledescription="карусель" aria-label="Дела дня">
+      <div id="heroSlot" tabindex="0">${hero}</div>
+      <div class="pdots">${steps.map((s,i)=>`<button type="button" class="${i===ci?'on':''}${s.id===autoId?' cur':''}" data-pi="${i}" aria-label="${esc(s.label)}${s.id===autoId?' — сейчас':''}"><i></i></button>`).join('')}</div>
+      <div class="pcap small muted">${ci+1} из ${steps.length} · ${esc(steps[ci].label)}${away?` · <button type="button" class="link" style="min-height:32px" data-pcur>К текущему делу</button>`:''}</div></div>`;
 
   const notes=statusNotes().map(n=>`<div class="note ${n.lvl}">${n.html}</div>`).join('');
   const off=!isNowWeek() && !posForDate(isoDay()).pre ? `<div class="note i"><b>Открыта неделя ${state.cycle===1&&state.week>12?'сессии '+(state.week-12):state.week}, а не текущая</b>Тренировки и еда показываются за эту неделю. <button type="button" class="link" data-auto>Вернуть неделю по дате</button></div>` : '';
@@ -267,7 +355,7 @@ function renderNowScreen(){
       </div></div>
     <div id="installSlot"></div><div id="onbSlot"></div>
     ${off}${notes}
-    ${hero}
+    ${pager}
     <div class="sec">Сегодня</div>
     <div class="card tline" style="padding:6px 16px">${items.map(it=>`
       <div class="it${it.done?' done':''} tap" data-act="${it.act}" ${it.id?`data-id="${it.id}"`:''} ${it.at?`data-at="${it.at}"`:''}>
@@ -277,6 +365,13 @@ function renderNowScreen(){
       </div>`).join('')}</div>`;
 
   renderInstallHint(); renderOnboard();
+  bindPager(box, steps, ci, autoId);
+  const hh=box.querySelector('#heroSlot > .hero');
+  if(hh && nowAnim){ hh.classList.add(nowAnim>0?'from-r':'from-l'); nowAnim=0; }
+  /* ежедневный блок и приём пищи */
+  box.querySelectorAll('[data-dhow]').forEach(b=>b.addEventListener('click',()=>dailySheet()));
+  box.querySelectorAll('[data-dtog]').forEach(b=>b.addEventListener('click',()=>toggleDaily(todayIdx())));
+  box.querySelectorAll('[data-meal-eat]').forEach(b=>b.addEventListener('click',()=>foodQuickSheet(b.closest('[data-meal]').dataset.meal)));
 
   /* утренний замер в карточке */
   const mh=box.querySelector('#morning');

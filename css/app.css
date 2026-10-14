@@ -610,3 +610,21 @@ body.playing #toast{ top:calc(env(safe-area-inset-top) + 64px); bottom:auto; }
 .sl .th{ transition:transform .15s var(--spring); }
 .sl:active .th{ transform:scale(1.12); }
 @keyframes plin{ from{ opacity:0; transform:translateX(26px); } to{ opacity:1; transform:none; } }
+
+/* Дела дня листаются свайпом */
+.pager{ margin:0 0 14px; }
+#heroSlot{ touch-action:pan-y; outline:none; }
+#heroSlot .hero{ margin-bottom:0; will-change:transform; }
+#heroSlot .hero.from-r{ animation:slidein-r .42s var(--smooth) both; }
+#heroSlot .hero.from-l{ animation:slidein-l .42s var(--smooth) both; }
+@keyframes slidein-r{ from{ transform:translateX(70px) rotate(2deg); opacity:0; } }
+@keyframes slidein-l{ from{ transform:translateX(-70px) rotate(-2deg); opacity:0; } }
+.pdots{ display:flex; gap:4px; margin-top:4px; }
+.pdots button{ flex:1; height:30px; display:flex; align-items:center; min-width:0; }
+.pdots i{ display:block; width:100%; height:5px; border-radius:3px; background:var(--s3); transition:background .2s, transform .3s var(--spring); }
+.pdots .cur i{ background:var(--t3); }
+.pdots .on i{ background:var(--tx); transform:scaleY(1.6); }
+.pcap{ text-align:center; min-height:20px; }
+.hero.c-kc{ background:linear-gradient(150deg,#FFD25E,#E39A00); color:#1a1300; }
+.hero.c-kc .chip{ background:rgba(0,0,0,.12); }
+.hero.c-kc .btn.white{ background:#1a1300; color:#fff; }
