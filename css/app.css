@@ -348,7 +348,7 @@ body.playing #toast{ bottom:calc(env(safe-area-inset-bottom) + 150px); }
 .days7 .full b{ color:var(--ok); }
 
 /* ---------- План ---------- */
-.year{ display:flex; gap:2px; align-items:flex-end; height:104px; }
+.year{ display:flex; gap:1px; align-items:flex-end; height:104px; }
 .year button{ flex:1; height:100%; display:flex; align-items:flex-end; min-width:0; }
 .year i{ display:block; width:100%; border-radius:2px; background:var(--c); }
 .year .past i{ opacity:.45; }
@@ -649,7 +649,7 @@ body.playing #toast{ top:calc(env(safe-area-inset-top) + 64px); bottom:auto; }
 /* ---------- Полоса года: зажал — выросла, столбики у пальца раздуваются, как Dock на Mac ----------
    Ширина и «жирность» столбиков считаются в JS каждый кадр, поэтому у них нет CSS-переходов:
    переход отставал от пальца, и пик оказывался не под ним */
-.ywrap{ position:relative; }
+.ywrap{ position:relative; margin:0 -8px; }   /* полоса почти во всю карточку — столбики толще */
 .year{ touch-action:pan-y; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; }
 .year.scrub{ }   /* высота полосы не меняется — страница под пальцем не прыгает; растут только ширина и высота столбиков внутри полосы */
 .year.scrub i{ box-shadow:none !important; outline:none; animation:none; }
