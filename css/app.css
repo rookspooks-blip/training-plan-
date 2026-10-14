@@ -348,7 +348,7 @@ body.playing #toast{ bottom:calc(env(safe-area-inset-bottom) + 150px); }
 .days7 .full b{ color:var(--ok); }
 
 /* ---------- План ---------- */
-.year{ display:flex; gap:2px; align-items:flex-end; height:56px; }
+.year{ display:flex; gap:2px; align-items:flex-end; height:104px; }
 .year button{ flex:1; height:100%; display:flex; align-items:flex-end; min-width:0; }
 .year i{ display:block; width:100%; border-radius:2px; background:var(--c); }
 .year .past i{ opacity:.45; }
