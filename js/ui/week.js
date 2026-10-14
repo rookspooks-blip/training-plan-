@@ -11,10 +11,15 @@ const KIND_RU={build:'рабочая', hyper:'рабочая', deload:'разг�
 
 /* Все недели года по порядку: цикл 1 + сессия, цикл 2, цикл 3 */
 /* Объём недели по плану: подходы силовых и скоростных (без мяча и теста). Считается из тех же дней, что показывает приложение */
+const isExamWeek=(c,w)=> summerModeOf(c,w)==='exam';   /* летняя сессия */
 function weekVolume(c,w){
   const days=[...buildDays(c,w)];
-  const U=upperDay(c,w); if(U) days.push(U);
-  const G=massDay(c,w); if(G) days.push(G);
+  /* летняя сессия — как зимняя: две короткие силовые и прыжки, без дней верха */
+  if(isExamWeek(c,w)) days.forEach(d=>{ if(d && (d.id==='d1'||d.id==='d2'||d.id==='d3')) examDay(d); });
+  else {
+    const U=upperDay(c,w); if(U) days.push(U);
+    const G=massDay(c,w); if(G) days.push(G);
+  }
   let n=0;
   days.forEach(d=>d.ex.forEach(x=>{
     if(/пропустить/.test(x.dose) || x.action==='jump' || x.badge[0]==='Мяч' || x.badge[0]==='Тест') return;
@@ -31,7 +36,8 @@ function yearWeeks(){
   const vmax=Math.max(...out.map(x=>x.v),1);
   out.forEach(x=>{
     x.h=Math.round(Math.max(18, x.v/vmax*100));
-    x.col = x.k==='session' ? CYC_COL.ses : x.c===1 ? CYC_COL.c1 : x.c===2 ? CYC_COL.c2 : CYC_COL.c3;
+    x.session = x.k==='session' || isExamWeek(x.c,x.w);                      /* обе сессии — серые */
+    x.col = x.session ? CYC_COL.ses : x.c===1 ? CYC_COL.c1 : x.c===2 ? CYC_COL.c2 : CYC_COL.c3;
   });
   return out;
 }
@@ -178,7 +184,8 @@ function bindYearScrub(box, yw, nowI, selI){
   const btns=[...bar.children];
   const tipHTML=i=>{ const x=yw[i];
     const when=i===nowI?'сейчас':i===selI?'открыта':i<nowI?'пройдена':'';
-    return `<b>${weekTitle(x.c,x.w)}</b><span>Цикл ${x.c} · ${cycleGoal(x.c,x.w)} · ${KIND_RU[x.k]||''}</span>
+    const sm=summerModeOf(x.c,x.w), kind = x.k==='session' ? 'зимняя сессия' : sm==='exam' ? 'летняя сессия' : sm==='practice' ? 'практика' : sm==='vacation' ? 'каникулы' : (KIND_RU[x.k]||'');
+    return `<b>${weekTitle(x.c,x.w)}</b><span>Цикл ${x.c} · ${cycleGoal(x.c,x.w)} · ${kind}</span>
       <span>${shortDate(dateOfCW(x.c,x.w,0))}–${shortDate(dateOfCW(x.c,x.w,6))} · ${i+1}-я неделя года из ${yw.length}${when?` · ${when}`:''}</span>`; };
   let on=false, live=false, cur=-1, pid=null, x0=0, lx=0, hold=0, raf=0, amp=0, ampRaf=0;
   /* как Dock на Mac: столбики у пальца плавно расширяются колоколом, соседи раздвигаются, дальние чуть сжимаются.
@@ -372,9 +379,6 @@ function renderWeekTab(){
     ${statusNotes().map(n=>`<div class="note ${n.lvl}">${n.html}</div>`).join('')}
     <div class="card">
       <div class="ywrap"><div class="ytip" aria-hidden="true" hidden></div><div class="year" role="list">${yw.map((x,i)=>`<button type="button" class="${i<nowI?'past':''}${i===nowI?' now':''}${i===selI?' sel':''}" data-yi="${i}" aria-label="Цикл ${x.c}, ${weekTitle(x.c,x.w)}, ${KIND_RU[x.k]||''}${i===selI?', открыта':''}${i===nowI?', сейчас':''}" style="--c:${x.col}"><i style="height:${x.h}%"></i></button>`).join('')}</div></div>
-      <div class="yband" aria-hidden="true" style="grid-template-columns:repeat(${yw.length},1fr)">${[['c1','Цикл 1',yw.filter(x=>x.c===1&&x.k!=='session').length],['ses','Сессия',yw.filter(x=>x.k==='session').length],['c2','Цикл 2',12],['c3','Цикл 3',24]].filter(g=>g[2]).map(g=>`<i style="grid-column:span ${g[2]};background:${CYC_COL[g[0]]}"></i>`).join('')}</div>
-      <div class="yleg"><span><i style="background:${CYC_COL.c1}"></i>цикл 1 · сушка</span>${yw.some(x=>x.k==='session')?`<span><i style="background:${CYC_COL.ses}"></i>сессия</span>`:''}<span><i style="background:${CYC_COL.c2}"></i>цикл 2 · сила</span><span><i style="background:${CYC_COL.c3}"></i>цикл 3 · масса и сила</span></div>
-      <div class="small t2" style="margin-top:8px">${nowI>=0?`▲ сейчас ${weekTitle(p.cycle,p.week).toLowerCase()}, цикл ${p.cycle}.`:'План ещё не начался.'} Цвет — цикл, высота — сколько подходов в неделе: низкие — разгрузки и сессия, самые высокие — блоки массы. Зажми полосу и веди пальцем — увидишь каждую неделю, отпусти — она откроется.</div>
     </div>
     <div class="sec">Неделя · ${KIND_RU[info.kind]||''}<span class="aux">${toDl}</span></div>
     <div class="wk">${tiles}</div>
