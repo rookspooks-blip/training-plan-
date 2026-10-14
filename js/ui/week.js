@@ -291,7 +291,7 @@ function renderWeekTab(){
     const es=week.filter(e=>e.dow===d);
     const gy=es.filter(e=>e.type==='gym'), rn=es.find(e=>e.type==='run');
     const main=gy[0]||rn||es[0];
-    const lab = gy.length ? gy.map(e=>TYPE_SHORT[e.id]||'Сил.').join('+') : rn ? 'Вело' : 'Отдых';
+    const lab = gy.length ? gy.map(e=>e.day.title==='Данки'?'Данки':(TYPE_SHORT[e.id]||'Сил.')).join('+') : rn ? 'Вело' : 'Отдых';
     let mk='', cls='';
     const all=[...gy, ...(rn?[rn]:[])];
     if(all.length){

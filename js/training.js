@@ -74,7 +74,28 @@ function weekShift(){
 
 /* Куда встают тренировки на этой неделе.
    Силовая В (верх) — среда, Силовая Г (верх, блоки массы цикла 3) — пятница вечером */
+/* Каникулы (шаг 4 ресерча): три «высоких» дня через 48 часов — Пн, Ср, Пт.
+   Пн: скорость утром, Силовая А вечером. Ср: скоростная утром, Силовая Б вечером.
+   Пт: данки. Верх — во вторник, велосипед — в воскресенье. Утро и вечер — через 6+ часов */
+function vacationLayout(){
+  /* note — только для настоящих переносов: по ней неделя рисует значок «перенесено» */
+  const L={ d1:{dow:1, note:''}, d2:{dow:3, note:''}, d3:{dow:3, note:''}, d5:{dow:2, note:''}, d6:{dow:5, note:''} };
+  if(isMoved('d1') && !isDropped('d1')){
+    L.d1.dow=2; L.d1.note='Перенесена на вторник.';
+    L.d5.dow=4; L.d5.note='Верх уступил вторник Силовой А и переехал на четверг.';
+  }
+  if(isMoved('d3') && !isDropped('d3')){
+    L.d3.dow=4; L.d3.note='Перенесена на четверг вечером. Пятничные данки — по самочувствию, ноги не будут свежими.';
+    if(L.d5.dow===4){ L.d5.dow=6; L.d5.note='Верх переехал на субботу.'; }
+  }
+  if(isMoved('d5') && !isDropped('d5')){
+    L.d5.dow = L.d3.dow===4 || L.d1.dow===2 ? 6 : 4;
+    L.d5.note = L.d5.dow===4 ? 'Перенесена на четверг. Это только верх, ногам не мешает.' : 'Перенесена на субботу.';
+  }
+  return L;
+}
 function layout(){
+  if(summerMode()==='vacation') return vacationLayout();
   const sh=weekShift();
   const L={
     d1:{dow:1, note:''},
@@ -130,8 +151,10 @@ function buildWeek(){
   if(noPE() && !isSession()) S[1]=homeSpeedDay();          /* четверг: физры не было */
   /* пятница: «Первый шаг» (недели 1–2 цикла 1) или данки в каникулы; в остальные недели дня нет */
   if(!isSession()){ const F=fridayDay(state.cycle,state.week); if(F) S[3]=F; }
-  const U=upperDay(state.cycle,state.week);  if(U) S[4]=U;   /* среда: верх дома */
-  const G=massDay(state.cycle,state.week);   if(G) S[5]=G;   /* пятница вечером: верх в блоках массы */
+  /* летняя сессия — как зимняя: две короткие силовые и прыжки, без отдельных дней верха */
+  const exam=summerMode()==='exam';
+  const U=exam?null:upperDay(state.cycle,state.week);  if(U) S[4]=U;   /* среда: верх дома */
+  const G=exam?null:massDay(state.cycle,state.week);   if(G) S[5]=G;   /* пятница вечером: верх в блоках массы */
   adjustDays(S);                                            /* замены, колено, перерыв, усталость */
   const L=layout();
   const MODE={bike:'Велосипед', run:'Бег', walk:'Ходьба'};
@@ -275,19 +298,34 @@ function missedSessions(){
    Чт 11:40 скоростная после физры (дома без физры — после пар, 17:00), Пт 18:00 верх в блоках
    массы, Сб 13:00, Вс 11:00 велосипед. Перенос — время дня, куда переехала.
    Лето: практика — вечером, каникулы — днём */
+/* Числитель или знаменатель. Известно только для осеннего семестра 2026:
+   неделя 1 начинается 31.08, нечётные — числитель, чётные — знаменатель
+   (по твоему календарю 21.10 — знаменатель). Весной расписание другое — там null */
+function denomWeek(iso){
+  if(!(iso>='2026-08-31' && iso<='2026-12-31')) return null;
+  const n=Math.floor(daysBetween('2026-08-31', iso)/7)+1;
+  return n%2===0;
+}
+/* Время дел дня — как в твоём Google Календаре и в шаге 4 ресерча:
+   Пн 17:00, Вт велосипед 19:00 (пары до 13:20, учёба до 16:00), Ср верх — 18:00,
+   в знаменатель вечером семинар, поэтому утром 8:30; Чт после физры 11:40,
+   Сб 12:00, Вс велосипед 12:00 */
 function trainingTime(e){
   if(!e || e.type==='rest') return null;
-  if(e.type==='run') return e.dow===0 ? '11:00' : '09:00';
   const sm=summerMode();
+  if(e.type==='run') return e.dow===0 ? '12:00' : (sm==='vacation' ? '11:00' : '19:00');
   if(sm==='practice') return '18:30';
-  if(sm==='vacation') return '11:00';
-  if(isSession()) return e.dow===6 ? '13:00' : '17:00';
+  if(sm==='vacation') return VAC_TIME[e.id] || '11:00';
+  if(isSession() || sm==='exam') return e.dow===6 ? '12:00' : '17:00';
   if(e.id==='d2') return e.day && e.day.swap ? '17:00' : '11:40';
   if(e.id==='d4') return '11:40';
+  if(e.id==='d5' && e.dow===3 && denomWeek(dateOfCW(state.cycle,state.week,2))) return '08:30';
   if(e.id==='d5' || e.id==='d6') return '18:00';
-  if(e.id==='d3') return '13:00';
+  if(e.id==='d3') return '12:00';
   return '17:00';
 }
+/* Каникулы: утром скорость, вечером ноги — между ними 6+ часов (шаг 4) */
+const VAC_TIME={d1:'18:00', d2:'10:00', d3:'18:00', d4:'11:00', d5:'18:00', d6:'18:00'};
 
 const DOW_FULL=['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'];
 
@@ -404,7 +442,7 @@ function planBase(ex, P, k){
                       : '<b>без веса</b>, рукой за опору — поясница жёлтая. Амплитуда до середины голени'};
   }
   const wk=weekKind(state.cycle,state.week);
-  const deload=wk==='deload', session=wk==='session', test=/^тест/.test(ex.dose);
+  const deload=wk==='deload' || earlyDlOn(), session=wk==='session', test=/^тест/.test(ex.dose);
   const hist=logsOf(ex.name,k);
   const base=hist.find(h=>h.L.wk!=='deload' && h.L.wk!=='test') || hist[0] || null;
   const B=base ? sessionStats(base.L, P.lo, P.sets) : null;
@@ -495,7 +533,9 @@ function planBase(ex, P, k){
     }
     /* по плану с этой недели появился рюкзак, а раньше было без веса */
     if(ruck && !bw) return out(+ruck, lo, `с этой недели рюкзак: <b>${ruck} кг</b>, повторы снова от ${lo}`, 'load');
-    if(deload) return out(bw, lo, `разгрузка: тот же вес${bw?` <b>${fmtW(bw)} кг</b>`:''}, по ${lo} повт., без отказа`, 'load');
+    /* разгрузка (шаг 8): вес ~90 % от рабочего, гантели с шагом 1 кг, запас 3–4 повтора */
+    if(deload){ const dw=bw ? Math.max(1, Math.round(bw*0.9)) : bw;
+      return out(dw, lo, `разгрузка: ~90 % от рабочего${bw?` → <b>${fmtW(dw)} кг</b>`:''}, по ${lo} повт., запас 3–4 повтора`, 'load'); }
     if(session) return out(bw, lo, `сессия: держим${bw?` <b>${fmtW(bw)} кг</b>`:''} × ${lo}, запас 2–3 повтора`, 'load');
     if(allTop){
       /* дома гантели собираются максимум до 30 кг: дальше ноги переезжают в зал */

@@ -665,3 +665,8 @@ body.playing #toast{ top:calc(env(safe-area-inset-top) + 64px); bottom:auto; }
 /* ---------- Дни недели: нажал — день на «Сейчас», задержал — карточка выплывает ---------- */
 .wk .wd{ -webkit-touch-callout:none; user-select:none; -webkit-user-select:none; transition:transform .38s var(--smooth), filter .38s; }
 .wk .wd.hold{ transform:scale(.92); filter:brightness(1.12); }
+
+/* ---------- Справка: список источников ---------- */
+ul.src{ padding-left:18px; margin:6px 0 0; }
+ul.src li{ margin:4px 0; font-size:14px; }
+ul.src a{ color:var(--acc); text-decoration:none; }

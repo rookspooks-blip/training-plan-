@@ -67,7 +67,7 @@ function plWrite(ex, si, w, r){
   while(L.sets.length<P.sets) L.sets.push({w:'',r:''});
   while(L.sets.length<=si) L.sets.push({w:'',r:''});
   L.sets[si]={w: w ? fmtW(w) : '', r: r==null ? '' : String(r)};
-  L.n=ex.name; L.tr=P.lo; L.th=P.hi; L.ns=P.sets; L.wk=weekKind(state.cycle,state.week);
+  L.n=ex.name; L.tr=P.lo; L.th=P.hi; L.ns=P.sets; L.wk=earlyDlOn()?'deload':weekKind(state.cycle,state.week);
   if(!L.d && hasData(L)) L.d=isoDay();
   logs[k]=L; saveLogs();
   /* все подходы записаны → упражнение отмечено само */
@@ -77,7 +77,7 @@ function plWrite(ex, si, w, r){
 function plSetRpe(ex, v){
   const k=logKey(PL.id, ex.id), P=parseDose(ex.dose);
   const L=logs[k] || {n:ex.name, d:null, sets:Array.from({length:P.sets},()=>({w:'',r:''})), rpe:null};
-  L.rpe=v; L.n=ex.name; L.tr=P.lo; L.th=P.hi; L.ns=P.sets; L.wk=weekKind(state.cycle,state.week);
+  L.rpe=v; L.n=ex.name; L.tr=P.lo; L.th=P.hi; L.ns=P.sets; L.wk=earlyDlOn()?'deload':weekKind(state.cycle,state.week);
   logs[k]=L; saveLogs();
 }
 /* Что показать в подходе: записанное → правка → вес прошлого подхода → план */

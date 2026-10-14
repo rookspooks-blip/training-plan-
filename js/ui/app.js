@@ -11,13 +11,23 @@ function statusNotes(){
     out.push({lvl:'i', html:`<b>Старт плана — пн ${shortDate(settings.start)}</b>До него можно осмотреться и сделать первый замер прыжка.`});
   if(/План пройден/.test(info.label)) out.push({lvl:'i', html:`<b>${info.label}</b>${info.where}.`});
   const sm=summerMode();
-  if(sm) out.push({lvl:'y', html:{exam:'<b>Летняя сессия</b>Держим форму: на подход меньше, вес без прибавки.',
+  if(sm) out.push({lvl:'y', html:{exam:'<b>Летняя сессия</b>Как зимняя: две короткие силовые и прыжки, подходов вдвое меньше, вес без прибавки.',
     practice:'<b>Практика</b>Тренировки вечером, физры нет — скоростные на свежих ногах.',
-    vacation:'<b>Каникулы — главный блок года</b>Днём, на свежие ноги; в цикле 3 — сила и прыжок, а не масса.'}[sm]});
+    vacation:'<b>Каникулы — главный блок года</b>Пн, Ср, Пт — «высокие» дни: утром скорость, вечером ноги. В цикле 3 — сила и прыжок, а не масса.'}[sm]});
   if(info.kind==='deload') out.push({lvl:'g', html:'<b>Разгрузка</b>Меньше подходов и веса — так закрепляется рост прошлых недель.'});
+  if(earlyDlOn()) out.push({lvl:'g', html:'<b>Досрочная разгрузка на этой неделе</b>Подходов вдвое меньше, вес ~90 %, скорость в полную силу. <button type="button" class="link" data-early="0">Отменить</button>'});
+  else { const E=earlyDlSignal(); if(E) out.push({lvl:'y', html:`<b>Похоже, пора разгрузиться раньше</b>${E.why} — нервная система не успевает восстановиться. Плановые разгрузки остаются как были. <button type="button" class="link" data-early="1">Сделать эту неделю разгрузочной</button>`}); }
   if(info.kind==='test') out.push({lvl:'i', html:'<b>Тестовая неделя</b>Замеры на свежую голову: прыжок, тесты, рабочие максимумы.'});
   return out;
 }
+
+/* Кнопка в строке статуса: досрочная разгрузка включается и отменяется здесь */
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-early]'); if(!b) return;
+  const on=b.dataset.early==='1';
+  setEarlyDl(on); renderAll();
+  toast(on?'Эта неделя — разгрузочная':'Досрочная разгрузка отменена', ()=>{ setEarlyDl(!on); renderAll(); });
+});
 
 /* ---------- Вкладки: рисуем видимую, остальные — при переходе ---------- */
 const TABS=['now','plan','food','me'];

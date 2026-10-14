@@ -34,8 +34,8 @@ END:VEVENT
 BEGIN:VEVENT
 UID:tri-cikla-2@training-plan
 DTSTAMP:20260930T120000Z
-DTSTART;TZID=Europe/Moscow:20261006T090000
-DTEND;TZID=Europe/Moscow:20261006T094500
+DTSTART;TZID=Europe/Moscow:20261006T190000
+DTEND;TZID=Europe/Moscow:20261006T194500
 RRULE:FREQ=WEEKLY;UNTIL=20261227T205959Z
 SUMMARY:Велосипед + мяч
 DESCRIPTION:Велосипед 20–35 мин\, 80–85 об/мин\, пу
@@ -66,8 +66,8 @@ END:VEVENT
 BEGIN:VEVENT
 UID:tri-cikla-4@training-plan
 DTSTAMP:20260930T120000Z
-DTSTART;TZID=Europe/Moscow:20261010T130000
-DTEND;TZID=Europe/Moscow:20261010T141500
+DTSTART;TZID=Europe/Moscow:20261010T120000
+DTEND;TZID=Europe/Moscow:20261010T131500
 RRULE:FREQ=WEEKLY;UNTIL=20261227T205959Z
 SUMMARY:Силовая Б
 DESCRIPTION:Присед на одной ноге\, мостик\, скол
@@ -82,8 +82,8 @@ END:VEVENT
 BEGIN:VEVENT
 UID:tri-cikla-5@training-plan
 DTSTAMP:20260930T120000Z
-DTSTART;TZID=Europe/Moscow:20261011T110000
-DTEND;TZID=Europe/Moscow:20261011T114500
+DTSTART;TZID=Europe/Moscow:20261011T120000
+DTEND;TZID=Europe/Moscow:20261011T124500
 RRULE:FREQ=WEEKLY;UNTIL=20261227T205959Z
 SUMMARY:Велосипед + мяч
 DESCRIPTION:Велосипед 20–35 мин спокойно. Потом 
@@ -127,8 +127,8 @@ END:VEVENT
 BEGIN:VEVENT
 UID:tri-cikla-8@training-plan
 DTSTAMP:20260930T120000Z
-DTSTART;TZID=Europe/Moscow:20270102T130000
-DTEND;TZID=Europe/Moscow:20270102T135500
+DTSTART;TZID=Europe/Moscow:20270102T120000
+DTEND;TZID=Europe/Moscow:20270102T125500
 RRULE:FREQ=WEEKLY;UNTIL=20270124T205959Z
 SUMMARY:Сессия Б · дома
 DESCRIPTION:Присед на одной ноге\, брусья\, румы
@@ -173,8 +173,8 @@ END:VEVENT
 BEGIN:VEVENT
 UID:tri-cikla-11@training-plan
 DTSTAMP:20260930T120000Z
-DTSTART;TZID=Europe/Moscow:20261010T125000
-DTEND;TZID=Europe/Moscow:20261010T130000
+DTSTART;TZID=Europe/Moscow:20261010T115000
+DTEND;TZID=Europe/Moscow:20261010T120000
 SUMMARY:Тест прыжка
 DESCRIPTION:После разминки\, до тренировки. Тел
  ефон на полу сбоку\, slo-mo. Считать: «Я» → «
@@ -188,8 +188,8 @@ END:VEVENT
 BEGIN:VEVENT
 UID:tri-cikla-12@training-plan
 DTSTAMP:20260930T120000Z
-DTSTART;TZID=Europe/Moscow:20261031T125000
-DTEND;TZID=Europe/Moscow:20261031T130000
+DTSTART;TZID=Europe/Moscow:20261031T115000
+DTEND;TZID=Europe/Moscow:20261031T120000
 SUMMARY:Тест прыжка
 DESCRIPTION:После разминки\, до тренировки. Тел
  ефон на полу сбоку\, slo-mo. Считать: «Я» → «
@@ -203,8 +203,8 @@ END:VEVENT
 BEGIN:VEVENT
 UID:tri-cikla-13@training-plan
 DTSTAMP:20260930T120000Z
-DTSTART;TZID=Europe/Moscow:20261128T125000
-DTEND;TZID=Europe/Moscow:20261128T130000
+DTSTART;TZID=Europe/Moscow:20261128T115000
+DTEND;TZID=Europe/Moscow:20261128T120000
 SUMMARY:Тест прыжка
 DESCRIPTION:После разминки\, до тренировки. Тел
  ефон на полу сбоку\, slo-mo. Считать: «Я» → «
@@ -218,8 +218,8 @@ END:VEVENT
 BEGIN:VEVENT
 UID:tri-cikla-14@training-plan
 DTSTAMP:20260930T120000Z
-DTSTART;TZID=Europe/Moscow:20261226T125000
-DTEND;TZID=Europe/Moscow:20261226T130000
+DTSTART;TZID=Europe/Moscow:20261226T115000
+DTEND;TZID=Europe/Moscow:20261226T120000
 SUMMARY:Тест прыжка
 DESCRIPTION:После разминки\, до тренировки. Тел
  ефон на полу сбоку\, slo-mo. Считать: «Я» → «
@@ -257,13 +257,30 @@ END:VEVENT
 BEGIN:VEVENT
 UID:tri-cikla-18@training-plan
 DTSTAMP:20260930T120000Z
-DTSTART;TZID=Europe/Moscow:20261021T180000
-DTEND;TZID=Europe/Moscow:20261021T184000
-RRULE:FREQ=WEEKLY;UNTIL=20261227T205959Z
+DTSTART;TZID=Europe/Moscow:20261028T180000
+DTEND;TZID=Europe/Moscow:20261028T184000
+RRULE:FREQ=WEEKLY;INTERVAL=2;UNTIL=20261227T205959Z
 SUMMARY:Силовая В · верх
 DESCRIPTION:Тяга гантели\, брусья\, махи\, задня
- я дельта\, руки. Дома\, только верх. Если в 
- среду вечером пара — утром до пар.
+ я дельта\, руки. Дома\, только верх. Числит
+ ель: вечером дома.
+BEGIN:VALARM
+ACTION:DISPLAY
+DESCRIPTION:Силовая В · верх
+TRIGGER:-PT30M
+END:VALARM
+END:VEVENT
+BEGIN:VEVENT
+UID:tri-cikla-19@training-plan
+DTSTAMP:20260930T120000Z
+DTSTART;TZID=Europe/Moscow:20261021T083000
+DTEND;TZID=Europe/Moscow:20261021T091000
+RRULE:FREQ=WEEKLY;INTERVAL=2;UNTIL=20261227T205959Z
+SUMMARY:Силовая В · верх
+DESCRIPTION:Тяга гантели\, брусья\, махи\, задня
+ я дельта\, руки. Дома\, только верх. Знамен
+ атель: вечером семинар\, поэтому утром до
+  пар.
 BEGIN:VALARM
 ACTION:DISPLAY
 DESCRIPTION:Силовая В · верх

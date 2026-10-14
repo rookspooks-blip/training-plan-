@@ -153,6 +153,34 @@ const readyKey=()=>`${state.cycle}-${state.week}-ready`;
 const readyLow=()=>!!marks[readyKey()];
 function setReadyLow(on){ if(on) marks[readyKey()]=true; else delete marks[readyKey()]; saveMarks(); }
 
+/* ---------- Досрочная разгрузка (шаг 8) ----------
+   Разгрузки по расписанию плюс досрочно по сигналам: две недели подряд прыжок
+   не дотягивает до метки (или неделю не дотягивает и две тренировки подряд на пределе).
+   Приложение только предлагает — включаешь кнопкой, отменить можно так же */
+const earlyKey=()=>`${state.cycle}-${state.week}`;
+const earlyDlOn=()=>!!(settings.earlyDl && settings.earlyDl[earlyKey()]);
+function setEarlyDl(on){
+  settings.earlyDl=settings.earlyDl||{};
+  if(on) settings.earlyDl[earlyKey()]=true; else delete settings.earlyDl[earlyKey()];
+  saveSettings();
+}
+function earlyDlSignal(){
+  if(!isNowWeek() || earlyDlOn()) return null;
+  const c=state.cycle, w=state.week, k=weekKind(c,w);
+  if(k!=='build' && k!=='hyper') return null;
+  const nk=weekKind(c,w+1);
+  if(nk==='deload' || nk==='test') return null;          /* разгрузка и так через неделю */
+  const low=x=> x>=1 && !!marks[`${c}-${x}-ready`];
+  if(low(w-1) && low(w-2)) return {why:'две недели подряд прыжок не дотягивает до метки'};
+  if(low(w-1) && fatigueInfo()) return {why:'прыжок не дотянул до метки, и две тренировки подряд были на пределе'};
+  return null;
+}
+/* Разгрузка внутри недели: подходов вдвое меньше, прыжков и стартов тоже, всё — в полную силу */
+function halveDose(ex){
+  if(/пропустить/.test(ex.dose) || ex.action) return ex;
+  return {...ex, dose:ex.dose.replace(/^(\d+)(?:–\d+)?(\s*(?:×|подход))/, (m,n,r)=>Math.max(1,Math.ceil(+n/2))+r)};
+}
+
 /* ---------- Объём меньше на подход ---------- */
 function lessSets(ex){
   return {...ex, dose:ex.dose.replace(/^(\d+)(\s*(?:×|подход))/, (m,n,r)=>Math.max(2,+n-1)+r)};
@@ -265,14 +293,51 @@ function summerModeOf(c,w){
 const summerMode=()=>summerModeOf(state.cycle,state.week);
 const SUMMER_WHEN={exam:'любой день · зал с кольцом', practice:'вечер после практики', vacation:'днём, на свежие ноги'};
 const SUMMER_NOTE={
-  exam:'<b>Летняя сессия</b>Держим форму, а не растём: на подход меньше, вес как в прошлый раз. Тренировка — перерыв между билетами, а не ещё один экзамен.',
+  exam:'<b>Летняя сессия</b>Как зимняя: две короткие силовые и 20 минут прыжков. Подходов вдвое меньше, вес как в прошлый раз — форма держится. Тренировка — перерыв между билетами, а не ещё один экзамен.',
   practice:'<b>Практика</b>Днём занят, тренировки вечером. Физры нет — скоростные дни на свежих ногах, без спешки.',
   vacation:'<b>Каникулы — главный блок года</b>Тренируйся днём, спи 8–9 часов. Это лучшее окно для прыжка: к осеннему отбору выходишь на пике.'
 };
 
+/* Летняя сессия (июнь) — как зимняя (шаг 4): две короткие силовые по 40–50 минут
+   и 20 минут прыжков. Для поддержания хватает малого объёма, если не снижать вес (Spiering 2021):
+   главные упражнения и базовый верх — подходов вдвое меньше, изоляция и вторые прыжки уходят */
+const EXAM_DROP=['lateral','reardelt','curl','triceps','legext','legcurl','deadbug','pallof'];
+function examDay(day){
+  if(day.id==='d2'){
+    day.title='Прыжки и мяч';
+    day.note='Летняя сессия: 20 минут прыжков и броска — держим прыжок, а не растём.';
+    day.ex=[ACHILLES, {...REACH(false,false), dose:'2 × 4'},
+      {id:'b2',name:'Выпрыгивания вверх',badge:['Скорость','b-speed'],dose:'3 × 3 · в полную силу',rest:'90 сек',tech:'jump',warm:'Первый подход вполсилы.'},
+      {...SHOOT, dose:'10 мин · с игровых точек'}];
+    return;
+  }
+  if(day.id!=='d1' && day.id!=='d3') return;
+  let speed=0;
+  day.ex=day.ex.filter(ex=>{
+    if(ex.action==='jump') return true;                         /* тест прыжка остаётся */
+    if(EXAM_DROP.includes(ex.tech)) return false;
+    if(ex.badge[0]==='Скорость') return day.id==='d1' && speed++===0;   /* рывки раз в неделю, прыжки — в четверг */
+    return true;
+  }).map(ex=> isLogged(ex) ? {...ex, dose:ex.dose.replace(/^(\d+)(\s*(?:×|подход))/, (m,n,r)=>Math.max(1,Math.ceil(+n/2))+r)} : ex);
+}
+
 /* ---------- Всё вместе: план недели с поправками ---------- */
 function adjustDays(S){
   S.forEach(day=>{ day.ex=day.ex.map(applySub); });
+  /* досрочная разгрузка: все дни недели вдвое меньше по объёму */
+  if(earlyDlOn()) S.forEach(day=>{
+    if(!day) return;
+    day.ex=day.ex.map(ex=> (isLogged(ex) || ex.badge[0]==='Скорость' || ex.badge[0]==='Выносливость') ? halveDose(ex) : ex);
+    day.alert={lvl:'g', html:'<b>Досрочная разгрузка</b>Подходов, прыжков и стартов вдвое меньше, вес ~90 %, скорость в полную силу. Отменить можно на «Сейчас» или в «Плане».'};
+  });
+  /* неделя 11 — подводка к тесту: в четверг тоже ≈ −40 % повторов при той же скорости */
+  if((state.cycle===1 || state.cycle===2) && state.week===11 && !earlyDlOn()) S.forEach(day=>{
+    if(!day || day.id!=='d2') return;
+    day.ex=day.ex.map(ex=>{
+      if(!(ex.badge[0]==='Скорость' || ex.badge[0]==='Выносливость') || /пропустить/.test(ex.dose)) return ex;
+      return {...ex, dose:ex.dose.replace(/^(\d+)(?:–\d+)?(\s*(?:×|подход))/, (m,n,r)=>Math.max(2,Math.round(+n*0.6))+r)};
+    });
+  });
   /* лето: дни без физры, в сессию — поддержание. Действует на все недели лета, не только текущую */
   const sm=summerMode();
   if(sm) S.forEach(day=>{
@@ -283,9 +348,15 @@ function adjustDays(S){
       day.when=day.when.replace(/универ, после физры|зал с кольцом, днём/, SUMMER_WHEN[sm]);
       day.note=day.note.replace(/^.*?(физр|Физр)[^.]*\.\s*/,'');
     }
+    /* каникулы: утро и вечер одного дня разнесены на 6+ часов */
+    if(sm==='vacation'){
+      if(day.id==='d1') day.note='Каникулы: рывки и прыжки — утром, ноги и верх — вечером, между ними 6+ часов. '+day.note;
+      if(day.id==='d2') day.note='Каникулы: утром, на свежие ноги. Вечером — Силовая Б. '+day.note;
+      if(day.id==='d3') day.note='Каникулы: вечером, через 6+ часов после утренней скоростной. '+day.note;
+    }
     /* физры летом нет — у Силовой Г в пятницу вечером своя заметка */
     if(day.id==='d6') day.note='Блок массы: второй день верха, вечером. Ноги не трогаем.';
-    if(sm==='exam' && day.ex.some(isLogged)) day.ex=day.ex.map(ex=>isLogged(ex)?lessSets(ex):ex);
+    if(sm==='exam') examDay(day);
     if(!day.alert) day.alert={lvl:sm==='exam'?'y':'g', html:SUMMER_NOTE[sm]};
   });
   if(!isNowWeek()) return S;

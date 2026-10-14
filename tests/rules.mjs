@@ -264,10 +264,13 @@ const W7 = '2026-11-16';
   const { ctx, p } = await at('2027-06-02');
   const r = await p.evaluate(() => {
     const at = (c, w) => withWeek(c, w, () => { const W = buildWeek(); const d1 = W.find(x => x.id === 'd1').day, d2 = W.find(x => x.id === 'd2').day, d4 = W.find(x => x.id === 'd4');
-      return { mode: summerMode(), d1: (d1.ex.find(x => x.tech === 'squat') || d1.ex[0]).dose, d2when: d2.when, d4: d4 && d4.day.title, kind: weekKind(c, w), pe: noPE() }; });
+      return { mode: summerMode(), d1: (d1.ex.find(x => x.tech === 'squat') || d1.ex[0]).dose, d2when: d2.when, d4: d4 && d4.day.title, kind: weekKind(c, w), pe: noPE(),
+        d5: !!W.find(x => x.id === 'd5'), d2t: d2.title, iso: d1.ex.some(x => ['lateral','curl','legext'].includes(x.tech)),
+        dow: Object.fromEntries(W.filter(x => x.type === 'gym').map(x => [x.id, x.dow])), runs: W.filter(x => x.type === 'run').map(x => x.dow) }; });
     return { jun: at(3, 7), jul: at(3, 12), aug: at(3, 16), oct: at(1, 1), y: summerDates() };
   });
-  check('июнь — сессия: на подход меньше, без «после физры», пятница свободна', r.jun.mode === 'exam' && /^3 ×/.test(r.jun.d1) && !/физр/.test(r.jun.d2when) && !r.jun.d4, JSON.stringify(r.jun));
+  check('июнь — как сессия: подходов вдвое меньше, без изоляции и дня верха, четверг — прыжки и мяч, без «после физры»', r.jun.mode === 'exam' && /^2 ×/.test(r.jun.d1) && !r.jun.d5 && !r.jun.iso && r.jun.d2t === 'Прыжки и мяч' && !/физр/.test(r.jun.d2when) && !r.jun.d4, JSON.stringify(r.jun));
+  check('август — Пн А, Ср скоростная и Б, Вт верх, Пт данки, велосипед только в воскресенье', r.aug.mode === 'vacation' && r.aug.dow.d1 === 1 && r.aug.dow.d2 === 3 && r.aug.dow.d3 === 3 && r.aug.dow.d5 === 2 && r.aug.dow.d4 === 5 && r.aug.runs.join() === '0', JSON.stringify(r.aug));
   check('июль — практика: вечером, данков нет', r.jul.mode === 'practice' && /вечер/.test(r.jul.d2when) && !r.jul.d4, JSON.stringify(r.jul));
   check('август — каникулы: днём, по пятницам данки, блок силы вместо массы', r.aug.mode === 'vacation' && /днём/.test(r.aug.d2when) && r.aug.d4 === 'Данки' && r.aug.kind !== 'hyper', JSON.stringify(r.aug));
   check('осенью летнего режима нет', r.oct.mode === null, JSON.stringify(r.oct));
