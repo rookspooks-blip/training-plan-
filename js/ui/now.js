@@ -118,13 +118,15 @@ function dayNotesHTML(e, inHero){
   }
   return n.map(x=>`<div class="note ${x.lvl==='g'?'g':x.lvl}">${x.html ? x.html.replace(/^<b>([^<]*)<\/b>/,'<b>$1</b>') : `<b>${x.b}</b>${x.x||''}`}</div>`).join('');
 }
+/* Где тренировка: «универ, после физры», «подъезд и зал у дома», «дома» — вторая часть day.when */
+const dayPlace=day=>(day.when||'').split(' · ').slice(1).join(' · ');
 function trainingHero(e){
   const day=e.day, t=trainingTime(e), st=sessionState(e.id), done=isGymDone(e), cls=typeClass(e);
   const mins=dayMinutes(day, state.week);
   const shown=day.ex.slice(0,6).map(x=>`<span class="chip">${esc(x.name)}</span>`).join('') + (day.ex.length>6?`<span class="chip">+${day.ex.length-6}</span>`:'');
   const S=daySummary(day);
   const W=watch[watchKey(e.id)]||{};
-  let k = `${isNowWeek()?'Сегодня':DOW_FULL[e.dow]} · ${t||''} · ≈${mins} мин`;
+  let k = `${isNowWeek()?'Сегодня':DOW_FULL[e.dow]} · ${t||''}${dayPlace(day)?` · ${dayPlace(day)}`:''} · ≈${mins} мин`;
   let btn;
   if(isDropped(e.id)) btn=`<button type="button" class="btn big white hb" data-unskip>Вернуть день</button>`;
   else if(st==='run') btn=`<button type="button" class="btn big white hb" data-play>Вернуться к тренировке</button>`;

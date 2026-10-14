@@ -24,16 +24,16 @@ function settingsHTML(){
       <div class="small muted" style="margin-top:8px">Светлая — «Чистый лист», тёмная — «Табло». «Как в iPhone» переключает сама.</div></div>
 
     <div class="sec" id="set-week">Неделя и даты</div>
-    <div class="card">
-      <div class="set-row"><span class="grow"><b>Неделя по дате</b><span>${settings.auto?'открывается текущая по календарю':'выбрана вручную'}</span></span><label class="switch"><input type="checkbox" data-auto ${settings.auto?'checked':''} aria-label="Неделя по дате"><i></i></label></div>
+    <div class="card"><div class="small t2" style="margin-bottom:6px">Меняет всё приложение: веса, разминку, калории, кардио и сон.</div>
+      <div class="set-row"><span class="grow"><b>Неделя по дате</b><span>${settings.auto?'приложение само переключает неделю':'выбрана вручную'}</span></span><label class="switch"><input type="checkbox" data-auto ${settings.auto?'checked':''} aria-label="Неделя по дате"><i></i></label></div>
       <div class="set-row" style="display:block;padding:10px 0">
         <div class="seg" data-cyc>${[1,2,3].map(x=>`<button type="button" class="${x===c?'on':''}" data-c="${x}">Цикл ${x}</button>`).join('')}</div>
         <div class="small t2" style="margin-top:8px">${c===1?'Сушка, свой вес, связки · 12 недель + сессия':c===2?'Абсолютная сила, штанга · 12 недель':'Гипертрофия и реконверсия · 24 недели'}</div>
         <div class="wpick">${weeks}</div>
         <div class="small muted" style="margin-top:6px">Жёлтая рамка — разгрузка или тест, синяя — сессия.</div></div>
-      <div class="set-row"><span class="grow"><b>Старт плана</b><span>понедельник первой недели</span></span><input type="date" data-start value="${esc(settings.start)}" aria-label="Старт плана"></div>
-      <div class="set-row"><span class="grow"><b>Сессия после сушки</b><span>недель поддержания, 0–8</span></span><span class="stepper"><button type="button" data-ses="-1" aria-label="Меньше">−</button><b class="n">${settings.session|0}</b><button type="button" data-ses="1" aria-label="Больше">+</button></span></div>
-      <div class="set-row"><span class="grow"><b>Конец практики</b><span>летом: после неё — каникулы</span></span><input type="date" data-prac value="${esc(summerDates().practiceEnd)}" aria-label="Конец практики"></div>
+      <div class="set-row"><span class="grow"><b>Старт плана</b><span>понедельник недели 1</span></span><input type="date" data-start value="${esc(settings.start)}" aria-label="Старт плана"></div>
+      <div class="set-row"><span class="grow"><b>Сессионный блок</b><span>недель после сушки, до цикла 2 · 0–8</span></span><span class="stepper"><button type="button" data-ses="-1" aria-label="Меньше">−</button><b class="n">${settings.session|0}</b><button type="button" data-ses="1" aria-label="Больше">+</button></span></div>
+      <div class="set-row"><span class="grow"><b>Практика летом до</b><span>после неё — каникулы до 31 августа</span></span><input type="date" data-prac value="${esc(summerDates().practiceEnd)}" aria-label="Конец практики"></div>
     </div>
 
     <div class="sec">Выгрузки</div>
@@ -84,7 +84,7 @@ function openSettings(focus){
       setCycle=state.cycle; renderAll(); redraw();
     });
     on('[data-cyc] [data-c]','click',b=>{ setCycle=+b.dataset.c; redraw(); });
-    on('.wpick [data-w]','click',b=>{ const w=+b.dataset.w, c=setCycle; setWeekManual(c,w); toast(`Открыта ${weekTitle(c,w).toLowerCase()}, цикл ${c}`); redraw(); });
+    on('.wpick [data-w]','click',b=>{ const w=+b.dataset.w, c=setCycle, wasAuto=settings.auto; setWeekManual(c,w); if(!wasAuto || settings.auto) toast(`Открыта ${weekTitle(c,w).toLowerCase()}, цикл ${c}`); redraw(); });
     on('[data-start]','change',b=>{ if(!b.value) return; settings.start=b.value; saveSettings(); if(settings.auto) applyAuto(); setCycle=state.cycle; renderAll(); redraw(); });
     on('[data-ses]','click',b=>{
       settings.session=Math.max(0, Math.min(8, (settings.session|0)+(+b.dataset.ses))); saveSettings();

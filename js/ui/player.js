@@ -176,7 +176,7 @@ function plRefresh(){
 }
 
 /* ---------- Переходы ---------- */
-function plGo(i){ PL.i=Math.max(0,Math.min(PL.steps.length-1,i)); PL.photo2=false; plRender(); $('#player .pl-scroll') && ($('#player .pl-scroll').scrollTop=0); }
+function plGo(i){ if(PL.rest) plStopRest(); PL.i=Math.max(0,Math.min(PL.steps.length-1,i)); PL.photo2=false; plRender(); $('#player .pl-scroll') && ($('#player .pl-scroll').scrollTop=0); }
 function plGroups(e){
   const g=[]; if(!e.day.noWarm) g.push({warm:true});
   plExList(e).forEach(ex=>g.push({ex})); return g;
@@ -435,7 +435,10 @@ function plBind(e, st){
     });
   }
   if(st.k==='rpe'){
-    box.querySelectorAll('[data-rpe]').forEach(b=>b.addEventListener('click',()=>{ plSetRpe(st.ex, +b.dataset.rpe); vibe(20); plAdvance(true); }));
+    /* повторный тап по выбранной тяжести снимает её, как раньше */
+    box.querySelectorAll('[data-rpe]').forEach(b=>b.addEventListener('click',()=>{ const v=+b.dataset.rpe, L=plLog(st.ex);
+      if(L && L.rpe===v){ plSetRpe(st.ex, null); plRender(); toast('Тяжесть снята'); return; }
+      plSetRpe(st.ex, v); vibe(20); plAdvance(true); }));
     on('[data-rpeskip]',()=>{ PL.passed.add('rpe'+st.ex.id); plAdvance(false); });
   }
   if(st.k==='ex'){

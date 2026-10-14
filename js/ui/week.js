@@ -88,7 +88,7 @@ function daySheet(x){
     else if(isToday) btn=`<button type="button" class="btn big pri" data-start>Начать тренировку</button>`;
     else btn=`<button type="button" class="btn big pri" data-play>${iso<isoDay()?'Записать подходы':'Открыть в плеере'}</button>`;
     return `<div data-day="${e.id}">
-      <div class="kick">${DOW_FULL[e.dow]}${t?` · ${t}`:''} · ≈${dayMinutes(day,state.week)} мин${S.done?` · сделано ${S.done} из ${S.total}`:''}</div>
+      <div class="kick">${DOW_FULL[e.dow]}${t?` · ${t}`:''}${dayPlace(day)?` · ${dayPlace(day)}`:''} · ≈${dayMinutes(day,state.week)} мин${S.done?` · сделано ${S.done} из ${S.total}`:''}</div>
       <div class="h2" style="margin:4px 0 6px">${esc(day.title)}</div>
       <div class="t2" style="margin-bottom:10px">${day.note}</div>
       ${dayNotesHTML(e)}
@@ -217,6 +217,7 @@ function renderWeekTab(){
     ? `${bars}<div class="note ${F.verdict.lvl==='ok'?'g':'y'}" style="margin-top:12px"><b>${F.verdict.b}</b>${F.verdict.x}</div>${F.notes.map(n=>`<p class="small t2" style="margin:0 0 6px">${n}</p>`).join('')}
        ${F.advice?`<button type="button" class="btn" data-adv>Как не улетать в перебор</button>`:''}`
     : `<div class="t2">Заполнено ${filledN} из 7. Сводка появится со второго дня.</div>`;
+  const foodFoot='<div class="small muted" style="margin-top:8px">Пустые дни в недельную статистику не попадают.</div>';
 
   const SL=sleepInfo();
   const H=habitRows();
@@ -236,9 +237,9 @@ function renderWeekTab(){
     <div class="sec">Каждый день · ≈${dailyMinutes()} мин<button type="button" class="aux link" data-daily>Что делать</button></div>
     <div class="dots7">${dots}</div>
     <div class="sec">Еда за неделю · цель ${kfmt(F.T.k)} ккал</div>
-    <div class="card">${foodCard}</div>
+    <div class="card">${foodCard}${foodFoot}</div>
     <div class="sec">Сон</div>
-    <div class="card tap" data-sleep><div class="h2 n">${SL.target}</div><div class="t2" style="margin-top:6px">${SL.why}</div><div class="link">Отбой 01:00 · почему так</div></div>
+    <div class="card tap" data-sleep><div class="small muted" style="margin-bottom:4px">${info.kind==='deload'?'Разгрузочная неделя — восстановление важнее объёма.':'Делается каждый день, включая дни отдыха.'}</div><div class="h2 n">${SL.target}</div><div class="t2" style="margin-top:6px">${SL.why}</div><div class="link">Отбой 01:00 · почему так</div></div>
     <div class="sec">Привычки недели</div>
     <div class="card">${H.map(h=>`<div class="hab"><span><b>${h.t}</b><small>${h.s}</small></span><span class="v">${h.v}</span></div>`).join('')}</div>
     <div class="sec">Отчёт за неделю</div>

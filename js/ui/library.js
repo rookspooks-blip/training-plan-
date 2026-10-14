@@ -10,7 +10,7 @@ const LIB_GROUPS=[
   {id:'knee', cls:'g3', t:'Колено, пах, стопа', s:'профилактика и правила', items:['Колено: профилактика','Пах и колени','Стопа и вальгус']},
   {id:'miss', cls:'g4', t:'Пропуски и переносы', s:'что куда переезжает', items:['Пропуски и переносы']},
   {id:'food', cls:'g5', t:'Еда и замеры', s:'тесты, отчёт, добавки', items:['Замеры и на что смотреть','Тесты на площадке','Мониторинг','Отчёт за неделю','Добавки']},
-  {id:'rec', cls:'g6', t:'Восстановление и сон', s:'сон, растяжка, душ', items:['Сон: норма недели','Ранние дни','Режим дня','Растяжка','Самомассаж','Душ после тренировки','Голова','Активное восстановление']}
+  {id:'rec', cls:'g6', t:'Восстановление и сон', s:'сон, растяжка, душ', lede:'Растяжка, самомассаж, душ и голова. Делается после тренировки или в отдельный день — не до.', items:['Сон: норма недели','Ранние дни','Режим дня','Растяжка','Самомассаж','Душ после тренировки','Голова','Активное восстановление']}
 ];
 const extraHTML=sec=>typeof sec[1]==='function' ? sec[1]() : sec[1];
 const extraByTitle=t=>EXTRA.find(x=>x[0]===t);
@@ -70,7 +70,7 @@ function openLibGroup(id){
     }, el=>el.querySelectorAll('[data-tech]').forEach(b=>b.addEventListener('click',()=>techSheet(b.dataset.tech, b.dataset.nm))));
     return;
   }
-  openPage(g.t, ()=>`<div class="card" style="padding:4px 16px">${libItems(g).filter(extraByTitle).map(t=>`<button type="button" class="secrow" data-sec="${esc(t)}"><span>${esc(t)}</span><span class="chev" style="flex:none">›</span></button>`).join('')}</div>`,
+  openPage(g.t, ()=>`${g.lede?`<p class="t2">${g.lede}</p>`:''}<div class="card" style="padding:4px 16px">${libItems(g).filter(extraByTitle).map(t=>`<button type="button" class="secrow" data-sec="${esc(t)}"><span>${esc(t)}</span><span class="chev" style="flex:none">›</span></button>`).join('')}</div>`,
     el=>el.querySelectorAll('[data-sec]').forEach(b=>b.addEventListener('click',()=>openLibrarySection(b.dataset.sec, true))));
 }
 /* Раздел справки по названию — из «Сейчас», «Плана», «Я» и плеера */

@@ -163,19 +163,20 @@ function lessSets(ex){
    самые ударные прыжки — пропуск. Красный: никаких прыжков и
    ускорений, вместо них изометрия у стены. */
 const KNEE_HARD=['plyo'];
-function kneeAdjust(list, lvl){
+function kneeAdjust(list, lvl, dayId){
   const speed=ex=>ex.badge[0]==='Скорость' || ex.badge[0]==='Выносливость';
-  /* полуприсед у стены перед прыжками: при жёлтом — 5 × 45 сек, при красном — вместо них */
+  /* полуприсед у стены: при жёлтом — 5 × 45 сек перед прыжками в четверг (С3), при красном — вместо прыжков в любой день */
   const wall={id:'kW', name:'Полуприсед у стены', badge:['Суставы','b-joint'], dose:'5 × 45 сек', rest:'60 сек', tech:'w_wallsit',
     warm:'Не нужна. Угол в колене такой, чтобы боль была не выше 3 из 10.'};
   const beforeSpeed=out=>{ const at=out.findIndex(ex=>speed(ex)); out.splice(at<0?out.length:at, 0, wall); return out; };
-  if(lvl==='y') return beforeSpeed(list.map(ex=>{
+  const yellow=list.map(ex=>{
     if(!speed(ex) || /пропустить/.test(ex.dose)) return ex;
     if(KNEE_HARD.includes(ex.tech)) return {...ex, dose:'пропустить · колено жёлтое'};
     let d=ex.dose.replace(/^(\d+)(?:–\d+)?(\s*(?:×|подход))/, (m,n,r)=>Math.max(1,Math.ceil(+n/2))+r);
     if(ex.tech==='sprint' || ex.tech==='shuttle') d+=' · на 80 %';
     return {...ex, dose:d+' · колено жёлтое'};
-  }));
+  });
+  if(lvl==='y') return dayId==='d2' ? beforeSpeed(yellow) : yellow;
   /* красный */
   const out=list.filter(ex=>!speed(ex) && ex.badge[0]!=='Тест');
   const at=out.findIndex(ex=>ex.badge[0]!=='Суставы');
@@ -302,7 +303,7 @@ function adjustDays(S){
             : 'Сегодня тот же вес, но на подход меньше, прыжков и стартов вдвое меньше. Сила за 10–20 дней почти не уходит, а сухожилия отвыкают от прыжков быстрее мышц.'}`}
         : {lvl:'y', html:'<b>Лёгкий день</b>Две прошлые тренировки были на пределе (тяжесть 9–10). Сегодня на подход меньше и без прибавки веса — так прогресс не встанет.'};
     }
-    if(ks && ks.lvl!=='g' && day.ex.some(ex=>ex.badge[0]==='Скорость')) day.ex=kneeAdjust(day.ex, ks.lvl);
+    if(ks && ks.lvl!=='g' && day.ex.some(ex=>ex.badge[0]==='Скорость')) day.ex=kneeAdjust(day.ex, ks.lvl, day.id);
     /* после перерыва прыжков и стартов вдвое меньше — первая тренировка с ними */
     else if(rt && day.ex.some(ex=>ex.badge[0]==='Скорость')){
       day.ex=day.ex.map(ex=>{
