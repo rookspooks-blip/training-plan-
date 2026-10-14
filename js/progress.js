@@ -23,8 +23,9 @@ const addDays = (iso,n) => { const d=dOf(iso); d.setDate(d.getDate()+n); return 
 const daysBetween = (a,b) => Math.round((dOf(b)-dOf(a))/864e5);
 const fmt1 = x => (Math.round(x*10)/10).toFixed(1).replace('.',',');
 
+/* Зовут на каждую точку графика — сортируем историю один раз, пока данные не поменялись */
 function weightsSorted(){
-  return Object.keys(body).filter(d=>num(body[d].w)!=null).sort().map(d=>({d, w:num(body[d].w)}));
+  return memo('wsort', ()=>Object.keys(body).filter(d=>num(body[d].w)!=null).sort().map(d=>({d, w:num(body[d].w)})));
 }
 /* Среднее веса за days дней, заканчивая end включительно */
 function avgWin(end, days){

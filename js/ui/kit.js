@@ -245,7 +245,6 @@ function typeClass(e){
   return 'c-str';
 }
 const TYPE_SHORT={d1:'Сил. А', d3:'Сил. Б', d2:'Скор.', d4:'Пт', d5:'Верх', d6:'Верх'};
-const dowIdx=dow=>dow===0?6:dow-1;
 const kfmt=n=>String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g,' ');
 const plural=(n,a,b,c)=>{ n=Math.abs(n)%100; const m=n%10; return n>10&&n<20?c:m>1&&m<5?b:m===1?a:c; };
 
@@ -277,7 +276,9 @@ function fillRing(el, from, ms, delay){
   el.animate([{strokeDashoffset:start},{strokeDashoffset:to}], {duration:ms||1100, delay:delay||0, easing:'cubic-bezier(.2,.8,.2,1)', fill:'backwards'});
 }
 function enterFx(box){
-  box.classList.remove('enter'); void box.offsetWidth; box.classList.add('enter');
+  /* перезапуск нужен, только если прошлое появление ещё идёт: иначе принудительный пересчёт раскладки — лишний кадр работы */
+  if(box.classList.contains('enter')){ box.classList.remove('enter'); void box.offsetWidth; }
+  box.classList.add('enter');
   box.querySelectorAll('.rfill').forEach(el=>fillRing(el, 0, 1100, 150));
   box.querySelectorAll('[data-count]').forEach(el=>countUp(el));
   clearTimeout(box._fx); box._fx=setTimeout(()=>box.classList.remove('enter'), 1100);

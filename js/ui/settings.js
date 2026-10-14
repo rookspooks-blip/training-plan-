@@ -7,7 +7,7 @@
 let exDate=null;
 let setCycle=null;   /* какой цикл раскрыт в выборе недели */
 
-const fmtDay=iso=>dOf(iso).toLocaleDateString('ru-RU',{day:'numeric',month:'long'});
+const fmtDay=dayMonth;
 /* Период «с — по»: две даты в одной строке и пояснение под ними */
 function periodRow(title, idFrom, idTo, from, to, hint, min){
   return `<div class="set-row" style="display:block;padding:12px 0"><b style="font-size:16px">${title}</b>

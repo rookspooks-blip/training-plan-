@@ -46,17 +46,6 @@ const FOOD={
  bread:{n:'Хлеб',k:250,p:8,f:3,c:48}
 };
 
-const ICON={
- shake:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 8h10l-1 12H8L7 8zM6 8l1-4h10l1 4M9 12h6"/></svg>',
- pan:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10" cy="13" r="6"/><path d="M16 13h6"/></svg>',
- bowl:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 11h18a9 9 0 01-18 0zM12 11V5"/></svg>',
- leaf:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20C4 10 10 4 20 4c0 10-6 16-16 16zM4 20l8-8"/></svg>',
- fish:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12c4-6 12-6 16 0-4 6-12 6-16 0zM19 12l2-3v6l-2-3z"/><circle cx="8" cy="12" r="1"/></svg>',
- grain:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 13h16a8 8 0 01-16 0z"/><path d="M8 10l1-2M12 10V7M16 10l-1-2"/></svg>',
- meat:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 4a5 5 0 014 8l-6 6a4 4 0 01-6-5l3-3a5 5 0 015-6z"/><circle cx="7" cy="18" r="2"/></svg>',
- night:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 14a8 8 0 01-10-10 8 8 0 1010 10z"/></svg>'
-};
-
 /* Блюда. Граммовки — эталон под Цикл 1, дальше масштабируются. */
 const DISHES=[
 {id:'shake',cat:'breakfast',name:'Утренний шейкер',when:'Завтрак · жидкий, аппетита нет',icon:'shake',on:true,

@@ -27,7 +27,15 @@ function weekVolume(c,w){
   }));
   return n;
 }
+/* Полоса года собирает все 52 недели — это больше половины отрисовки «Плана».
+   Пересчитываем, только когда поменялись настройки (даты, сессия, лето) или текущая неделя и её веса */
+let yearCache=null;
 function yearWeeks(){
+  const k=`${JSON.stringify(settings)}|${state.cycle}-${state.week}|${loadWeek()}`;
+  if(!yearCache || yearCache.k!==k) yearCache={k, v:yearWeeksRaw()};
+  return yearCache.v;
+}
+function yearWeeksRaw(){
   const out=[];
   const add=(c,w)=>{ const k=weekKind(c,w); out.push({c,w,k,v:weekVolume(c,w)}); };
   for(let w=1; w<=maxWeek(1); w++) add(1,w);

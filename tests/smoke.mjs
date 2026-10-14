@@ -164,12 +164,25 @@ async function page(opts = {}) {
   await ctx.close();
 }
 
+/* 6в. Список офлайн-кэша: без повторов (повтор в addAll — и кэш не ставится совсем), все файлы на месте */
+{
+  const sw = await (await fetch(URL0 + 'sw.js')).text();
+  const list = sw.slice(sw.indexOf('const FILES = ['), sw.indexOf('];', sw.indexOf('const FILES = [')));
+  const files = [...list.matchAll(/'(\.\/[^']*)'/g)].map(m => m[1]);
+  const dup = files.filter((f, i) => files.indexOf(f) !== i);
+  const missing = [];
+  for (const f of new Set(files)) { const r = await fetch(URL0 + f.slice(2)); if (!r.ok) missing.push(f); }
+  const scripts = [...fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8').matchAll(/src="([^"]+)"/g)].map(m => './' + m[1]).filter(f => !files.includes(f));
+  check(`офлайн-кэш: ${files.length} файлов без повторов и пропусков`, !dup.length && !missing.length && !scripts.length,
+    [dup.length && 'повтор: ' + dup.join(', '), missing.length && 'нет на сервере: ' + missing.join(', '), scripts.length && 'скрипт не в кэше: ' + scripts.join(', ')].filter(Boolean).join(' | '));
+}
+
 /* 7. Офлайн: после первого открытия всё работает без сети */
 {
   const { ctx, p } = await page({ sw: true });
   const ready = await p.evaluate(() => Promise.race([navigator.serviceWorker.ready.then(() => true), new Promise(r => setTimeout(() => r(false), 8000))]));
-  if (!ready) { console.log('SKIP офлайн-запуск — service worker не установился в этой среде (проверить на телефоне)'); await ctx.close(); await browser.close(); server.close();
-    console.log(fails ? `\n${fails} проверок не прошли` : '\nВсе проверки прошли'); process.exit(fails ? 1 : 0); }
+  /* раньше здесь был пропуск — и офлайн молча не ставился с v32 (повтор файла в списке кэша) */
+  check('service worker установился', ready);
   await p.reload({ waitUntil: 'networkidle' });
   await p.waitForTimeout(500);
   await ctx.setOffline(true);

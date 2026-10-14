@@ -229,9 +229,6 @@ const CURL=(id,n,rest)=>({id,name:'Сгибания на бицепс',badge:['�
 const OHTRI=(id,n,rest)=>({id,name:'Разгибания из-за головы',badge:['Руки','b-arms'],dose:n?`${n} × 10–15`:'пропустить',rest:rest||'60 сек',tech:'triceps',
   warm:'Один подход 10 повторов с лёгкой гантелью: локоть над головой холодным не грузят.'});
 const FACEPULL=(id,n,rest)=>({id,name:'Face pull',badge:['Плечи','b-delts'],dose:`${n} × 15 · резина`,rest:rest||'60 сек',tech:'facepull',warm:'Не нужна.'});
-
-/* Скольжение пяток на полотенце: та же мышца, что нордические, но слабее. Не в плане, только замена по кнопке */
-const HAMSLIDE=(dl,intro)=>({id:'a9',name:'Скольжение пяток на полотенце',badge:['Ноги','b-legs'],dose:dl?'2 × 6':(intro?'2 × 8':'3 × 8'),rest:'90 сек',tech:'hamslide',warm:'Не нужна — ноги размяты. Таз держи высоко весь подход.'});
 /* Нордические: с малого объёма, иначе крепатура съест четверг */
 function nordicDose(c,lw,dl){
   if(dl) return '2 × 3';

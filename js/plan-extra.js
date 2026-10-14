@@ -3,9 +3,14 @@
    7 · КАРДИО И СОН (тоже зависят от недели)
    ############################################################ */
 
+/* «5 октября». Форматтер один на всё приложение: toLocaleDateString с параметрами
+   каждый раз собирает новый, а это заметная пауза на первом экране и в настройках */
+let dayMonthFmt=null;
+const dayMonth=iso=>(dayMonthFmt||(dayMonthFmt=new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long'}))).format(dOf(iso));
+
 /* Ключевые даты плана из настроек: старт, конец сушки, сессия, цикл 2 */
 function planDates(){
-  const st=settings.start, ses=settings.session|0, f=iso=>dOf(iso).toLocaleDateString('ru-RU',{day:'numeric',month:'long'});
+  const st=settings.start, ses=settings.session|0, f=dayMonth;
   return {start:f(st), cutEnd:f(addDays(st,12*7-1)), ses, sesStart:f(addDays(st,12*7)),
           sesEnd:f(addDays(st,(12+ses)*7-1)), c2Start:f(addDays(st,(12+ses)*7))};
 }
@@ -30,9 +35,6 @@ const DAY_TIMELINE=[['08:45','Подъём','В дни, когда пары в 1
   ['22:30','Молоко и сыр','',false],
   ['00:15','Экраны вниз','Свет в телефоне сдвигает засыпание на 30–40 минут',false],
   ['01:00','Отбой','Ровное время важнее раннего',true]];
-/* Привычки: три видны по данным, две — отметкой в конце дня */
-const HABITS=[['sl1','Лёг в одно и то же время'],['sl2','Не пропустил ни одного приёма пищи'],
-  ['sl3','Сделал зарядку для колен'],['sl4','Взвесился утром натощак'],['sl5','Записал рабочие веса после тренировки']];
 
 /* Восстановление: растяжка и самомассаж */
 const STRETCH=[

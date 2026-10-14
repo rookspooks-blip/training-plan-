@@ -1,10 +1,12 @@
 /* Офлайн-режим.
    Код приложения (страница, js, css, календарь): сначала сеть, чтобы
-   обновления приходили сами, без сети — из кэша.
+   обновления приходили сами. Сеть не ответила за NET_WAIT — открываем
+   из кэша, а свежую копию докачиваем в фоне к следующему запуску.
    Иконки и картинки: сначала кэш.
    При изменении списка файлов увеличь VERSION. */
-const VERSION = 'v54';
+const VERSION = 'v55';
 const CACHE = 'tri-cikla-' + VERSION;
+const NET_WAIT = 3000;
 const FILES = [
   './',
   './index.html',
@@ -132,12 +134,19 @@ const FILES = [
   './img/ex/standing-soleus-and-achilles-stretch-0.webp',
   './img/ex/standing-soleus-and-achilles-stretch-1.webp',
   './img/ex/trap-bar-deadlift-0.webp',
-  './img/ex/trap-bar-deadlift-1.webp',
   './img/ex/trap-bar-deadlift-1.webp'
 ];
 
+/* Код кладём весь или никакой: без него офлайн не откроется. Картинки — по одной,
+   отсутствие одной не должна ломать установку. reload — мимо кэша браузера,
+   иначе в новый кэш попадёт копия, которую GitHub отдал до обновления */
+const fresh = u => new Request(u, { cache: 'reload' });
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
+  const list = [...new Set(FILES)];   /* повтор в addAll — ошибка, и офлайн не ставится совсем */
+  const code = list.filter(u => !u.startsWith('./img/')), img = list.filter(u => u.startsWith('./img/'));
+  e.waitUntil(caches.open(CACHE)
+    .then(c => c.addAll(code.map(fresh)).then(() => Promise.allSettled(img.map(u => c.add(fresh(u))))))
+    .then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', e => {
@@ -148,26 +157,36 @@ self.addEventListener('activate', e => {
   );
 });
 
+let slowUntil = 0;   /* до этого момента код берём из кэша сразу: сеть только что не успела */
 const isCode = url => url.pathname.endsWith('/') || /\.(html|js|css|ics|webmanifest)$/.test(url.pathname);
 
 self.addEventListener('fetch', e => {
   const req = e.request;
   const url = new URL(req.url);
   if (req.method !== 'GET' || url.origin !== location.origin) return;
+  /* номер сборки на сервере (плашка «Вышла новая версия») — только из сети, мимо кэша */
+  if (url.pathname.endsWith('/sw.js')) return;
 
   if (req.mode === 'navigate' || isCode(url)) {
     /* страница всегда кладётся под одним ключом */
     const key = req.mode === 'navigate' ? './index.html' : url.pathname;
-    e.respondWith(
-      /* no-cache: всегда спрашиваем сервер, нет ли новой версии,
-         а не берём копию из кэша браузера (GitHub держит её 10 минут) */
-      fetch(req.url, { cache: 'no-cache', credentials: 'same-origin' })
-        .then(res => {
-          if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(key, copy)); }
-          return res;
-        })
-        .catch(() => caches.match(key, { ignoreSearch: true }).then(hit => hit || caches.match(req, { ignoreSearch: true })))
-    );
+    const fromCache = () => caches.match(key, { ignoreSearch: true }).then(hit => hit || caches.match(req, { ignoreSearch: true }));
+    /* no-cache: всегда спрашиваем сервер, нет ли новой версии,
+       а не берём копию из кэша браузера (GitHub держит её 10 минут) */
+    let saved = Promise.resolve(), netDone = false;
+    const net = fetch(req.url, { cache: 'no-cache', credentials: 'same-origin' })
+      .then(res => {
+        netDone = true;
+        if (res.ok) { const copy = res.clone(); saved = caches.open(CACHE).then(c => c.put(key, copy)); }
+        return res;
+      });
+    e.waitUntil(net.then(() => saved, () => {}).catch(() => {}));   /* свежая копия докачается, даже если ответил кэш */
+    /* слабая сеть: ждём не дольше NET_WAIT, дальше — кэш. Кэша нет — ждём сеть до конца.
+       Страница уже открылась из кэша — остальные её файлы тоже из кэша, без ожидания: версии не смешаются */
+    const wait = Date.now() < slowUntil ? 0 : NET_WAIT;
+    const slow = new Promise(r => setTimeout(r, wait)).then(() => netDone ? net : fromCache()
+      .then(hit => { if (hit && wait) slowUntil = Date.now() + 5000; return hit || net; }));
+    e.respondWith(Promise.race([net.catch(() => fromCache()), slow]).then(res => res || net));
     return;
   }
 

@@ -6,7 +6,6 @@
    ############################################################ */
 const cycleShort=()=> isSession() ? 'сессия' : state.cycle===1 ? 'сушка'
   : state.cycle===2 ? 'сила' : (weekKind(3,state.week)==='hyper' ? 'масса' : 'сила');
-const todayEntries=()=>{ const dow=new Date().getDay(); return buildWeek().filter(e=>e.dow===dow); };
 /* «Сейчас» может показать другой день недели — по нажатию на день в «Плане».
    nowDay — номер дня (пн = 0) или null, когда показываем сегодня */
 let nowDay=null;
