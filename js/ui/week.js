@@ -166,12 +166,12 @@ function bindYearScrub(box, yw, nowI, selI){
     const when=i===nowI?'сейчас':i===selI?'открыта':i<nowI?'пройдена':'';
     return `<b>${weekTitle(x.c,x.w)}</b><span>Цикл ${x.c} · ${cycleGoal(x.c,x.w)} · ${KIND_RU[x.k]||''}</span>
       <span>${shortDate(dateOfCW(x.c,x.w,0))}–${shortDate(dateOfCW(x.c,x.w,6))} · ${i+1}-я неделя года из ${yw.length}${when?` · ${when}`:''}</span>`; };
-  let on=false, live=false, cur=-1, pid=null, x0=0, lx=0, hold=0, raf=0, follow=0;
+  let on=false, live=false, cur=-1, pid=null, x0=0, lx=0, hold=0, raf=0, amp=0, ampRaf=0;
   /* как Dock на Mac: столбики у пальца плавно расширяются колоколом, соседи раздвигаются, дальние чуть сжимаются.
      Центр колокола φ (в номерах недель) подбираем так, чтобы его середина была ровно под пальцем */
   const n=btns.length, G=2.4, RB=9;
   const bell=t=>t<1 ? (Math.cos(Math.PI*t)+1)/2 : 0;
-  const grows=phi=>btns.map((_,j)=>1+G*bell(Math.abs(j-phi)/RB));
+  const grows=phi=>btns.map((_,j)=>1+amp*G*bell(Math.abs(j-phi)/RB));   /* amp 0…1 — раскрытие, считаем сами, а не CSS-переходом */
   const posOf=(phi,g,W,gap)=>{   /* где на экране окажется точка φ при ширинах g */
     const u=(W-gap*(n-1))/g.reduce((a,b)=>a+b,0), k=Math.min(n-1,Math.floor(phi)), fr=phi-k;
     let x=0; for(let m=0;m<k;m++) x+=g[m]*u+gap;
@@ -183,7 +183,7 @@ function bindYearScrub(box, yw, nowI, selI){
     let lo=0, hi=n-1;
     for(let it=0; it<22; it++){ const mid=(lo+hi)/2; if(posOf(mid,grows(mid),W,gap)<x) lo=mid; else hi=mid; }
     const phi=(lo+hi)/2, g=grows(phi);
-    btns.forEach((b,j)=>{ b.style.flexGrow=g[j].toFixed(3); b.style.setProperty('--f', ((g[j]-1)/G).toFixed(3)); });
+    btns.forEach((b,j)=>{ b.style.flexGrow=g[j].toFixed(3); b.style.setProperty('--f', (amp*bell(Math.abs(j-phi)/RB)).toFixed(3)); });
     const i=Math.max(0, Math.min(n-1, Math.round(phi)));
     if(i!==cur){
       if(cur>=0) haptic();
@@ -193,19 +193,35 @@ function bindYearScrub(box, yw, nowI, selI){
     /* подпись — над пальцем */
     const wr=wrap.getBoundingClientRect(), w=tip.offsetWidth, cx=Math.max(4, Math.min(wr.width-4, lx-wr.left)), left=Math.max(0, Math.min(wr.width-w, cx-w/2));
     tip.style.transform=`translateX(${left}px)`; tip.style.setProperty('--ax', `${cx-left}px`);
+    /* у верха экрана подписи над полосой не хватает места — тогда она ниже полосы */
+    tip.classList.toggle('below', wr.top < tip.offsetHeight + 70);
   };
   const show=()=>{ if(!raf) raf=requestAnimationFrame(paint); };
   /* полоса растёт не сразу: после короткого удержания или движения вбок — иначе мешала бы прокрутке */
+  /* амплитуда плавно растёт до 1 и гаснет до 0 — по кадрам, поэтому столбики никогда не отстают от пальца
+     (CSS-переходы на ширине отставали на десятки миллисекунд, и пик оказывался на соседней неделе) */
+  const ease=(to, ms, done)=>{
+    cancelAnimationFrame(ampRaf);
+    const a0=amp, t0=performance.now();
+    if(reducedMotion()){ amp=to; paint(); if(done) done(); return; }
+    const f=t=>{ const k=Math.min(1,(t-t0)/ms), e=1-Math.pow(1-k,3); amp=a0+(to-a0)*e; paint();
+      if(k<1) ampRaf=requestAnimationFrame(f); else if(done) done(); };
+    ampRaf=requestAnimationFrame(f);
+  };
   const begin=()=>{
     if(!on||live) return; live=true; clearTimeout(hold);
     try{ bar.setPointerCapture(pid); }catch(_){}
-    bar.classList.add('scrub'); vibe(6); paint();
-    follow=setTimeout(()=>bar.classList.add('follow'), 230);   /* раскрылась — дальше идёт за пальцем без задержки */
+    bar.classList.add('scrub'); vibe(6); amp=0; paint(); ease(1, 200);
   };
-  const stop=()=>{
-    clearTimeout(hold); clearTimeout(follow); if(raf){ cancelAnimationFrame(raf); raf=0; }
-    on=false; live=false; cur=-1; bar.classList.remove('scrub','follow'); tip.hidden=true;
+  const clean=()=>{
+    cancelAnimationFrame(ampRaf); if(raf){ cancelAnimationFrame(raf); raf=0; }
+    amp=0; cur=-1; bar.classList.remove('scrub'); tip.hidden=true;
     btns.forEach(b=>{ b.style.flexGrow=''; b.style.removeProperty('--f'); b.classList.remove('hot'); });
+  };
+  const stop=(soft)=>{
+    clearTimeout(hold); on=false; live=false;
+    if(soft && amp>0.05 && bar.isConnected){ tip.hidden=true; ease(0, 160, ()=>{ if(!live) clean(); }); }
+    else clean();
   };
   bar.addEventListener('pointerdown',e=>{
     if(e.button>0) return;
@@ -222,14 +238,14 @@ function bindYearScrub(box, yw, nowI, selI){
      а «хвостовой» click гасим — иначе он нажмёт то, что окажется под пальцем после перерисовки */
   bar.addEventListener('pointerup',e=>{
     if(!on||e.pointerId!==pid) return;
-    const was=live, i=cur; stop();
+    const was=live, i=cur; stop(false);
     if(!was || i<0) return;
     const kill=ev=>{ ev.stopPropagation(); ev.preventDefault(); };
     document.addEventListener('click',kill,true); setTimeout(()=>document.removeEventListener('click',kill,true),400);
     const x=yw[i]; pickYearWeek(x.c,x.w);
   });
   bar.addEventListener('touchmove',e=>{ if(live && e.cancelable) e.preventDefault(); },{passive:false});   /* ведёшь пальцем — страница не едет */
-  bar.addEventListener('pointercancel',stop);   /* страницу повели вверх-вниз — это прокрутка, не выбор */
+  bar.addEventListener('pointercancel',()=>stop(true));   /* страницу повели вверх-вниз — это прокрутка, не выбор */
   btns.forEach((b,i)=>b.addEventListener('click',()=>{ const x=yw[i]; pickYearWeek(x.c,x.w); }));
 }
 

@@ -641,26 +641,25 @@ body.playing #toast{ top:calc(env(safe-area-inset-top) + 64px); bottom:auto; }
 .dxrow .ck{ margin-top:4px; }
 .dxrow details.lx{ border-top:0; }
 
-/* ---------- Полоса года: зажал — выросла, столбики у пальца раздуваются, как Dock на Mac ---------- */
+/* ---------- Полоса года: зажал — выросла, столбики у пальца раздуваются, как Dock на Mac ----------
+   Ширина и «жирность» столбиков считаются в JS каждый кадр, поэтому у них нет CSS-переходов:
+   переход отставал от пальца, и пик оказывался не под ним */
 .ywrap{ position:relative; }
-.year{ touch-action:pan-y; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; transition:height .25s var(--smooth); }
-.year.scrub{ height:104px; }
-.year button{ transition:flex-grow .24s var(--smooth); }
-.year.follow button{ transition:flex-grow .07s linear; }
-.year i{ transform-origin:50% 100%; transition:transform .24s var(--smooth), opacity .2s, border-radius .2s; }
-.year.follow i{ transition:transform .07s linear, opacity .1s; }
-.year.scrub i{ transform:scaleY(calc(1 + var(--f,0) * .3)); border-radius:calc(2px + var(--f,0) * 4px); opacity:calc(.45 + var(--f,0) * .55); }
-.year.scrub .hot i{ opacity:1; }
-.ytip{ position:absolute; left:0; bottom:calc(100% + 36px); z-index:5; width:max-content; max-width:min(300px, 100%); pointer-events:none;
+.year{ touch-action:pan-y; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; }
+.year.scrub{ overflow:visible; }   /* высота полосы не меняется — страница под пальцем не прыгает; столбики вырастают вверх */
+.year i{ transform-origin:50% 100%; }
+.year.scrub i{ transform:scaleY(calc(1 + var(--f,0) * .5)); border-radius:calc(2px + var(--f,0) * 4px); opacity:calc(.45 + var(--f,0) * .55); box-shadow:none !important; outline:none; }
+.year.scrub .hot i{ opacity:1; box-shadow:0 0 0 2px var(--tx) !important; }
+.ytip{ position:absolute; left:0; bottom:calc(100% + 44px); z-index:5; width:max-content; max-width:min(300px, 100%); pointer-events:none;
   background:var(--tx); color:var(--bg); border-radius:14px; padding:8px 12px; box-shadow:0 8px 24px rgba(0,0,0,.25); font-size:13px; line-height:1.35; }
+.ytip.below{ bottom:auto; top:calc(100% + 14px); }
+.ytip.below::after{ top:auto; bottom:100%; border-top-color:transparent; border-bottom-color:var(--tx); }
 .ytip b{ display:block; font-size:15px; }
 .ytip span{ display:block; opacity:.8; }
 .ytip::after{ content:''; position:absolute; top:100%; left:var(--ax,50%); margin-left:-7px; border:7px solid transparent; border-top-color:var(--tx); }
 @keyframes tipin{ from{ opacity:0; } }
 .ytip:not([hidden]){ animation:tipin .15s ease-out; }
 .dots7 .part{ color:var(--tx); background:radial-gradient(var(--s2) 60%, transparent 61%), conic-gradient(var(--ok) calc(var(--p) * 360deg), var(--s3) 0); }
-.year.scrub i{ box-shadow:none !important; outline:none; }
-.year.scrub .hot i{ box-shadow:0 0 0 2px var(--tx) !important; }
 
 /* ---------- Дни недели: нажал — день на «Сейчас», задержал — карточка выплывает ---------- */
 .wk .wd{ -webkit-touch-callout:none; user-select:none; -webkit-user-select:none; transition:transform .38s var(--smooth), filter .38s; }
