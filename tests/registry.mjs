@@ -362,7 +362,7 @@ for (const [time, re, n] of [['2026-10-26T10:00:00', /Разгрузка/, 3], [
       ses: ex(1, 13, 'd1'), sesB: ex(1, 13, 'd3'), sesT: ex(1, 13, 'd2'), dl: ex(1, 4, 'd1'), w11: ex(1, 11, 'd1'),
       c2t: [1, 4, 8, 11].map(w => { const x = C2[w]; return `${x.sq}/${x.tr}/${x.oh}`; }), c3t: [1, 7, 13, 12].map(w => { const x = cycle3(w); return `${x.sq}/${x.tr}/${x.kind}`; }),
       kc: [[1, 3], [1, 13], [2, 1], [2, 2], [2, 3], [3, 1], [3, 7]].map(([c, w]) => withWeek(c, w, () => nutritionTarget().k)),
-      dl4: withWeek(1, 4, () => nutritionTarget().k), sleep: [[1, 2], [1, 3], [1, 4]].map(([c, w]) => withWeek(c, w, () => sleepInfo().target)),
+      dl4: withWeek(1, 4, () => nutritionTarget().k), sleep: [[1, 2], [1, 3], [1, 4]].map(([c, w]) => withWeek(c, w, () => sleepInfo().heavy)),
       cardio: withWeek(1, 3, () => buildWeek().filter(e => e.type === 'run').map(e => e.dur + ' ' + e.note)),
     };
   });
@@ -394,7 +394,7 @@ for (const [time, re, n] of [['2026-10-26T10:00:00', /Разгрузка/, 3], [
   ok(77, has(r.w11, 'Болгарский сплит-присед | 2 ×'), 'неделя 11: подводка, объём ≈ −40 %');
   ok(112, r.kc.join() === '2600,2850,2950,3075,3175,3400,3200', r.kc.join());
   ok(114, r.dl4 === 2450, 'разгрузка −150');
-  ok(153, r.sleep.join('|') === '7.5–8 часов|8–8.5 часов|7.5–8 часов', r.sleep.join('|'));
+  ok(153, r.sleep.join('|') === 'false|true|false', r.sleep.join('|'));
   ok(100, r.cardio.length === 2 && r.cardio.every(x => /мин/.test(x)), r.cardio.join(' / '));
   ok(98, await E(p, () => [1, 4, 8, 12].every(w => jumpTestWeek(1, w)) && !jumpTestWeek(1, 2)), 'тест прыжка: нед. 1, 4, 8, 12');
   ok(82, await E(p, () => [1, 2, 3, 4].map(w => warmupFor(w).level).join() === '1,2,3,4'), 'разминка по уровню');
@@ -482,8 +482,8 @@ for (const n of [54, 75, 78, 83, 84, 86, 87, 88, 89, 91, 94, 96, 101, 102, 103, 
   ok(130, /Отчёт за неделю/.test(t) && /эта часть будет неполной/.test(t) && await E(p, () => !!document.querySelector('#scr-plan [data-rcopy]') && !!document.querySelector('#scr-plan [data-rshare]')), 'отчёт: «Скопировать», «Поделиться», предупреждение');
   ok(130, await E(p, () => /ОТЧЁТ ЗА НЕДЕЛЮ/.test(buildReport()) && /ПИТАНИЕ/.test(buildReport())), 'текст отчёта');
   ok(157, /Лёг в одно и то же время/.test(t) && /Сделал зарядку для колен/.test(t) && /Взвесился утром натощак/.test(t) && /Записал рабочие веса/.test(t) && /Не пропустил ни одного приёма пищи/.test(t), '5 привычек: 3 по данным, 2 кружками (В2)');
-  ok(158, /Делается каждый день, включая дни отдыха/.test(t), 'подпись сна по типу недели');
-  ok(153, /7\.5–8 часов|8–8\.5 часов/.test(t), 'норма сна недели');
+  ok(158, /Отбой 01:00 каждый день · подъём по расписанию/.test(t), 'подпись сна: отбой постоянный, подъём по расписанию');
+  ok(153, /≈\d(,5)? ч в среднем/.test(t) && await E(p, () => document.querySelectorAll('#scr-plan .slw span').length === 7 && /^\d\d:\d\d$/.test(document.querySelector('#scr-plan .slw span').childNodes[1].textContent)), 'норма сна недели и подъём по дням');
   await close(p);
 }
 
@@ -590,7 +590,7 @@ for (const n of [54, 75, 78, 83, 84, 86, 87, 88, 89, 91, 94, 96, 101, 102, 103, 
   const t = await E(p, () => document.querySelector('#scr-now .hero').textContent);
   ok(162, /Душ: контрастный можно/.test(t), 'вечерняя карточка: душ по типу дня');
   ok(157, /Лёг в одно и то же время/.test(t) && /Не пропустил ни одного приёма пищи/.test(t), 'две привычки кружками в итоге дня');
-  ok(153, /Сон: 8–8\.5 часов, отбой 01:00/.test(t), 'сон сегодня');
+  ok(153, /Сон: отбой 01:00, подъём 08:00 — 7 ч/.test(t) && /добери днём/.test(t), 'сон сегодня: в пятницу физра — подъём 08:00, неделя тяжёлая');
   const r = await E(p, () => {
     const X = n => { const e = EXTRA.find(x => x[0] === n); return e ? String(typeof e[1] === 'function' ? e[1]() : e[1]) : ''; };
     return {

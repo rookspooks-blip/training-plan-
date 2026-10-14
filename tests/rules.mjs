@@ -337,8 +337,8 @@ const W7 = '2026-11-16';
 /* 12. Сон: тяжёлая неделя — перед разгрузкой, в цикле 3 это 5-я */
 {
   const { ctx, p } = await at('2026-10-06');
-  const r = await p.evaluate(() => [[1, 3], [1, 11], [3, 5], [3, 3]].map(([c, w]) => withWeek(c, w, () => /8–8\.5/.test(sleepInfo().target))));
-  check('сон: +полчаса перед разгрузкой и тестом', r.join() === 'true,true,true,false', r.join());
+  const r = await p.evaluate(() => [[1, 3], [1, 11], [3, 5], [3, 3]].map(([c, w]) => withWeek(c, w, () => sleepInfo().heavy)));
+  check('сон: тяжёлая неделя — перед разгрузкой и тестом', r.join() === 'true,true,true,false', r.join());
   await ctx.close();
 }
 /* 13. Красное колено держится неделю без новых отметок */

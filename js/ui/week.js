@@ -394,7 +394,9 @@ function renderWeekTab(){
     <div class="sec">Еда за неделю · цель ${kfmt(F.T.k)} ккал</div>
     <div class="card">${foodCard}${foodFoot}</div>
     <div class="sec">Сон</div>
-    <div class="card tap" data-sleep><div class="small muted" style="margin-bottom:4px">${info.kind==='deload'?'Разгрузочная неделя — восстановление важнее объёма.':'Делается каждый день, включая дни отдыха.'}</div><div class="h2 n">${SL.target}</div><div class="t2" style="margin-top:6px">${SL.why}</div><div class="link">Отбой 01:00 · почему так</div></div>
+    <div class="card tap" data-sleep><div class="small muted" style="margin-bottom:4px">Отбой 01:00 каждый день · подъём по расписанию</div><div class="h2 n">${SL.target}</div>
+      <div class="slw">${SL.days.map(x=>`<span class="${x.h<SHORT_NIGHT?'sh':x.h>=8.5?'lg':''}" title="${esc(x.why)}"><b>${DOW_IDX[x.d]}</b>${x.wake}<small>${fmtHours(x.h,true)}</small></span>`).join('')}</div>
+      <div class="t2" style="margin-top:8px">${SL.why}</div><div class="link">Почему так</div></div>
     <div class="sec">Привычки недели</div>
     <div class="card">${H.map(h=>`<div class="hab"><span><b>${h.t}</b><small>${h.s}</small></span><span class="v">${h.v}</span></div>`).join('')}</div>
     <div class="sec">Отчёт за неделю</div>

@@ -239,7 +239,7 @@ function eveningHero(es){
   const td=vIdx(), iso=vIso();
   const T=nutritionTarget(), t=totalsOfDay(td)||{k:0};
   const hk=id=>`${state.cycle}-${state.week}-hab-${id}-${td}`;
-  const S=sleepInfo(), sh=SHOWER[todayKind(td)];
+  const S=sleepInfo(), N=sleepTonight(td), sh=SHOWER[todayKind(td)];
   const lines=[];
   es.filter(e=>e.type==='gym').forEach(e=>lines.push([isGymDone(e)||isDropped(e.id), e.day.title+(isDropped(e.id)?' — отменена':''), 'g:'+e.id]));
   es.filter(e=>e.type==='run').forEach(e=>lines.push([isRunDone(e)||isDropped(e.id), 'Велосипед + мяч', 'r:'+e.id]));
@@ -251,7 +251,7 @@ function eveningHero(es){
     <div style="margin-top:10px">${lines.map(([ok,txt,ev])=>`<button type="button" class="row" style="width:100%" data-ev="${ev}"><span class="ck${ok?' on':''}">${IC.check}</span><span class="grow" style="text-align:left"><div class="nm">${esc(txt)}</div></span></button>`).join('')}</div>
     <div class="sec" style="margin-top:14px">Привычки</div>
     ${[['sl1','Лёг в одно и то же время'],['sl2','Не пропустил ни одного приёма пищи']].map(([id,txt])=>`<button type="button" class="row" style="width:100%" data-hab="${hk(id)}"><span class="ck${marks[hk(id)]?' on':''}">${IC.check}</span><span class="grow" style="text-align:left"><div class="nm">${txt}</div></span></button>`).join('')}
-    <div class="note" style="margin-top:12px"><b>Сон: ${S.target}, отбой 01:00</b>${S.why}</div>
+    <div class="note" style="margin-top:12px"><b>Сон: отбой 01:00, подъём ${N.wake} — ${fmtHours(N.h)}</b>${N.note}${S.heavy?' Неделя тяжёлая — добери днём 20–30 минут.':''}</div>
     <div class="note"><b>Душ: ${sh.t.toLowerCase()}</b>${sh.x()}</div>
     <button type="button" class="btn big pri hb" data-drep>Отчёт за ${nowDay==null?'день':DOW_FULL[vDow()].toLowerCase()}</button>
   </div>`;
@@ -352,7 +352,7 @@ function bindPager(box, steps, ci, autoId){
 /* ---------- Лента «дальше сегодня» ---------- */
 function timelineItems(es){
   const iso=vIso(), td=vIdx(), items=[], future=iso>isoDay();
-  if(!future) items.push({t:'08:30', c:'c-kc', nm:'Утренний замер', ds: morningDone(iso)?morningLine(iso):'вес, пульс, колено, поясница, пах', done:morningDone(iso), act:'morning'});
+  if(!future) items.push({t:wakeAt(state.cycle,state.week,td).wake, c:'c-kc', nm:'Утренний замер', ds: morningDone(iso)?morningLine(iso):'вес, пульс, колено, поясница, пах', done:morningDone(iso), act:'morning'});
   const dn=dailyCount(td);
   items.push({t:'любое время', sort:'08:31', c:'c-car', nm:'Зарядка для колен', ds:dn&&dn<DAILY.length?`${dn} из ${DAILY.length} · колени, пах, стопа`:`колени, пах, стопа · ${dailyMinutes()} мин`, done:!!marks[dailyKey(td)], act:'daily', ck:true});
   es.forEach(e=>{
@@ -364,7 +364,7 @@ function timelineItems(es){
     const near=mealLogged(td, r[0]);
     items.push({t:r[0], c:'c-kc', nm:r[1], ds:r[2]?`белок ${r[2]} г`:'', done:near, act:'food', at:r[0]});
   });
-  if(!future) items.push({t:'01:00', sort:'25:00', c:'c-rest', nm:'Отбой', ds:`норма ${sleepInfo().target}`, done:false, act:'sleep'});
+  if(!future) items.push({t:'01:00', sort:'25:00', c:'c-rest', nm:'Отбой', ds:(x=>`подъём ${x.wake} · ${fmtHours(x.h)}`)(sleepTonight(td)), done:false, act:'sleep'});
   const val=x=>{ const s=x.sort||x.t; return /^\d/.test(s) ? hm2min(s.slice(0,5))+(s.startsWith('25')?1440:0) : 0; };
   /* сделанное уходит вниз серым */
   return items.sort((a,b)=>(a.done-b.done) || (val(a)-val(b)));
