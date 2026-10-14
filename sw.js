@@ -3,7 +3,7 @@
    обновления приходили сами, без сети — из кэша.
    Иконки и картинки: сначала кэш.
    При изменении списка файлов увеличь VERSION. */
-const VERSION = 'v34';
+const VERSION = 'v35';
 const CACHE = 'tri-cikla-' + VERSION;
 const FILES = [
   './',
@@ -15,7 +15,6 @@ const FILES = [
   './js/food-data.js',
   './js/food.js',
   './js/iphone.js',
-  './js/main.js',
   './js/photos.js',
   './js/plan-extra.js',
   './js/plan.js',
@@ -24,7 +23,15 @@ const FILES = [
   './js/store.js',
   './js/tech.js',
   './js/training.js',
-  './js/ui.js',
+  './js/ui/kit.js',
+  './js/ui/now.js',
+  './js/ui/player.js',
+  './js/ui/week.js',
+  './js/ui/foodtab.js',
+  './js/ui/me.js',
+  './js/ui/library.js',
+  './js/ui/settings.js',
+  './js/ui/app.js',
   './manifest.webmanifest',
   './icons/apple-touch-icon.png',
   './icons/icon-192.png',

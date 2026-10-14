@@ -370,7 +370,7 @@ function nutritionTarget(){
     const x=cycle3(state.week);
     t = (x.kind==='hyper') ? {k:3400,p:170,f:115,c:421} : {k:3200,p:170,f:108,c:387};
   }
-  /* поправка по замерам (вкладка «Прогресс»): ±150 ккал за счёт углеводов */
+  /* поправка по замерам («Я» → вывод по весу): ±150 ккал за счёт углеводов */
   const adj = isSession() ? 0 : ((settings.kcalAdj||{})[state.cycle]||0);
   if(adj) t={k:t.k+adj, p:t.p, f:t.f, c:t.c+Math.round(adj/4)};
 

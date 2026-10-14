@@ -144,10 +144,11 @@ UID:tri-cikla-9@training-plan
 DTSTAMP:20260930T120000Z
 DTSTART;TZID=Europe/Moscow:20261005T083000
 DTEND;TZID=Europe/Moscow:20261005T083500
-RRULE:FREQ=WEEKLY;BYDAY=MO,WE,FR;UNTIL=20270124T205959Z
+RRULE:FREQ=DAILY;UNTIL=20270124T205959Z
 SUMMARY:Взвеситься натощак
-DESCRIPTION:Вес и пульс лёжа — во вкладку «Про
- гресс».
+DESCRIPTION:Каждое утро\, минимум 3 раза в недел
+ ю. Вес\, пульс\, колено\, поясница и пах — н
+ а экране «Сейчас».
 BEGIN:VALARM
 ACTION:DISPLAY
 DESCRIPTION:Взвеситься натощак
@@ -162,7 +163,7 @@ DTEND;TZID=Europe/Moscow:20261009T084000
 RRULE:FREQ=WEEKLY;UNTIL=20270124T205959Z
 SUMMARY:Колено: оценка 0–10
 DESCRIPTION:Медленный присед на одной ноге\, оц
- ени боль 0–10 и запиши в «Прогресс».
+ ени боль 0–10 и запиши на экране «Сейчас».
 BEGIN:VALARM
 ACTION:DISPLAY
 DESCRIPTION:Колено: оценка 0–10
@@ -176,8 +177,8 @@ DTSTART;TZID=Europe/Moscow:20261010T125000
 DTEND;TZID=Europe/Moscow:20261010T130000
 SUMMARY:Тест прыжка
 DESCRIPTION:После разминки\, до тренировки. Тел
- ефон на полу сбоку\, slo-mo. Считать во вклад
- ке «Прогресс».
+ ефон на полу сбоку\, slo-mo. Считать: «Я» → «
+ Прыжок по видео».
 BEGIN:VALARM
 ACTION:DISPLAY
 DESCRIPTION:Тест прыжка
@@ -191,8 +192,8 @@ DTSTART;TZID=Europe/Moscow:20261031T125000
 DTEND;TZID=Europe/Moscow:20261031T130000
 SUMMARY:Тест прыжка
 DESCRIPTION:После разминки\, до тренировки. Тел
- ефон на полу сбоку\, slo-mo. Считать во вклад
- ке «Прогресс».
+ ефон на полу сбоку\, slo-mo. Считать: «Я» → «
+ Прыжок по видео».
 BEGIN:VALARM
 ACTION:DISPLAY
 DESCRIPTION:Тест прыжка
@@ -206,8 +207,8 @@ DTSTART;TZID=Europe/Moscow:20261128T125000
 DTEND;TZID=Europe/Moscow:20261128T130000
 SUMMARY:Тест прыжка
 DESCRIPTION:После разминки\, до тренировки. Тел
- ефон на полу сбоку\, slo-mo. Считать во вклад
- ке «Прогресс».
+ ефон на полу сбоку\, slo-mo. Считать: «Я» → «
+ Прыжок по видео».
 BEGIN:VALARM
 ACTION:DISPLAY
 DESCRIPTION:Тест прыжка
@@ -221,8 +222,8 @@ DTSTART;TZID=Europe/Moscow:20261226T125000
 DTEND;TZID=Europe/Moscow:20261226T130000
 SUMMARY:Тест прыжка
 DESCRIPTION:После разминки\, до тренировки. Тел
- ефон на полу сбоку\, slo-mo. Считать во вклад
- ке «Прогресс».
+ ефон на полу сбоку\, slo-mo. Считать: «Я» → «
+ Прыжок по видео».
 BEGIN:VALARM
 ACTION:DISPLAY
 DESCRIPTION:Тест прыжка

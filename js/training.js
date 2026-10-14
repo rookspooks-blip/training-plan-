@@ -1,23 +1,5 @@
 "use strict";
 /* ############################################################
-   10 · УНИВЕРСАЛЬНЫЙ АККОРДЕОН
-   Работает на любой глубине вложенности
-   ############################################################ */
-function bindFold(head, box){
-  const toggle=()=>{
-    const open=box.classList.toggle('is-open');
-    head.setAttribute('aria-expanded', open?'true':'false');
-  };
-  head.addEventListener('click',e=>{
-    if(e.target.closest('.check,.step-check,.dish-toggle,.gram,input,.step-toggle,.dish-time')) return;
-    toggle();
-  });
-  head.addEventListener('keydown',e=>{
-    if(e.key==='Enter'||e.key===' '){ e.preventDefault(); toggle(); }
-  });
-}
-
-/* ############################################################
    11 · ОТРИСОВКА ТРЕНИРОВОК
    ############################################################ */
 /* Аэробная работа по дням недели.
@@ -261,7 +243,7 @@ function loadWeek(){
 
 /* Что делать с пропущенным днём — совет зависит от того, что именно пропало */
 const MOVE_NOTE={
-  d1:'Силовая А переехала — смотри новый день в расписании выше. Веса те же, менять ничего не надо.',
+  d1:'Силовая А переехала — новый день виден в неделе. Веса те же; если до скоростной меньше 48 часов — без подъезда и на подход меньше на ноги.',
   d5:'Силовая В переехала на четверг вечером — это только верх, ногам и скоростной не мешает.',
   d6:'Силовая Г переехала на воскресенье вечером.',
   d2:'Скоростная не переносится: после физры её делать негде, а на уставших ногах она тренирует медленный бег. Пропуск раз в месяц ничего не стоит.',
@@ -289,6 +271,24 @@ function missedSessions(){
   return {gym, run, total:gym+run};
 }
 
+/* Время тренировки — как в календаре: Пн 17:00, Вт 09:00 велосипед, Ср 18:00 верх,
+   Чт 11:40 скоростная после физры (дома без физры — после пар, 17:00), Пт 18:00 верх в блоках
+   массы, Сб 13:00, Вс 11:00 велосипед. Перенос — время дня, куда переехала.
+   Лето: практика — вечером, каникулы — днём */
+function trainingTime(e){
+  if(!e || e.type==='rest') return null;
+  if(e.type==='run') return e.dow===0 ? '11:00' : '09:00';
+  const sm=summerMode();
+  if(sm==='practice') return '18:30';
+  if(sm==='vacation') return '11:00';
+  if(isSession()) return e.dow===6 ? '13:00' : '17:00';
+  if(e.id==='d2') return e.day && e.day.swap ? '17:00' : '11:40';
+  if(e.id==='d4') return '11:40';
+  if(e.id==='d5' || e.id==='d6') return '18:00';
+  if(e.id==='d3') return '13:00';
+  return '17:00';
+}
+
 const DOW_FULL=['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'];
 
 /* ############################################################
@@ -299,321 +299,6 @@ const DOW_FULL=['Воскресенье','Понедельник','Вторни�
    ############################################################ */
 const DAILY=[WP.wallsit, WP.groin, WP.shortfoot, WP.balance];
 const dailyMinutes=()=>Math.round(DAILY.reduce((a,x)=>a+x.sec,0)*1.15/60);
-
-function renderDaily(){
-  const box=document.getElementById('dailyBox');
-  const td=todayIdx();
-
-  const cells=DOW_IDX.map((n,i)=>{
-    const k=`${state.cycle}-${state.week}-daily-${i}`;
-    return `<button class="dcell${marks[k]?' done':''}${i===td?' today':''}" type="button" data-k="${k}">
-      <span class="dn">${n}</span><span class="dm"></span></button>`;
-  }).join('');
-
-  const list=DAILY.map((x,i)=>{
-    const t=TECH[x.tech]||{text:''};
-    return `<div class="sub">
-      <div class="sub-head" tabindex="0" role="button" aria-expanded="false">
-        <span>${i+1}. ${x.name} · ${x.dose}</span>
-        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
-      </div>
-      <div class="fold"><div class="fold-inner"><div class="sub-body">
-        ${figFor(x.tech,x.name)}
-        <div class="tech">${t.text}</div>
-      </div></div></div>
-    </div>`;
-  }).join('');
-
-  const d=document.createElement('div');
-  d.className='daily';
-  d.innerHTML=`
-    <div class="daily-head" tabindex="0" role="button" aria-expanded="false">
-      <div class="daily-t">
-        <div class="t">Каждый день</div>
-        <div class="s">Колени, пах и стопа. Не режется никогда</div>
-      </div>
-      <span class="daily-dur">≈ ${dailyMinutes()} мин</span>
-      <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
-    </div>
-    <div class="fold"><div class="fold-inner"><div class="daily-body">
-      <div class="dweek">${cells}</div>
-      <p style="font-size:12.5px;color:var(--muted);margin:0 0 14px">
-        Все семь дней, в том числе тренировочные. Делай отдельно от разминки в любое время:
-        утром, в перерыве между парами, вечером.
-      </p>
-      ${list}
-      <div class="tip" style="margin-top:14px">
-        Эти четыре пункта работают медленно и только от частоты. Полуприсед у стены даёт первые изменения
-        в колене через 4–6 недель ежедневной работы, изометрия паха примерно так же.
-        Делать их три раза в неделю вместо семи — значит растянуть результат вдвое.
-      </div>
-    </div></div></div>`;
-
-  box.innerHTML='';
-  box.appendChild(d);
-  bindFold(d.querySelector('.daily-head'), d);
-  d.querySelectorAll('.daily-body .sub').forEach(x=>bindFold(x.querySelector('.sub-head'), x));
-
-  d.querySelectorAll('.dcell[data-k]').forEach(b=>{
-    b.addEventListener('click',()=>{
-      const k=b.dataset.k;
-      if(marks[k]) delete marks[k]; else marks[k]=true;
-      b.classList.toggle('done', !!marks[k]);
-      saveMarks(); updateProgress();
-    });
-  });
-}
-
-function renderDays(){
-  const week=buildWeek();
-  const today=new Date().getDay();
-  const root=document.getElementById('days');
-  root.innerHTML='';
-
-  /* полоса недели сверху */
-  /* в один день бывает две тренировки (скоростная и перенесённый верх) — один чип на день */
-  const chips=[];
-  week.forEach(e=>{
-    const label = e.type==='gym' ? e.day.title.split(' · ')[0] : e.title;
-    const c=chips.find(x=>x.dow===e.dow);
-    if(c){ if(e.type!=='rest'){ c.label = c.type==='rest' ? label : `${c.label} + ${label}`; if(c.type==='rest') c.type=e.type; } return; }
-    chips.push({dow:e.dow, type:e.type, label});
-  });
-  document.getElementById('weekstrip').innerHTML = chips.map(e=>{
-    const cls = e.type==='rest' ? 'rest' : (e.type==='run' ? 'cardio' : '');
-    const label = e.label;
-    const sel = e.dow===selDow ? ' sel' : '';
-    return `<button type="button" class="wchip ${cls}${e.dow===today?' today':''}${sel}" data-dow="${e.dow}">
-      <span class="wd">${e.dow===today?'Сегодня':DOW_FULL[e.dow]}</span><span class="wt">${label}</span></button>`;
-  }).join('');
-  const strip=document.getElementById('weekstrip');
-  strip.querySelectorAll('.wchip').forEach(b=>b.addEventListener('click',()=>{
-    selDow=+b.dataset.dow; renderDaily(); renderDays(); updateProgress();
-  }));
-  const selChip=strip.querySelector('.wchip.sel');
-  if(selChip) strip.scrollLeft = Math.max(0, selChip.offsetLeft - strip.clientWidth/2 + selChip.clientWidth/2);
-
-  /* кнопка «Сегодня» в нижней панели ведёт на сегодняшний день */
-  const te=week.find(e=>e.dow===today);
-  /* полоса недели скроллит внутри вкладки «Сегодня» */
-
-  week.filter(e=>e.dow===selDow).forEach(e=>{
-    const isToday = (e.dow===today);
-    const tag = isToday ? '<span class="today-tag">сегодня</span>' : '';
-
-    /* --- день отдыха --- */
-    if(e.type==='rest'){
-      const r=document.createElement('div');
-      r.className='rday'; r.id=e.id;
-      r.innerHTML=`<b>${DOW_FULL[e.dow]} · ${e.title}</b>${tag}${e.why?`<br>${e.why}`:''}`;
-      root.appendChild(r);
-      const order=d=>(d===0?7:d);
-      const next=week.filter(x=>x.type!=='rest' && !(x.type==='gym'&&isDropped(x.id)) && order(x.dow)>order(e.dow))[0];
-      if(next){
-        const nb=document.createElement('button');
-        nb.type='button'; nb.className='btn nextbtn';
-        nb.textContent=`Следующая: ${DOW_FULL[next.dow]} · ${next.type==='gym'?next.day.title:next.title} →`;
-        nb.addEventListener('click',()=>{ selDow=next.dow; renderDaily(); renderDays(); updateProgress(); });
-        root.appendChild(nb);
-      }
-      return;
-    }
-
-    /* --- день кардио --- */
-    if(e.type==='run'){
-      const k=key(e.id,e.ex), done=!!marks[k], sk=isSkipped(e.id);
-      const techId = e.mode==='run' ? 'run_setup' : 'bike_setup';
-      const t=TECH[techId]||{text:''};
-      const c=document.createElement('div');
-      c.className='cday'+(done?' done':'')+(sk?' is-skipped':''); c.id=e.id;
-      c.innerHTML=`
-        <div class="cday-head">
-          <button class="check" role="checkbox" aria-checked="${done}" aria-label="${e.title}"></button>
-          <div class="cday-main">
-            <div class="cday-name">${DOW_FULL[e.dow]} · ${sk?'Пропущено':e.title}${tag}</div>
-            <div class="cday-note">${sk?'Догонять не надо':e.note}</div>
-          </div>
-          <div class="cday-dur">${sk?'—':e.dur}</div>
-          <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
-        </div>
-        <div class="fold"><div class="fold-inner"><div class="cday-body">
-          ${figFor(techId)}
-          <div class="tech">${t.text}</div>
-        </div></div></div>`;
-      bindFold(c.querySelector('.cday-head'), c);
-      c.querySelector('.cday-body').appendChild(watchBlock(e.id));
-      c.querySelector('.check').addEventListener('click',ev=>{
-        ev.stopPropagation();
-        const now=!marks[k];
-        if(now) marks[k]=true; else delete marks[k];
-        ev.currentTarget.setAttribute('aria-checked',now?'true':'false');
-        c.classList.toggle('done',now);
-        saveMarks(); updateProgress();
-      });
-      root.appendChild(c);
-
-      const tools=document.createElement('div');
-      tools.className='day-tools'; tools.style.margin='-2px 0 14px';
-      tools.innerHTML=`<button class="skipbtn${sk?' on':''}" type="button">${sk?'Вернуть':'Пропустил'}</button>`;
-      tools.querySelector('button').addEventListener('click',()=>toggleSkip(e.id));
-      root.appendChild(tools);
-      /* мяч: 10–15 минут дриблинга после велосипеда */
-      if(!sk) root.appendChild(exCard({id:e.id}, BALL));
-
-      if(sk){
-        const n=document.createElement('div');
-        n.className='skipnote';
-        n.innerHTML=`<b>Пропущено.</b> ${DROP_ADVICE.run}`;
-        root.appendChild(n);
-      } else if(e.moveNote){
-        const n=document.createElement('div');
-        n.className='swapnote';
-        n.innerHTML=`<b>День сдвинут.</b> ${e.moveNote}`;
-        root.appendChild(n);
-      }
-      return;
-    }
-
-    /* --- силовой день --- */
-    const day=e.day;
-    const dropped=isDropped(e.id), moved=isMoved(e.id) && !dropped;
-    const sec=document.createElement('section');
-    sec.className='day'+(dropped?' is-skipped':''); sec.id=day.id;
-    /* у перенесённого дня в заголовке стоит новый день недели */
-    const whenText = moved || e.moveNote
-      ? `${DOW_FULL[e.dow]} · ${day.when.split(' · ').slice(1).join(' · ')}`
-      : day.when;
-    sec.innerHTML=`<div class="day-head"><h2>${day.title}${tag}</h2><span class="when">${whenText} · ≈${dayMinutes(day,state.week)} мин</span></div>
-                   <p class="day-note">${day.note}</p>`;
-
-    /* «Не получается?» — все отклонения от плана в одном месте, а не три кнопки на виду */
-    sec.appendChild(dayMenu(e, dropped, moved));
-
-    /* отменённый день: вместо упражнений — что это значит */
-    if(dropped){
-      const n=document.createElement('div');
-      n.className='skipnote';
-      n.innerHTML=`<b>Отменено на этой неделе.</b> ${DROP_ADVICE[e.id]||DROP_ADVICE.d1}`;
-      sec.appendChild(n);
-      root.appendChild(sec);
-      return;
-    }
-
-    /* перенесённый или сдвинутый день: объясняем, почему он здесь */
-    if(e.moveNote){
-      const n=document.createElement('div');
-      n.className='swapnote';
-      n.innerHTML=`<b>День перенесён.</b> ${e.moveNote}`;
-      sec.appendChild(n);
-    }
-
-    /* перерыв или усталость: день легче, объясняем почему */
-    if(day.alert){
-      const n=document.createElement('div');
-      n.className='coach knee-note '+day.alert.lvl;
-      n.innerHTML=day.alert.html;
-      sec.appendChild(n);
-    }
-
-    /* Светофоры поясницы и колена: карточка только когда есть оценка.
-       Зелёный — одна строка, жёлтый и красный — с объяснением.
-       Нет оценки — одна ссылка на утреннюю форму, а не два блока текста */
-    const needBack=day.ex.some(x=>BACK_LOAD.includes(x.tech)), needKnee=day.ex.some(x=>x.badge[0]==='Скорость');
-    const bs=needBack?backStatus():null, ks=needKnee?kneeStatus():null;
-    [bs,ks].forEach(st=>{
-      if(!st) return;
-      const n=document.createElement('div');
-      n.className='coach knee-note '+st.lvl+(st.lvl==='g'?' slim':'');
-      n.innerHTML = st.lvl==='g' ? `<b>${st.title}</b>` : `<b>${st.title}</b>${st.text}`;
-      sec.appendChild(n);
-    });
-    if((needBack && !bs) || (needKnee && !ks)){
-      const what=[needKnee&&!ks?'колено':'', needBack&&!bs?'поясницу':''].filter(Boolean).join(' и ');
-      const a=document.createElement('button');
-      a.type='button'; a.className='linkbtn morning-link';
-      a.textContent=`Оценить ${what} 0–10 — план подстроится →`;
-      a.addEventListener('click',()=>goTab('prog','#progToday'));
-      sec.appendChild(a);
-    }
-
-    /* четверг без физры: объясняем, что поменялось и чего не заменить */
-    if(day.swap){
-      const n=document.createElement('div');
-      n.className='swapnote';
-      n.innerHTML=`<b>Замена дома.</b> Прыжковая часть переносится целиком — ей нужно три квадратных метра, а не зал.
-        Мотор добираем интервалами в горку на дорожке.
-        <br><br>Не заменяется одно: ускорения с места. На дорожке полотно уходит из-под ноги само, а весь смысл в отталкивании от неподвижного пола. Раз-два в месяц это ничего не стоит; если физры нет несколько недель подряд — нужен любой коридор метров на двадцать.`;
-      sec.appendChild(n);
-    }
-
-    /* старт / идёт / итог тренировки */
-    sec.appendChild(sessionBar(e, day));
-
-    /* --- разминка (после физры не нужна) --- */
-    const warm=warmupOf(day, state.week);
-    const wb=document.createElement('div');
-    if(day.noWarm) wb.hidden=true;
-    wb.className='warmblock';
-    wb.innerHTML=`
-      <div class="warm-head" tabindex="0" role="button" aria-expanded="false">
-        <div class="warm-title">
-          <div class="t">Разминка${warm.level?` · уровень ${warm.level}`:''}</div>
-          <div class="s">${warm.label}</div>
-        </div>
-        <span class="warm-dur">${warm.dur}</span>
-        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
-      </div>
-      <div class="fold"><div class="fold-inner"><div class="warm-list">
-      ${warm.list.map((s,i)=>{
-        const k=key(day.id,s.id), done=!!marks[k], t=TECH[s.tech]||{text:''};
-        const mm=Math.floor(s.sec/60), ss=s.sec%60;
-        return `<div class="step${done?' done':''}" data-k="${k}">
-          <div class="step-n">${i+1}</div>
-          <div class="step-main">
-            <div class="step-name">${s.name}</div>
-            <div class="step-meta">
-              <span class="timer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6"/></svg>${mm}:${String(ss).padStart(2,'0')}</span>
-              <span class="step-dose">${s.dose}</span>
-            </div>
-            <button class="step-toggle" type="button">Как делать</button>
-            <div class="step-detail" hidden>
-              ${figFor(s.tech,s.name)}
-              <div class="tech">${t.text}</div>
-            </div>
-          </div>
-          <button class="step-check" role="checkbox" aria-checked="${done}" aria-label="${s.name}"></button>
-        </div>`;
-      }).join('')}
-      </div></div></div>`;
-    bindFold(wb.querySelector('.warm-head'), wb);
-
-    wb.querySelectorAll('.step').forEach(st=>{
-      const k=st.dataset.k;
-      st.querySelector('.step-check').addEventListener('click',e=>{
-        e.stopPropagation();
-        const now=!marks[k];
-        if(now) marks[k]=true; else delete marks[k];
-        e.currentTarget.setAttribute('aria-checked',now?'true':'false');
-        st.classList.toggle('done',now);
-        saveMarks(); updateProgress();
-      });
-      const btn=st.querySelector('.step-toggle'), det=st.querySelector('.step-detail');
-      btn.addEventListener('click',e=>{
-        e.stopPropagation();
-        det.hidden=!det.hidden;
-        btn.textContent = det.hidden ? 'Как делать' : 'Свернуть';
-      });
-    });
-    sec.appendChild(wb);
-
-    /* --- основные упражнения --- */
-    day.ex.forEach(ex=>sec.appendChild(exCard(day, ex)));
-    /* в конце — «Закончить», чтобы не листать наверх */
-    if(sessionState(day.id)==='run') sec.appendChild(finishBtn(day.id));
-
-    root.appendChild(sec);
-  });
-}
 
 const BALL={id:'ball',name:'Мяч · дриблинг',badge:['Мяч','b-ball'],dose:'10–15 мин после велосипеда',rest:'—',tech:'dribble',
   warm:'Не нужна — ты разогрет велосипедом. Нужен пол, по которому можно стучать: зал у дома или двор.'};
@@ -866,8 +551,6 @@ function planBadge(ex, P, pl){
   return `гантель ${w} кг`;
 }
 
-const TIMER_IC='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6"/></svg>';
-
 /* Тип отягощения: что вписывать в «кг». Свой вес не пишется никогда —
    только то, что держишь в руках, на плечах или на поясе. */
 function weightKind(ex, P){
@@ -894,83 +577,9 @@ function weightKind(ex, P){
   return BODY;
 }
 
-/* Блок журнала внутри карточки упражнения */
-function logBlock(day, ex, card, setDone){
-  const k=logKey(day.id, ex.id);
-  const P=parseDose(ex.dose);
-  const L=logs[k] || {n:ex.name, d:null, sets:[], rpe:null};
-  while(L.sets.length<P.sets) L.sets.push({w:'',r:''});
-  const last=lastLog(ex.name, k);
-  const PL=planFor(ex, P, k);
-  const rs=restSec(ex.rest);
-  const box=document.createElement('div');
-  box.className='log';
-  const unit=P.timed?'сек':'повт.';
-  /* Что писать в поле «кг» — по типу отягощения */
-  const WK=weightKind(ex, P);
-  const DB = WK.ph==='гантель';
-  const wHint = WK.hint;
-
-  const draw=()=>{
-    box.innerHTML=`
-      ${last?`<div class="log-last">${lastSummary(last,P)}</div>`:''}
-      ${PL.t?`<div class="log-tip">Сегодня: ${PL.t}</div>`:''}
-      <div class="log-last" style="margin-bottom:8px">${wHint}</div>
-      <div class="ls-head"><span>#</span><span>кг</span><span></span><span>${unit}</span><span>${rs?'отдых':''}</span></div>
-      ${L.sets.map((x,i)=>`<div class="ls-row${num(x.r)!=null?' full':''}" data-i="${i}">
-        <span class="ls-n">${i+1}</span>
-        <input class="ls-w" type="text" inputmode="decimal" enterkeyhint="next" value="${esc(x.w)}" placeholder="${(PL.sets[i]&&PL.sets[i].w)?fmtW(PL.sets[i].w):WK.ph}" aria-label="Вес, подход ${i+1}">
-        <span class="ls-x">×</span>
-        <input class="ls-r" type="text" inputmode="numeric" enterkeyhint="done" value="${esc(x.r)}" placeholder="${(PL.sets[i]&&PL.sets[i].r!=null)?PL.sets[i].r:'—'}" aria-label="Повторы, подход ${i+1}">
-        ${rs?`<button type="button" class="ls-rest" aria-label="Таймер отдыха">${TIMER_IC}</button>`:'<span></span>'}
-      </div>`).join('')}
-      <div class="log-rpe">
-        <div class="lbl">Насколько тяжело было в последнем подходе</div>
-        <div class="rpe-row">${[6,7,8,9,10].map(v=>`<button type="button" data-v="${v}" class="${v>=9?'hard':''}" aria-pressed="${L.rpe===v}">${v}</button>`).join('')}</div>
-        <div class="rpe-legend"><span>легко, запас 4</span><span>ещё 1–2</span><span>предел</span></div>
-      </div>
-      <div class="log-actions">
-        <button type="button" class="btn fill">По плану</button>
-        <button type="button" class="btn addset">+ подход</button>
-      </div>`;
-    bind();
-  };
-  const save=()=>{
-    L.n=ex.name;
-    /* что было запланировано — чтобы в следующий раз честно посчитать выполнение */
-    L.tr=P.lo; L.th=P.hi; L.ns=P.sets; L.wk=weekKind(state.cycle,state.week);
-    if(!L.d && hasData(L)) L.d=isoDay();
-    logs[k]=L; saveLogs();
-    /* все подходы записаны → упражнение отмечено само */
-    const full=L.sets.length && L.sets.every(x=>num(x.r)!=null);
-    if(full) setDone(true);
-  };
-  const bind=()=>{
-    box.querySelectorAll('.ls-row').forEach(row=>{
-      const i=+row.dataset.i, w=row.querySelector('.ls-w'), r=row.querySelector('.ls-r');
-      w.addEventListener('input',()=>{ L.sets[i].w=w.value.trim(); save(); });
-      r.addEventListener('input',()=>{ L.sets[i].r=r.value.trim(); row.classList.toggle('full', num(r.value)!=null); save(); });
-      /* записал повторы не в последнем подходе — таймер отдыха стартует сам */
-      r.addEventListener('change',()=>{ if(rs && num(r.value)!=null && i<L.sets.length-1) startRest(rs, ex.name); });
-      const b=row.querySelector('.ls-rest'); if(b) b.addEventListener('click',()=>startRest(rs, ex.name));
-    });
-    box.querySelectorAll('.rpe-row button').forEach(b=>b.addEventListener('click',()=>{
-      const v=+b.dataset.v; L.rpe = (L.rpe===v) ? null : v; save(); draw();
-    }));
-    box.querySelector('.fill').addEventListener('click',()=>{
-      L.sets.forEach((x,i)=>{ const p=PL.sets[i]||PL.sets[PL.sets.length-1]||{};
-        if(!x.w && p.w) x.w=fmtW(p.w); if(!x.r && p.r!=null) x.r=String(p.r); });
-      save(); draw();
-    });
-    box.querySelector('.addset').addEventListener('click',()=>{ L.sets.push({w:'',r:''}); save(); draw(); });
-  };
-  draw();
-  return box;
-}
-
 /* ---------- Данные с часов ----------
    Начало и конец тренировки, средний и максимальный пульс, калории.
-   Часы завышают калории на силовых — к еде прибавляется около 300 ккал, а не вся цифра. */
+   Калории с часов идут в отчёт и выгрузку; к цели еды не прибавляются (С7). */
 const watchKey = id => `${state.cycle}-${state.week}-${id}`;
 const hm2min = t => { if(!t) return null; const [h,m]=t.split(':').map(Number); return h*60+m; };
 function watchMinutes(w){
@@ -979,50 +588,6 @@ function watchMinutes(w){
   return (b-a+1440)%1440;
 }
 const fmtDur = m => m==null ? '' : `${Math.floor(m/60)}:${String(m%60).padStart(2,'0')}`;
-function watchBlock(id){
-  const k=watchKey(id);
-  const W=watch[k]||{};
-  const box=document.createElement('div');
-  box.className='watchbox';
-  box.innerHTML=`
-    <div class="wb-h">Данные с часов</div>
-    <div class="wb-row">
-      <div class="wb-cell"><button type="button" class="tbtn" data-t="s">Начал сейчас</button>
-        <input type="time" class="tinp" data-f="s" value="${esc(W.s)}" aria-label="Начало"></div>
-      <div class="wb-cell"><button type="button" class="tbtn" data-t="e">Закончил сейчас</button>
-        <input type="time" class="tinp" data-f="e" value="${esc(W.e)}" aria-label="Конец"></div>
-    </div>
-    <div class="wb-row three">
-      <label>Ср. пульс<input type="text" inputmode="numeric" class="app-field" data-f="hr" value="${esc(W.hr)}" placeholder="уд/мин"></label>
-      <label>Макс. пульс<input type="text" inputmode="numeric" class="app-field" data-f="mx" value="${esc(W.mx)}" placeholder="уд/мин"></label>
-      <label>Ккал<input type="text" inputmode="numeric" class="app-field" data-f="kc" value="${esc(W.kc)}" placeholder="активные"></label>
-    </div>
-    <div class="wb-sum"></div>`;
-  const sum=box.querySelector('.wb-sum');
-  const paint=()=>{
-    const w=watch[k]||{}, m=watchMinutes(w), parts=[];
-    if(m!=null) parts.push(`длительность ${fmtDur(m)}`);
-    if(num(w.hr)!=null) parts.push(`пульс ${w.hr}${num(w.mx)!=null?'/'+w.mx:''}`);
-    if(num(w.kc)!=null) parts.push(`${w.kc} ккал по часам · к еде +300`);
-    sum.innerHTML = parts.length ? `<span style="color:var(--carb)">✓</span> ${parts.join(' · ')}` : '<span style="color:var(--muted)">Нажми «Начал сейчас» в начале и «Закончил сейчас» в конце: часы не должны идти дольше тренировки</span>';
-  };
-  const put=(f,v)=>{
-    const cur=watch[k]||{};
-    if(v===''||v==null) delete cur[f]; else cur[f]=v;
-    if(Object.keys(cur).length) watch[k]=cur; else delete watch[k];
-    saveWatch(); paint();
-  };
-  box.querySelectorAll('.tbtn').forEach(b=>b.addEventListener('click',()=>{
-    const f=b.dataset.t, v=nowHM(); put(f,v);
-    box.querySelector(`.tinp[data-f="${f}"]`).value=v;
-    toast(f==='s'?`Начало ${v}`:`Конец ${v}`);
-  }));
-  box.querySelectorAll('.tinp').forEach(i=>i.addEventListener('change',()=>put(i.dataset.f, i.value)));
-  box.querySelectorAll('.app-field').forEach(i=>i.addEventListener('input',()=>put(i.dataset.f, num(i.value)==null?'':num(i.value))));
-  paint();
-  return box;
-}
-
 /* ############################################################
    ТРЕНИРОВКА ОТ НАЧАЛА ДО КОНЦА
    «Начать» → идёт (время, сколько сделано) → «Закончить» → итог
@@ -1047,67 +612,6 @@ function setWatch(id, f, v){
   if(Object.keys(cur).length) watch[k]=cur; else delete watch[k];
   saveWatch();
 }
-let sessTick=0;
-function sessionBar(e, day){
-  clearInterval(sessTick);
-  const id=day.id, st=sessionState(id), W=watch[watchKey(id)]||{};
-  const box=document.createElement('div');
-  box.className='sessbar '+st;
-  const isToday = isNowWeek() && e.dow===new Date().getDay();
-  const S=daySummary(day);
-  const watchFold=`<div class="sb-more"><button type="button" class="linkbtn sb-watch">${st==='idle'?'Записать время и пульс вручную':'Время, пульс и калории с часов'}</button><div class="sb-wslot" hidden></div></div>`;
-
-  if(st==='idle'){
-    if(!isToday){ box.innerHTML=watchFold; }
-    else box.innerHTML=`<button type="button" class="btn btn-primary sb-start">Начать тренировку</button>${watchFold}`;
-  } else if(st==='run'){
-    const el=()=>{ const m=watchMinutes({s:W.s, e:nowHM()}); return m==null?'':fmtDur(m); };
-    box.innerHTML=`<div class="sb-row"><div><div class="sb-t">Идёт тренировка</div>
-        <div class="sb-s">с ${esc(W.s)} · <span class="sb-el">${el()}</span> · сделано ${S.done} из ${S.total}</div></div>
-        <button type="button" class="btn sb-stop">Закончить</button></div>${watchFold}`;
-    sessTick=setInterval(()=>{ const x=box.querySelector('.sb-el'); if(!x || !x.isConnected) return clearInterval(sessTick); x.textContent=el(); }, 30000);
-  } else {
-    const m=watchMinutes(W), d=dayDate(e), feel=num((body[d]||{}).feel);
-    box.innerHTML=`<div class="sb-t">Тренировка сделана${m?` · ${fmtDur(m)}`:''}</div>
-      <div class="sb-s">${S.done} из ${S.total} упражнений${S.vol?` · поднято ${S.vol.toLocaleString('ru-RU')} кг`:''}</div>
-      <div class="sb-feel"><span>Самочувствие после, 1–10</span>
-        <div class="scale">${Array.from({length:10},(_,i)=>`<button type="button" data-v="${i+1}" aria-pressed="${feel===i+1}">${i+1}</button>`).join('')}</div></div>
-      ${watchFold}`;
-    box.querySelectorAll('.sb-feel button').forEach(b=>b.addEventListener('click',()=>{
-      const v=+b.dataset.v; body[d]=body[d]||{};
-      if(num(body[d].feel)===v) delete body[d].feel; else body[d].feel=v;
-      saveBody();
-      box.querySelectorAll('.sb-feel button').forEach(x=>x.setAttribute('aria-pressed', String(num(body[d].feel)===+x.dataset.v)));
-    }));
-  }
-  const start=box.querySelector('.sb-start');
-  if(start) start.addEventListener('click',()=>{
-    setWatch(id,'s',nowHM()); renderDays(); updateProgress();
-    const w=document.querySelector(`#${id} .warmblock`); if(w) w.scrollIntoView({behavior:'smooth', block:'start'});
-    toast(`Начало ${nowHM()} · удачной тренировки`);
-  });
-  const stop=box.querySelector('.sb-stop');
-  if(stop) stop.addEventListener('click',()=>finishSession(id));
-  const wb=box.querySelector('.sb-watch'), slot=box.querySelector('.sb-wslot');
-  wb.addEventListener('click',()=>{
-    if(!slot.firstChild) slot.appendChild(watchBlock(id));
-    slot.hidden=!slot.hidden;
-  });
-  return box;
-}
-function finishSession(id){
-  setWatch(id,'e',nowHM()); renderDays(); updateProgress();
-  const b=document.querySelector(`#${id} .sessbar`); if(b) b.scrollIntoView({behavior:'smooth', block:'center'});
-  toast('Готово. Оцени самочувствие — это видно в отчёте');
-}
-function finishBtn(id){
-  const b=document.createElement('button');
-  b.type='button'; b.className='btn btn-primary sb-finish';
-  b.textContent='Закончить тренировку';
-  b.addEventListener('click',()=>finishSession(id));
-  return b;
-}
-
 /* ---------- «Не получается?» ----------
    Пропуск (перенос), физры не было, болею — в одном меню */
 function unskip(id){ delete skips[skipKey(id)]; delete skips[dropKey(id)]; saveSkips(); renderAll(); }
@@ -1119,160 +623,3 @@ function pauseWeek(fromDow){
   saveSkips(); renderAll();
   toast('Пауза до конца недели. После — первая тренировка будет легче');
 }
-function dayMenu(e, dropped, moved){
-  const box=document.createElement('div');
-  box.className='day-tools';
-  if(dropped){
-    box.innerHTML=`<button class="skipbtn on" type="button">Вернуть день</button>`;
-    box.firstChild.addEventListener('click',()=>unskip(e.id));
-    return box;
-  }
-  const speed=e.id==='d2'||e.id==='d4', pe=e.id==='d2' && !isSession() && !summerMode();
-  const opts=[
-    {a:'skip', t:moved?'Снова не сделал':'Пропустил',
-     s:moved?'отменить тренировку на этой неделе':(speed?'скоростная не переносится — просто отменится':'перенести на ближайший подходящий день')},
-    ...(moved?[{a:'back', t:'Вернуть в свой день', s:'перенос не нужен'}]:[]),
-    ...(pe?[{a:'pe', t:noPE()?'Физра всё-таки была':'Физры не было', s:noPE()?'вернуть скоростную после физры':'прыжки дома, выносливость — горкой на дорожке'}]:[]),
-    {a:'ill', t:'Болею', s:'пауза до конца недели, после — мягкое возвращение'}
-  ];
-  box.innerHTML=`<button class="skipbtn more${moved||noPE()&&speed?' moved':''}" type="button" aria-expanded="false">${moved?'Перенесено · изменить':'Не получается?'}</button>
-    <div class="day-menu" hidden>${opts.map(o=>`<button type="button" class="dm-opt" data-a="${o.a}"><b>${o.t}</b><span>${o.s}</span></button>`).join('')}</div>`;
-  const btn=box.querySelector('.more'), menu=box.querySelector('.day-menu');
-  btn.addEventListener('click',()=>{ menu.hidden=!menu.hidden; btn.setAttribute('aria-expanded', String(!menu.hidden)); });
-  menu.querySelectorAll('.dm-opt').forEach(o=>o.addEventListener('click',()=>{
-    const a=o.dataset.a;
-    if(a==='skip'){ if(speed && !moved){ skips[skipKey(e.id)]=true; skips[dropKey(e.id)]=true; saveSkips(); renderAll(); } else toggleSkip(e.id); }
-    else if(a==='back') unskip(e.id);
-    else if(a==='pe') togglePE();
-    else if(a==='ill'){ if(confirm('Поставить паузу до конца недели? Тренировки этой недели отменятся, вернуть можно кнопкой «Вернуть день».')) pauseWeek(e.dow); }
-  }));
-  return box;
-}
-
-/* Строка замены: «Заменить на …» или «Вернуть …» */
-function subRow(ex){
-  if(ex.sub) return `<div class="subrow">Замена для «${ex.sub.from}»: ${ex.sub.why}.
-    <button type="button" class="linkbtn subbtn" data-from="${esc(ex.sub.from)}" data-on="0">Вернуть «${ex.sub.from}»</button></div>`;
-  const A=ALTS[ex.name];
-  if(!A || /пропустить/.test(ex.dose)) return '';
-  return `<div class="subrow">Если ${A.why} — <button type="button" class="linkbtn subbtn" data-from="${esc(ex.name)}" data-on="1">заменить на «${A.name}»</button></div>`;
-}
-
-/* Карточка упражнения: галочка, дозировка, журнал, техника */
-function exCard(day, ex){
-  const k=key(day.id,ex.id), done=!!marks[k];
-  /* вес на эту неделю — видно без раскрытия карточки */
-  let doseShown=ex.dose;
-  if(isLogged(ex)){
-    const P=parseDose(ex.dose), pl=planFor(ex, P, logKey(day.id, ex.id)), bd=planBadge(ex, P, pl);
-    if(bd){
-      if(/·\s*[\d.,]+\s*кг/.test(doseShown)) doseShown=doseShown.replace(/·\s*[\d.,]+\s*кг/, '· '+bd);
-      else if(/·\s*(свой вес|рюкзак [\d–]+ кг)/.test(doseShown)) doseShown=doseShown.replace(/·\s*(свой вес|рюкзак [\d–]+ кг)/, '· '+bd);
-      else doseShown+=' · '+bd;
-    }
-  }
-  const t=TECH[ex.tech]||{text:'<p>Описание будет добавлено.</p>'};
-  const card=document.createElement('article');
-  card.className='ex'+(done?' ex-done':'');
-  card.innerHTML=`
-    <div class="ex-head" tabindex="0" role="button" aria-expanded="false">
-      <button class="check" role="checkbox" aria-checked="${done}" aria-label="${ex.name}"></button>
-      <div class="ex-main">
-        <div class="ex-name">${ex.name}</div>
-        <div class="ex-meta">
-          ${ex.badge[0]==='Тест'?`<span class="badge ${ex.badge[1]}">тест</span>`:''}${ex.sub?'<span class="badge b-sub">замена</span>':''}
-          <span class="dose">${doseShown}</span>${ex.rest&&ex.rest!=='—'?`<span class="rest">отдых ${ex.rest}</span>`:''}
-        </div>
-      </div>
-      <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
-    </div>
-    <div class="fold"><div class="fold-inner"><div class="ex-body">
-      <div class="logslot"></div>
-      ${ex.warm?`<div class="warmsets${/^Не нужна/.test(ex.warm)?' none':''}">
-        <span class="ws-l">Подводка</span><span>${ex.warm}</span></div>`:''}
-      ${figFor(ex.tech,ex.name)}
-      <div class="tech">${t.text}</div>
-      ${subRow(ex)}
-    </div></div></div>`;
-  bindFold(card.querySelector('.ex-head'), card);
-  const sb=card.querySelector('.subbtn');
-  if(sb) sb.addEventListener('click',e=>{ e.stopPropagation(); setSub(sb.dataset.from, sb.dataset.on==='1'); renderAll(); });
-  const chk=card.querySelector('.check');
-  const setDone=now=>{
-    if(!!marks[k]===now) return;
-    if(now) marks[k]=true; else delete marks[k];
-    chk.setAttribute('aria-checked',now?'true':'false');
-    card.classList.toggle('ex-done',now);
-    saveMarks(); updateProgress();
-  };
-  chk.addEventListener('click',e=>{ e.stopPropagation(); setDone(!marks[k]); });
-  const slot=card.querySelector('.logslot');
-  if(isLogged(ex)) slot.appendChild(logBlock(day, ex, card, setDone));
-  if(ex.action==='ready' && isNowWeek()){
-    const low=readyLow();
-    const b=document.createElement('button');
-    b.type='button'; b.className='btn actbtn'+(low?' on':''); b.style.width='100%';
-    b.textContent= low ? 'Метку достал — вернуть обычный день' : 'Не достал метку 2 из 3 → лёгкий день';
-    b.addEventListener('click',()=>{ setReadyLow(!low); renderAll(); });
-    slot.appendChild(b);
-  }
-  if(ex.action==='jump'){
-    const b=document.createElement('button');
-    b.type='button'; b.className='btn btn-primary actbtn'; b.style.width='100%';
-    b.textContent='Посчитать прыжок по видео →';
-    b.addEventListener('click',()=>{ goTab('prog','#jumpTool'); });
-    slot.appendChild(b);
-  }
-  return card;
-}
-
-/* ---------- Таймер отдыха ----------
-   Считает от времени окончания, поэтому не сбивается, если телефон
-   гасил экран. Экран на время отдыха не гаснет (где это умеет Safari). */
-const RT={end:0,total:0,iv:0,wake:null,ctx:null};
-function beep(){
-  try{
-    const c=RT.ctx; if(!c) return;
-    [0,0.22,0.44].forEach(t=>{
-      const o=c.createOscillator(), g=c.createGain();
-      o.frequency.value=880; o.connect(g); g.connect(c.destination);
-      g.gain.setValueAtTime(0.0001,c.currentTime+t);
-      g.gain.exponentialRampToValueAtTime(0.35,c.currentTime+t+0.02);
-      g.gain.exponentialRampToValueAtTime(0.0001,c.currentTime+t+0.18);
-      o.start(c.currentTime+t); o.stop(c.currentTime+t+0.2);
-    });
-  }catch(e){}
-  try{ navigator.vibrate && navigator.vibrate([200,100,200]); }catch(e){}
-}
-async function wakeOn(){ try{ if('wakeLock' in navigator && !RT.wake) RT.wake=await navigator.wakeLock.request('screen'); }catch(e){} }
-function wakeOff(){ try{ RT.wake && RT.wake.release(); }catch(e){} RT.wake=null; }
-function startRest(sec, label){
-  try{
-    RT.ctx = RT.ctx || new (window.AudioContext||window.webkitAudioContext)();
-    if(RT.ctx.state==='suspended') RT.ctx.resume();
-  }catch(e){}
-  RT.end=Date.now()+sec*1000; RT.total=sec;
-  document.getElementById('rtLabel').textContent = 'Отдых · ' + (label||'');
-  const el=document.getElementById('rtimer');
-  el.classList.add('show'); el.classList.remove('done'); document.body.classList.add('timing');
-  wakeOn(); clearInterval(RT.iv); RT.iv=setInterval(tickRest,250); tickRest();
-}
-function tickRest(){
-  const el=document.getElementById('rtimer');
-  const left=Math.max(0, Math.round((RT.end-Date.now())/1000));
-  document.getElementById('rtTime').textContent=`${Math.floor(left/60)}:${String(left%60).padStart(2,'0')}`;
-  document.getElementById('rtBar').style.transform=`scaleX(${RT.total?left/RT.total:0})`;
-  if(left<=0 && !el.classList.contains('done')){
-    el.classList.add('done'); document.getElementById('rtLabel').textContent='Отдых закончился — подход';
-    beep(); wakeOff();
-    clearInterval(RT.iv);
-    setTimeout(()=>{ if(el.classList.contains('done')){ el.classList.remove('show'); document.body.classList.remove('timing'); } }, 8000);
-  }
-}
-function stopRest(){ clearInterval(RT.iv); wakeOff(); document.getElementById('rtimer').classList.remove('show'); document.body.classList.remove('timing'); }
-document.getElementById('rtStop').addEventListener('click', stopRest);
-document.getElementById('rtPlus').addEventListener('click',()=>{
-  const el=document.getElementById('rtimer');
-  if(el.classList.contains('done')){ startRest(30, ''); return; }
-  RT.end+=30000; RT.total+=30; tickRest();
-});

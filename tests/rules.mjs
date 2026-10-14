@@ -62,7 +62,7 @@ const W7 = '2026-11-16';
   check('на подход меньше', /^3 ×/.test(row.dose), row.dose);
   /* 10–20 дней — тот же вес, без прибавки (21+ — минус 10 %) */
   check('вес без прибавки: как в прошлый раз', pl.w === 14, String(pl.w));
-  check('пояснение на дне', await p.evaluate(() => { renderAll(); return /Возвращение после перерыва/.test(document.body.innerText); }));
+  check('пояснение на дне', await p.evaluate(() => { daySheet('d5'); const t = document.querySelector('.sheet').innerText; closeSheets(); return /Возвращение после перерыва/.test(t); }));
   await ctx.close();
 }
 
@@ -112,7 +112,7 @@ const W7 = '2026-11-16';
   await p.evaluate(() => setSub('Жим гантелей стоя', true));
   ex = await dayEx(p, 'd3');
   check('жим стоя → сидя', ex.some(x => x.id === 'c5' && x.name === 'Жим гантелей сидя со спинкой'));
-  check('кнопка замены в карточке', await p.evaluate(() => { renderAll(); return document.querySelectorAll('.subbtn').length > 0; }));
+  check('кнопка замены в «Как делать»', await p.evaluate(() => { const e = buildWeek().find(x => x.id === 'd3'); const ex = e.day.ex.find(x => x.sub || ALTS[x.name]); techSheet(ex.tech, ex.name, ex); const ok = !!document.querySelector('.sheet [data-sub]'); closeSheets(); return ok; }));
   await ctx.close();
 }
 
@@ -143,16 +143,16 @@ const W7 = '2026-11-16';
 {
   const { ctx, p } = await at('2027-12-20');
   const r = await p.evaluate(() => ({ pos: [state.cycle, state.week], label: weekInfo().label,
-    kinds: [19, 24, 25, 30, 31].map(w => weekKind(3, w)), title: document.getElementById('wbTitle').textContent }));
+    kinds: [19, 24, 25, 30, 31].map(w => weekKind(3, w)), title: (goTab('plan'), document.querySelector('#scr-plan .h1').textContent) }));
   check('после 52 недель — «план пройден», недели идут дальше', r.pos[0] === 3 && r.pos[1] > 24 && /План пройден/.test(r.label), JSON.stringify(r));
   check('повтор последнего блока: 25 = 19, 30 = 24 (разгрузка), 31 = 19', r.kinds.join() === 'build,deload,build,deload,build' && /^Повтор блока/.test(r.title), JSON.stringify(r));
   check('ошибок нет', p.errs.length === 0, p.errs.join(' | '));
   await ctx.close();
 }
 
-/* 7б. Пятница: первый шаг после физры, без прыжков и без разминки; в сессию — нет */
+/* 7б. Пятница: первый шаг после физры, без прыжков и без разминки — только на 1-й неделе (С9); в сессию — нет */
 {
-  const { ctx, p } = await at('2026-10-16');
+  const { ctx, p } = await at('2026-10-09');
   const r = await p.evaluate(() => {
     const e = buildWeek().find(x => x.id === 'd4');
     return { dow: e && e.dow, names: e ? e.day.ex.map(x => x.name) : [], noWarm: e && e.day.noWarm,
@@ -160,13 +160,14 @@ const W7 = '2026-11-16';
   });
   check('пятница: старты и ускорения после физры', r.dow === 5 && r.names.join() === 'Старты из баскетбольной стойки,Ускорения 20 м' && r.noWarm, JSON.stringify(r));
   check('в сессию пятницы-«первого шага» нет', r.ses === false, JSON.stringify(r));
+  check('на 2-й неделе пятница свободна (С9)', await p.evaluate(() => withWeek(1, 2, () => !buildWeek().some(x => x.id === 'd4'))));
   await ctx.close();
 }
 {
   /* с 3-й недели пятница без тренировки, а неделя считается (раньше падала на пустой пятнице) */
   const { ctx, p } = await at('2026-11-20');
   const r = await p.evaluate(() => ({ d4: buildWeek().some(x => x.id === 'd4'), days: buildWeek().length,
-    rendered: document.querySelectorAll('#weekstrip .wchip').length }));
+    rendered: (goTab('plan'), document.querySelectorAll('#scr-plan .wk .wd').length) }));
   check('пятница с 3-й недели свободна, неделя на месте', !r.d4 && r.days === 7 && r.rendered === 7, JSON.stringify(r));
   await ctx.close();
 }
@@ -192,8 +193,9 @@ const W7 = '2026-11-16';
   const { ctx, p } = await at('2026-10-12', { planOnboarded: true });
   const r = await p.evaluate(() => {
     const ids = w => warmupFor(w).list.map(x => x.id);
-    renderDaily();
-    return { cells: document.querySelectorAll('.dcell[data-k]').length, box: document.getElementById('dailyBox').innerHTML.length > 0,
+    goTab('plan'); dailySheet(0);
+    const box = !!document.querySelector('.sheet') && document.querySelectorAll('.sheet details.lx').length === DAILY.length; closeSheets();
+    return { cells: document.querySelectorAll('#scr-plan .dots7 [data-di]').length, box,
              warm1: ids(1), warm2: ids(2), noDaily: [1, 2, 3, 4].every(w => ids(w).every(x => !['ww', 'wg', 'wf', 'wn'].includes(x))),
              dur: [1, 2, 3, 4].map(w => warmupFor(w).dur), daily: DAILY.map(x => x.id).join(), mins: dailyMinutes() };
   });
@@ -305,7 +307,7 @@ const W7 = '2026-11-16';
     return { c2: ics.includes('DTSTART;VALUE=DATE:20270111'), txt: /2 нед\., с 28 декабря до 10 января/.test(txt) && /11 января/.test(txt) };
   });
   check('сессия 2 недели → цикл 2 с 11.01 в календаре и справке', r.c2 && r.txt, JSON.stringify(r));
-  check('предупреждение про подписку при своих датах', await p.evaluate(() => /своя дата старта/.test(document.getElementById('backupBox').innerText)));
+  check('предупреждение про подписку при своих датах', await p.evaluate(() => { openSettings(); const t = document.querySelector('#page').innerText; closePage(true); return /своя дата старта/.test(t); }));
   await ctx.close();
 }
 /* 11. Шапка недели показывает те же веса, что карточка упражнения */
@@ -323,7 +325,7 @@ const W7 = '2026-11-16';
 /* 12. Сон: тяжёлая неделя — перед разгрузкой, в цикле 3 это 5-я */
 {
   const { ctx, p } = await at('2026-10-06');
-  const r = await p.evaluate(() => [[1, 3], [1, 11], [3, 5], [3, 3]].map(([c, w]) => withWeek(c, w, () => /8–8\.5/.test(sleepPlan()))));
+  const r = await p.evaluate(() => [[1, 3], [1, 11], [3, 5], [3, 3]].map(([c, w]) => withWeek(c, w, () => /8–8\.5/.test(sleepInfo().target))));
   check('сон: +полчаса перед разгрузкой и тестом', r.join() === 'true,true,true,false', r.join());
   await ctx.close();
 }

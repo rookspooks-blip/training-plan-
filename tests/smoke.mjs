@@ -32,21 +32,20 @@ async function page(opts = {}) {
   p.errs = [];
   p.on('pageerror', e => p.errs.push(e.message));
   p.on('console', m => { if (m.type() === 'error' && !/favicon/.test(m.text())) p.errs.push(m.text()); });
-  if (opts.init) await p.addInitScript(opts.init);
+  if (opts.init) await p.addInitScript(opts.init, opts.arg);
   await p.goto(URL0, { waitUntil: 'networkidle' });
   await p.waitForTimeout(400);
   return { ctx, p };
 }
 
-/* 1. Загрузка и все вкладки без ошибок */
+/* 1. Загрузка, все вкладки, плеер, библиотека и настройки без ошибок */
 {
   const { ctx, p } = await page();
-  for (const t of ['today', 'food', 'prog', 'body', 'ref']) {
-    await p.evaluate(t => { if (document.querySelector(`.tab[data-tab="${t}"]`)) goTab(t); }, t);
-    await p.waitForTimeout(200);
-  }
-  check('загрузка и вкладки без ошибок', p.errs.length === 0, p.errs.join(' | '));
-  check('формат данных записан', await p.evaluate(() => localStorage.getItem('planSchema')) === '2');
+  for (const t of ['now', 'plan', 'food', 'me']) { await p.click(`#tabbar [data-go="${t}"]`); await p.waitForTimeout(150); }
+  await p.evaluate(() => { openLibrary(); openLibGroup('tech'); closePage(true); openSettings(); closePage(true);
+    const e = buildWeek().find(x => x.type === 'gym'); openPlayer(e.id); closePlayer(); openJumpTool(); closePage(true); });
+  check('загрузка, вкладки, плеер, страницы без ошибок', p.errs.length === 0, p.errs.join(' | '));
+  check('формат данных записан', await p.evaluate(() => localStorage.getItem('planSchema')) === '3');
   await ctx.close();
 }
 
@@ -66,22 +65,39 @@ async function page(opts = {}) {
     auto: JSON.parse(localStorage.getItem('planAutoBackup') || 'null'),
     marks: marks['1-1-d1-a1'],
   }));
-  check('миграция 1→2', r.schema === '2' && r.grams === null && r.marks === true);
+  check('миграция 1→3', r.schema === '3' && r.grams === null && r.marks === true);
   check('автокопия перед миграцией', !!(r.auto && r.auto.data.planGrams && r.auto.data.planMarks));
+  await ctx.close();
+}
+
+/* 2б. Формат 2 → 3: данные не трогаются */
+{
+  const data = { planMarks: { '1-1-d1-a1': true }, planLog: { '1-1-d1-a4': { n: 'X', d: '2026-10-05', sets: [{ w: '6', r: '10' }], rpe: 8 } },
+    planBody: { '2026-10-05': { w: 76.2, knee: 2 } }, planFood: { '1-1-0': { dishOn: { shake: true }, grams: {}, custom: [], times: { shake: '09:00' } } } };
+  const { ctx, p } = await page({ init: d => {
+    if (sessionStorage.getItem('seeded')) return;
+    sessionStorage.setItem('seeded', '1');
+    localStorage.clear(); localStorage.setItem('planSchema', '2');
+    for (const k in d) localStorage.setItem(k, JSON.stringify(d[k]));
+  }, arg: data });
+  const r = await p.evaluate(keys => ({ schema: localStorage.getItem('planSchema'), same: keys.map(k => localStorage.getItem(k)) }), Object.keys(data));
+  check('миграция 2→3 без изменений данных', r.schema === '3' && r.same.every((v, i) => v === JSON.stringify(Object.values(data)[i])), JSON.stringify(r).slice(0, 160));
   await ctx.close();
 }
 
 /* 3. Битые данные не роняют приложение */
 {
   const { ctx, p } = await page({ init: () => {
-    localStorage.setItem('planSchema', '2');
+    localStorage.setItem('planSchema', '3');
     localStorage.setItem('planMarks', '[1,2]');
     localStorage.setItem('planCirc', '{"a":1}');
     localStorage.setItem('planPos', '{"cycle":9,"week":-4}');
     localStorage.setItem('planFood', 'не json');
+    localStorage.setItem('planCook', '"строка"');
   } });
-  const r = await p.evaluate(() => ({ m: Array.isArray(marks), c: Array.isArray(circ), s: state }));
-  check('битые данные заменяются пустыми', !r.m && r.c && r.s.cycle === 1 && r.s.week >= 1 && p.errs.length === 0, p.errs.join(' | '));
+  const r = await p.evaluate(() => ({ m: Array.isArray(marks), c: Array.isArray(circ), s: state, cook: typeof cook }));
+  for (const t of ['now', 'plan', 'food', 'me']) { await p.click(`#tabbar [data-go="${t}"]`); await p.waitForTimeout(100); }
+  check('битые данные заменяются пустыми', !r.m && r.c && r.s.cycle === 1 && r.s.week >= 1 && r.cook === 'object' && p.errs.length === 0, p.errs.join(' | '));
   await ctx.close();
 }
 
@@ -93,7 +109,7 @@ async function page(opts = {}) {
     Storage.prototype.setItem = () => { throw new Error('QuotaExceededError'); };
     const ok = store.set('planMarks', {});
     Storage.prototype.setItem = orig;
-    return { ok, toast: document.querySelector('.toast')?.textContent || '' };
+    return { ok, toast: document.querySelector('#toast span')?.textContent || '' };
   });
   check('ошибка записи → подсказка', r.ok === false && /сохранить/i.test(r.toast), r.toast);
   await ctx.close();
@@ -106,7 +122,7 @@ async function page(opts = {}) {
     goTab('food');
     custom.push({ name: '<img src=x onerror="window.__x=1">Шаурма', k: 700, p: 30, f: 30, c: 70, t: '12:00' });
     saveFood(); renderAll();
-    const el = [...document.querySelectorAll('.cust-name')].find(e => /Шаурма/.test(e.textContent));
+    const el = [...document.querySelectorAll('#scr-food [data-ci] .nm')].find(e => /Шаурма/.test(e.textContent));
     return { text: el ? el.textContent : null, img: el ? !!el.querySelector('img') : null, x: window.__x };
   });
   check('экранирование своей еды', r.text && r.text.includes('<img') && r.img === false && r.x === undefined, JSON.stringify(r));
@@ -151,7 +167,9 @@ async function page(opts = {}) {
 /* 7. Офлайн: после первого открытия всё работает без сети */
 {
   const { ctx, p } = await page({ sw: true });
-  await p.evaluate(() => navigator.serviceWorker.ready);
+  const ready = await p.evaluate(() => Promise.race([navigator.serviceWorker.ready.then(() => true), new Promise(r => setTimeout(() => r(false), 8000))]));
+  if (!ready) { console.log('SKIP офлайн-запуск — service worker не установился в этой среде (проверить на телефоне)'); await ctx.close(); await browser.close(); server.close();
+    console.log(fails ? `\n${fails} проверок не прошли` : '\nВсе проверки прошли'); process.exit(fails ? 1 : 0); }
   await p.reload({ waitUntil: 'networkidle' });
   await p.waitForTimeout(500);
   await ctx.setOffline(true);

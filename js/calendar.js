@@ -46,7 +46,7 @@ function buildIcs(start, session, kcal){
     n++;
     const L=['BEGIN:VEVENT', `UID:tri-cikla-${n}@training-plan`, 'DTSTAMP:20260930T120000Z',
       `DTSTART;TZID=Europe/Moscow:${ymd(day)}T${from}00`, `DTEND;TZID=Europe/Moscow:${ymd(day)}T${to}00`];
-    if(opt.until) L.push(`RRULE:FREQ=WEEKLY;${opt.byday?`BYDAY=${opt.byday};`:''}UNTIL=${until(opt.until)}`);
+    if(opt.until) L.push(`RRULE:FREQ=${opt.daily?'DAILY':'WEEKLY'};${opt.byday?`BYDAY=${opt.byday};`:''}UNTIL=${until(opt.until)}`);
     L.push(`SUMMARY:${esc(title)}`, `DESCRIPTION:${esc(desc)}`,
       'BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${esc(title)}`, `TRIGGER:-PT${opt.alarm??30}M`, 'END:VALARM', 'END:VEVENT');
     ev.push(...L);
@@ -71,11 +71,11 @@ function buildIcs(start, session, kcal){
     timed(plus(sesStart,5), '1300',ICS_DUR.s3,'Сессия Б · дома','Присед на одной ноге, брусья, румынская, копенгаген.',{until:sesEnd});
   }
   /* Утренние замеры: весь цикл 1 и сессия */
-  timed(start,         '0830','0835','Взвеситься натощак','Вес и пульс лёжа — во вкладку «Прогресс».',{until:sesEnd, byday:'MO,WE,FR', alarm:0});
-  timed(plus(start,4), '0835','0840','Колено: оценка 0–10','Медленный присед на одной ноге, оцени боль 0–10 и запиши в «Прогресс».',{until:sesEnd, alarm:0});
+  timed(start,         '0830','0835','Взвеситься натощак','Каждое утро, минимум 3 раза в неделю. Вес, пульс, колено, поясница и пах — на экране «Сейчас».',{until:sesEnd, daily:true, alarm:0});
+  timed(plus(start,4), '0835','0840','Колено: оценка 0–10','Медленный присед на одной ноге, оцени боль 0–10 и запиши на экране «Сейчас».',{until:sesEnd, alarm:0});
   /* Тест прыжка — в субботу тестовых недель, до тренировки */
   ICS_JUMP_WEEKS.forEach(w=>timed(plus(start,(w-1)*7+5),'1250','1300','Тест прыжка',
-    'После разминки, до тренировки. Телефон на полу сбоку, slo-mo. Считать во вкладке «Прогресс».',{alarm:60}));
+    'После разминки, до тренировки. Телефон на полу сбоку, slo-mo. Считать: «Я» → «Прыжок по видео».',{alarm:60}));
   /* Пятничного «Первого шага» больше нет: после физры сразу пара, старты — в подъезде в понедельник */
   /* Вехи */
   allDay(start, 'Старт сушки · неделя 1', kcal.cut);

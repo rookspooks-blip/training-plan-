@@ -3,182 +3,46 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
-<title>План подготовки · 12 месяцев</title>
+<title>Три цикла</title>
 
 <!-- Приложение для iPhone: Safari → «Поделиться» → «На экран Домой» -->
-<meta name="theme-color" content="#12100E">
-<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#F4F2EC" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#050506" media="(prefers-color-scheme: dark)">
+<meta name="color-scheme" content="light dark">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Три цикла">
 <meta name="format-detection" content="telephone=no">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
-
 <link rel="stylesheet" href="css/app.css">
+<!-- Тема — до первой отрисовки, чтобы не мигало: светлая «Чистый лист», тёмная «Табло» -->
+<script>
+try{ var t=(JSON.parse(localStorage.getItem('planSet')||'{}')||{}).theme; if(t==='light'||t==='dark') document.documentElement.dataset.theme=t; }catch(e){}
+</script>
 </head>
 
-<body data-tab="today">
-<div class="sbar" aria-hidden="true"></div>
-<div class="wrap" id="top">
+<body>
+<main class="wrap" id="scr-now"></main>
+<main class="wrap" id="scr-plan" hidden></main>
+<main class="wrap" id="scr-food" hidden></main>
+<main class="wrap" id="scr-me" hidden></main>
 
-<header>
-  <!-- Одна карточка: где мы в плане, сколько отмечено. Нажатие — выбор недели -->
-  <button class="weekbtn" type="button" id="openModal" aria-haspopup="dialog">
-    <span class="wb-txt">
-      <span class="wb-t" id="wbTitle">Неделя 1</span>
-      <span class="wb-s" id="wbSub"></span>
-    </span>
-    <span class="wb-done"><span class="num" id="progCount">0 / 0</span><span class="wb-bar"><i id="progBar"></i></span></span>
-    <svg class="wb-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <circle cx="12" cy="12" r="3"/>
-      <path d="M19.4 15a1.7 1.7 0 00.3 1.9l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-2.9 1.2v.2a2 2 0 11-4 0v-.1a1.7 1.7 0 00-3-1.5l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00-1.1-2.9H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-3l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 002.9-1.1V3a2 2 0 114 0v.1a1.7 1.7 0 003 1.5l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 001.1 2.9h.2a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/>
-    </svg>
-  </button>
-  <div class="status" id="status" hidden></div>
-  <div id="installHint"></div>
-  <div id="onboard"></div>
-</header>
+<div id="mini" hidden></div>
 
-<div class="tab" data-tab="today">
-<div class="weekstrip" id="weekstrip"></div>
-<div id="dailyBox" style="scroll-margin-top:16px"></div>
-
-<main id="days"></main>
-</div><!-- /today -->
-
-<div class="tab" data-tab="food" hidden>
-<section class="section" id="food">
-  <h2>Питание</h2>
-  <p class="lede" id="foodLede"></p>
-  <div class="fdays" id="foodDays"></div>
-  <div id="mealTiming"></div>
-  <div id="macroSummary"></div>
-  <!-- Главное действие на виду, редкие — под «Ещё» -->
-  <div class="btn-row" style="margin:0 0 16px">
-    <button class="btn btn-primary" type="button" id="btnAssemble">Собрать день</button>
-    <button class="btn" type="button" id="btnFoodMore" aria-expanded="false">Ещё</button>
-  </div>
-  <div id="foodMore" hidden>
-    <div class="btn-row" style="margin:0 0 8px">
-      <button class="btn" type="button" id="btnResetFood">Базовый набор</button>
-      <button class="btn" type="button" id="btnClearDay">Обнулить день</button>
-    </div>
-    <div class="btn-row" style="margin:0 0 8px">
-      <button class="btn" type="button" id="btnClearWeek">Очистить неделю</button>
-    </div>
-    <p style="font-size:12.5px;color:var(--muted);margin:0 0 16px">
-      Отмечай тумблером то, что реально съел: время приёма поставится само, его можно поправить.
-      «Собрать день» берёт завтрак, два разных мяса с подходящими гарнирами, овощи и перекус и подгоняет граммовки под калораж недели.
-      Пустые дни в недельную статистику не попадают.
-    </p>
-  </div>
-  <div id="dishes"></div>
-  <div class="card" id="customBox"></div>
-  <div id="weekStats"></div>
-  <div id="weekReport"></div>
-</section>
-
-</div><!-- /food -->
-
-<div class="tab" data-tab="prog" hidden>
-<section class="section" id="progress">
-  <h2>Прогресс</h2>
-  <p class="lede">Замеры, тесты и выводы из них. Всё хранится на телефоне.</p>
-  <div id="progToday"></div>
-  <div id="progCoach"></div>
-  <div id="progWeight"></div>
-  <div id="progCirc"></div>
-  <div id="progTests"></div>
-  <div id="progExport"></div>
-  <div class="card" id="jumpTool"></div>
-</section>
-</div><!-- /prog -->
-
-<div class="tab" data-tab="body" hidden>
-<section class="section" id="sleep">
-  <h2>Сон</h2>
-  <p class="lede" id="sleepLede"></p>
-  <div id="sleepBox"></div>
-</section>
-
-<section class="section" id="recovery">
-  <h2>Восстановление</h2>
-  <p class="lede" id="recLede"></p>
-  <div id="recBox"></div>
-</section>
-</div><!-- /body -->
-
-<div class="tab" data-tab="ref" hidden>
-<section class="section" id="extra">
-  <h2 style="margin-bottom:4px">Справка</h2>
-  <p class="lede">То, что читаешь один раз или по случаю. Каждый пункт раскрывается отдельно.</p>
-  <div id="extraBody"></div>
-</section>
-</div><!-- /ref -->
-
-</div><!-- /wrap -->
-
-<div class="backdrop" id="backdrop" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-  <div class="modal">
-    <h3 id="modalTitle">Выбор недели</h3>
-    <p class="mlede">Меняет всю страницу: веса, разминку, калории, кардио и сон.</p>
-    <div class="glabel">Цикл</div>
-    <div class="pick cycles" id="pickCycle"></div>
-    <div class="glabel">Неделя</div>
-    <div class="pick weeks" id="pickWeek"></div>
-    <p class="legend">Оранжевым отмечены разгрузочные и тестовая недели, голубым — сессионный блок.</p>
-    <div class="mset">
-      <div class="mrow"><div>Неделя по дате<div class="ms">Приложение само переключает неделю</div></div>
-        <label class="switch"><input type="checkbox" id="setAuto"><i></i></label></div>
-      <div class="mrow"><div>Старт плана<div class="ms">Понедельник недели 1</div></div><input type="date" id="setStart"></div>
-      <div class="mrow"><div>Сессионный блок<div class="ms">Недель после сушки, до цикла 2</div></div>
-        <div class="stepper"><button type="button" id="sesMinus">−</button><b id="sesN">4</b><button type="button" id="sesPlus">+</button></div></div>
-      <div class="mrow"><div>Практика летом до<div class="ms">После неё — каникулы до 31 августа</div></div><input type="date" id="setPractice"></div>
-    </div>
-    <div class="btn-row">
-      <button class="btn" type="button" id="cancelModal">Отмена</button>
-      <button class="btn btn-primary" type="button" id="applyModal">Применить</button>
-    </div>
-  </div>
-</div>
-
-<nav class="quick">
-  <button type="button" class="on" data-go="today">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10l9-7 9 7v10a1 1 0 01-1 1h-5v-7H9v7H4a1 1 0 01-1-1z"/></svg>
-    Сегодня
-  </button>
-  <button type="button" data-go="food">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2v9a3 3 0 006 0V2M9 11v11M17 2c-1.5 2-2 4-2 7v4h4M19 13v9"/></svg>
-    Еда
-  </button>
-  <button type="button" data-go="prog">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 20h18M6 16l4-5 3 3 5-7"/><circle cx="18" cy="7" r="1.6" fill="currentColor"/></svg>
-    Прогресс
-  </button>
-  <button type="button" data-go="body">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 00-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 10-7.8 7.8l8.8 8.8 8.8-8.8a5.5 5.5 0 000-7.8z"/></svg>
-    Тело
-  </button>
-  <button type="button" data-go="ref">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
-    Справка
-  </button>
+<nav id="tabbar" aria-label="Разделы">
+  <button type="button" data-go="now" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Сейчас</button>
+  <button type="button" data-go="plan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>План</button>
+  <button type="button" data-go="food"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><circle cx="12" cy="13" r="4"/><path d="M12 2v3"/></svg>Еда</button>
+  <button type="button" data-go="me"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>Я</button>
 </nav>
 
-<div class="toast" id="toast" role="status" aria-live="polite"></div>
-<div class="rtimer" id="rtimer" role="timer" aria-live="off">
-  <div><div class="rt-l" id="rtLabel">Отдых</div><div class="rt-t" id="rtTime">0:00</div></div>
-  <button type="button" id="rtPlus">+30</button>
-  <button type="button" id="rtStop" aria-label="Остановить">✕</button>
-  <div class="rt-bar"><i id="rtBar"></i></div>
-</div>
-
-<button id="toTop" type="button" aria-label="Наверх">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
-</button>
+<section id="page" hidden></section>
+<section id="player" hidden></section>
+<div id="sheets"></div>
+<div id="toast" role="status" aria-live="polite"><span></span><button type="button" hidden>Отменить</button></div>
 
 <script src="js/figures.js"></script>
 <script src="js/tech.js"></script>
@@ -190,11 +54,18 @@
 <script src="js/training.js"></script>
 <script src="js/rules.js"></script>
 <script src="js/food.js"></script>
-<script src="js/ui.js"></script>
 <script src="js/calendar.js"></script>
-<script src="js/iphone.js"></script>
 <script src="js/progress.js"></script>
 <script src="js/export.js"></script>
-<script src="js/main.js"></script>
+<script src="js/iphone.js"></script>
+<script src="js/ui/kit.js"></script>
+<script src="js/ui/now.js"></script>
+<script src="js/ui/player.js"></script>
+<script src="js/ui/week.js"></script>
+<script src="js/ui/foodtab.js"></script>
+<script src="js/ui/me.js"></script>
+<script src="js/ui/library.js"></script>
+<script src="js/ui/settings.js"></script>
+<script src="js/ui/app.js"></script>
 </body>
 </html>

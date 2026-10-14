@@ -41,114 +41,26 @@ const FASTFOOD=[
   {name:'Ролл (Ростикс)', k:580, p:25, f:28, c:55, bad:1},
   {name:'Стрипсы, 3 шт', k:290, p:21, f:15, c:18}
 ];
-let favEdit=false;
-let custOpen={ff:false, form:false};   /* фастфуд и ручной ввод раскрываются по кнопке */
 const getFavs=()=>store.get('planFav', null) || FAV_SEED.slice();
 const setFavs=f=>store.set('planFav', f);
 
-function renderCustom(){
-  const box=document.getElementById('customBox');
-  const rows = custom.length
-    ? custom.map((x,i)=>`<div class="cust-row">
-        <div class="cust-main">
-          <div class="cust-name">${esc(x.name)}</div>
-          <div class="cust-mac">${x.k} ккал · Б ${x.p} · Ж ${x.f} · У ${x.c}</div>
-          <input type="time" class="tinp cust-t" data-i="${i}" value="${esc(x.t)}" aria-label="Время приёма">
-        </div>
-        <button class="cust-fav" type="button" data-i="${i}" aria-label="В избранное">☆</button>
-        <button class="cust-del" type="button" data-i="${i}" aria-label="Удалить">×</button>
-      </div>`).join('')
-    : '';
-
-  const favs=getFavs();
-  box.innerHTML=`
-    <h3>Съел ещё</h3>
-    <div class="favhead"><span>Быстро добавить</span><button type="button" id="favEdit">${favEdit?'Готово':'Изменить'}</button></div>
-    <div class="favs">${favs.map((x,i)=>`<button type="button" class="fav${x.bad?' bad':''}" data-i="${i}">${favEdit?'<span class="x">×</span>':''}${esc(x.name)} <small>${esc(x.k)}</small></button>`).join('')}</div>
-    ${favs.some(x=>x.bad)&&!favEdit?`<p style="font-size:12px;color:var(--muted);margin:-6px 0 14px">Оранжевая рамка — то, что план советует заменить: много жира или сахара и мало белка.</p>`:''}
-    ${rows}
-    <div class="btn-row" style="margin-top:4px">
-      <button class="btn" type="button" id="cuFF" aria-expanded="${custOpen.ff}">Фастфуд</button>
-      <button class="btn" type="button" id="cuOwn" aria-expanded="${custOpen.form}">Своё блюдо</button>
-    </div>
-    <div ${custOpen.ff?'':'hidden'} style="margin-top:14px">
-      <div class="favhead"><span>Фастфуд · цифры примерные</span></div>
-      <div class="favs">${FASTFOOD.map((x,i)=>`<button type="button" class="fav ff${x.bad?' bad':''}" data-i="${i}">${x.name} <small>${x.k}</small></button>`).join('')}</div>
-      <p style="font-size:12px;color:var(--muted);margin:-6px 0 0">На сушке лучший выбор — двойной чизбургер и стрипсы: больше всего белка на калорию. Шаурма 700 г — больше половины дневной нормы: бери половину или без лишнего соуса, в этот день остальное — мясо и овощи.</p>
-    </div>
-    <div ${custOpen.form?'':'hidden'} style="margin-top:14px">
-      <div class="cust-form">
-        <input class="wide" id="cuName" type="text" placeholder="Что это было">
-        <input id="cuK" type="number" inputmode="numeric" placeholder="ккал">
-        <input id="cuP" type="number" inputmode="numeric" placeholder="белки, г">
-        <input id="cuF" type="number" inputmode="numeric" placeholder="жиры, г">
-        <input id="cuC" type="number" inputmode="numeric" placeholder="углеводы, г">
-      </div>
-      <div class="btn-row"><button class="btn btn-primary" type="button" id="cuAdd">Добавить в день</button></div>
-      <p style="font-size:12.5px;color:var(--muted);margin:12px 0 0">Знаешь только калории — впиши их, остальное оставь пустым.</p>
-    </div>`;
-  box.querySelector('#cuFF').addEventListener('click',()=>{ custOpen.ff=!custOpen.ff; renderCustom(); });
-  box.querySelector('#cuOwn').addEventListener('click',()=>{ custOpen.form=!custOpen.form; renderCustom(); if(custOpen.form) document.getElementById('cuName').focus(); });
-
-  box.querySelectorAll('.cust-del').forEach(b=>{
-    b.addEventListener('click',()=>{
-      custom.splice(+b.dataset.i,1);
-      saveFood(); renderCustom(); renderSummary(); renderWeekStats(); renderFoodDays();
-    });
-  });
-
-  box.querySelector('#favEdit').addEventListener('click',()=>{ favEdit=!favEdit; renderCustom(); });
-  box.querySelectorAll('.cust-t').forEach(inp=>inp.addEventListener('change',()=>{
-    const x=custom[+inp.dataset.i]; if(!x) return;
-    if(inp.value) x.t=inp.value; else delete x.t;
-    saveFood();
-  }));
-  box.querySelectorAll('.fav.ff').forEach(b=>b.addEventListener('click',()=>{
-    const x=FASTFOOD[+b.dataset.i];
-    custom.push({name:x.name, k:x.k, p:x.p, f:x.f, c:x.c, t:nowHM()});
-    saveFood(); renderCustom(); renderSummary(); renderWeekStats(); renderFoodDays();
-    toast(`${x.name} — добавлено, ${nowHM()}`);
-  }));
-  box.querySelectorAll('.fav:not(.ff)').forEach(b=>b.addEventListener('click',()=>{
-    const f=getFavs(), x=f[+b.dataset.i];
-    if(favEdit){ f.splice(+b.dataset.i,1); setFavs(f); renderCustom(); return; }
-    custom.push({name:x.name, k:x.k, p:x.p, f:x.f, c:x.c, t:nowHM()});
-    saveFood(); renderCustom(); renderSummary(); renderWeekStats(); renderFoodDays();
-    toast(`${x.name} — добавлено, ${nowHM()}`);
-  }));
-  box.querySelectorAll('.cust-fav').forEach(b=>b.addEventListener('click',()=>{
-    const x=custom[+b.dataset.i], f=getFavs();
-    if(f.some(y=>y.name===x.name)){ toast('Уже в избранном'); return; }
-    f.unshift({name:x.name, k:x.k, p:x.p, f:x.f, c:x.c}); setFavs(f); renderCustom(); toast('Добавлено в избранное');
-  }));
-
-  box.querySelector('#cuAdd').addEventListener('click',()=>{
-    const name=box.querySelector('#cuName').value.trim();
-    const num=id=>Math.max(0, Math.round(+box.querySelector(id).value||0));
-    const k=num('#cuK');
-    if(!name && !k) return;
-    custom.push({name:name||'Без названия', k, p:num('#cuP'), f:num('#cuF'), c:num('#cuC'), t:nowHM()});
-    saveFood(); renderCustom(); renderSummary(); renderWeekStats(); renderFoodDays();
-  });
-}
-
 /* Расписание приёмов пищи для выбранного дня.
-   Зависит от того, что это за день: силовая вечером,
-   физра утром или свободный. */
+   Зависит от того, что это за день и когда тренировка: физра утром,
+   силовая вечером (Пн 17:00, Ср 18:00) или днём (Сб 13:00), кардио или свободный */
+const hmAdd=(t,m)=>{ const x=(hm2min(t)+m+1440)%1440; return pad2(Math.floor(x/60))+':'+pad2(x%60); };
 function mealTiming(d){
   const w=buildWeek();
-  const e=w.find(x=>(x.dow===0?6:x.dow-1)===d);
-  const kind = !e ? 'rest'
-             : e.type==='gym' ? ((e.id==='d2'||e.id==='d4') && !summerMode() ? 'pe' : 'gym')
-             : e.type==='run' ? 'cardio' : 'rest';
+  const es=w.filter(x=>(x.dow===0?6:x.dow-1)===d && x.type!=='rest' && !(x.type==='gym' && isDropped(x.id)));
+  const gym=es.find(x=>x.type==='gym'), run=es.find(x=>x.type==='run');
+  const kind = gym ? ((gym.id==='d2'||gym.id==='d4') && !summerMode() && !(gym.day && gym.day.swap) ? 'pe' : 'gym')
+             : run ? 'cardio' : 'rest';
 
   const T=nutritionTarget();
   const P=T.p;
-
   /* доли белка по приёмам */
   const share = a => Math.round(P*a);
 
-  if(kind==='pe') return {
+  if(kind==='pe') return {kind,
     title:'Физра в 9:50, скоростная сразу после',
     warn:'Ранний подъём. Завтрак обязателен: физра плюс спринты на пустом баке — это забитые ноги и медленный первый шаг.',
     rows:[
@@ -162,20 +74,30 @@ function mealTiming(d){
       ['22:30','Молоко и сыр', share(.13)]
     ]};
 
-  if(kind==='gym') return {
-    title:'Силовая ' + (e && e.dow>=6||e&&e.dow===0 ? 'днём' : 'в 17:00'),
-    warn:'',
-    rows:[
+  if(kind==='gym'){
+    /* контейнер — за полтора часа до зала, сразу после — не тянуть до дома */
+    const t=trainingTime(gym)||'17:00', before=hmAdd(t,-100), after=hmAdd(t,105);
+    const rows = hm2min(t)>=15*60 ? [
       ['08:45','Подъём',''],
       ['09:00','Шейкер', share(.23)],
       ['12:30','Контейнер 1', share(.26)],
-      ['15:20','Контейнер 2 — за 1.5 часа до зала', share(.23)],
-      ['17:00','Тренировка',''],
-      ['18:45','Сразу после зала — не тяни до дома', share(.26)],
+      [before,'Контейнер 2 — за 1.5 часа до зала', share(.23)],
+      [t,'Тренировка',''],
+      [after,'Сразу после зала — не тяни до дома', share(.26)],
       ['22:30','Молоко и сыр', share(.13)]
-    ]};
+    ] : [
+      ['08:45','Подъём',''],
+      ['09:00','Шейкер', share(.23)],
+      ...(hm2min(before)>9*60+60 ? [[before,'Контейнер 1 — за 1.5 часа до зала', share(.26)]] : []),
+      [t,'Тренировка',''],
+      [after,'Сразу после зала — не тяни до дома', share(.26)],
+      ['18:00','Контейнер 2 и сырые овощи', share(.23)],
+      ['22:30','Молоко и сыр', share(.13)]
+    ];
+    return {kind, title:`${gym.day.title.split(' · ')[0]} в ${t}`, warn:'', rows};
+  }
 
-  return {
+  return {kind,
     title: kind==='cardio' ? 'Кардио утром' : 'День без тренировки',
     warn:'',
     rows:[
@@ -187,72 +109,57 @@ function mealTiming(d){
       ['22:30','Молоко и сыр', share(.13)]
     ]};
 }
+const MEAL_NOTES=[
+  'Белок раскидан на четыре приёма намеренно. Синтез мышечного белка запускается порцией и держится 3–4 часа, потом затухает: четыре средних приёма дают четыре всплеска, два больших — два. Калории при этом те же.',
+  'Углеводы ставь вокруг тренировки, а не размазывай ровно. Вечерние углеводы не вредят — это миф, они скорее помогают засыпать.',
+  'Вода: 2.5–3 литра в день плюс 500–700 мл за тренировку. Ты много потеешь, соли еду щедрее обычного.'
+];
 
-function renderTiming(){
-  const box=document.getElementById('mealTiming');
-  if(!box) return;
-  const bind=()=>{ const sub=box.querySelector('.sub'); if(sub) bindFold(sub.querySelector('.sub-head'), sub); };
-  setTimeout(bind,0);
-  const t=mealTiming(foodDay);
-  box.innerHTML=`<div class="card">
-    <div class="sub" style="margin:0;background:transparent;border:0">
-      <div class="sub-head" tabindex="0" role="button" aria-expanded="false" style="padding:0 0 10px">
-        <span>Когда есть · ${DOW_FULL[foodDay===6?0:foodDay+1]}<br>
-          <span style="font-size:12.5px;color:var(--muted);font-weight:500">${t.title}</span></span>
-        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
-      </div>
-      <div class="fold"><div class="fold-inner"><div>
-    ${t.warn?`<div class="warnbox">${t.warn}</div>`:''}
-    <table>
-      <tr><th>Время</th><th>Что</th><th>Белок</th></tr>
-      ${t.rows.map(r=>`<tr><td class="tnum">${r[0]}</td><td>${r[1]}</td><td class="tnum">${r[2]?r[2]+' г':''}</td></tr>`).join('')}
-    </table>
-    <p style="margin-top:12px">Белок раскидан на четыре приёма намеренно. Синтез мышечного белка запускается порцией и держится 3–4 часа, потом затухает: четыре средних приёма дают четыре всплеска, два больших — два. Калории при этом те же.</p>
-    <p>Углеводы ставь вокруг тренировки, а не размазывай ровно. Вечерние углеводы не вредят — это миф, они скорее помогают засыпать.</p>
-    <p>Вода: 2.5–3 литра в день плюс 500–700 мл за тренировку. Ты много потеешь, соли еду щедрее обычного.</p>
-    </div></div></div></div>
-  </div>`;
+/* ---------- Контейнеры недели ----------
+   Готовишь раз в неделю: что приготовил и сколько порций. Съеденная порция —
+   это блюдо, отмеченное в дне, поэтому отдельный счётчик не нужен */
+const cookKey=()=>`${state.cycle}-${state.week}`;
+const cookList=()=>asArr(cook[cookKey()],[]);
+function portionsEaten(dishId){
+  let n=0;
+  for(let d=0; d<7; d++){ const e=foodLog[`${state.cycle}-${state.week}-${d}`]; if(e && e.dishOn && e.dishOn[dishId]) n++; }
+  return n;
 }
-
-/* Сводка за день. Рисуется отдельно от списка блюд, чтобы можно
-   было обновлять цифры, не пересоздавая карточки и не закрывая их. */
-function renderSummary(){
-  const T=nutritionTarget(), D=dayTotals();
-  const delta=D.k-T.k;
-  /* пустой день — не «недобор», а ещё не начатый день */
-  const cls=!D.k?'idle':Math.abs(delta)<=120?'ok':(delta<0?'under':'over');
-  const txt=!D.k?'Отметь, что съел, — сумма посчитается сама':Math.abs(delta)<=120?'В цель':(delta<0?`Осталось ${-delta} ккал`:`Перебор ${delta} ккал`);
-  const pct=(a,b)=>Math.min(100, b? a/b*100 : 0);
-
-  document.getElementById('macroSummary').innerHTML=`
-    <div class="macro-summary">
-      <div class="kcal-row"><div class="kcal-big num">${D.k}</div><div class="kcal-goal">цель ${T.k} ккал</div></div>
-      <div class="bar"><i style="width:${pct(D.k,T.k)}%"></i></div>
-      <div class="kcal-delta ${cls}">${txt}</div>
-      <div class="mgrid">
-        <div class="mcell m-prot"><div class="mtop"><span class="mname">Белки</span><span class="mval num">${D.p}/${T.p}</span></div><div class="mbar"><i style="width:${pct(D.p,T.p)}%"></i></div></div>
-        <div class="mcell m-fat"><div class="mtop"><span class="mname">Жиры</span><span class="mval num">${D.f}/${T.f}</span></div><div class="mbar"><i style="width:${pct(D.f,T.f)}%"></i></div></div>
-        <div class="mcell m-carb"><div class="mtop"><span class="mname">Углеводы</span><span class="mval num">${D.c}/${T.c}</span></div><div class="mbar"><i style="width:${pct(D.c,T.c)}%"></i></div></div>
-      </div>
-    </div>`;
+const cookLeft=item=>Math.max(0, (item.n|0)-portionsEaten(item.m));
+const dishById=id=>DISHES.find(d=>d.id===id);
+function containerTotals(item){
+  const a=dishTotals(dishById(item.m)), b=item.g && dishById(item.g) ? dishTotals(dishById(item.g)) : {k:0,p:0,f:0,c:0};
+  return {k:a.k+b.k, p:a.p+b.p, f:a.f+b.f, c:a.c+b.c};
 }
+/* Съел блюдо (или порцию контейнера): в выбранный день, время — сейчас, если день сегодняшний */
+function eatDish(ids){
+  const now = foodDay===todayIdx() && isNowWeek() ? nowHM() : null;
+  const added=[];
+  ids.filter(Boolean).forEach(id=>{ if(!dishOn[id]){ dishOn[id]=true; added.push(id); if(now) mealTimes[id]=now; } });
+  saveFood();
+  return added;
+}
+function uneatDish(ids){ ids.forEach(id=>{ dishOn[id]=false; delete mealTimes[id]; }); saveFood(); }
 
-/* Обновляет цифры внутри одной карточки блюда на месте.
-   Ничего не пересоздаёт, поэтому раскрытый аккордеон остаётся раскрытым. */
-function refreshDish(card, d){
-  const t=dishTotals(d);
-  const m=card.querySelector('.dish-macros');
-  m.querySelector('.k').textContent=`${t.k} ккал`;
-  m.querySelector('.p').textContent=`Б ${t.p}`;
-  m.querySelector('.f').textContent=`Ж ${t.f}`;
-  m.querySelector('.c').textContent=`У ${t.c}`;
-
-  card.querySelectorAll('.ing').forEach(row=>{
-    const fid=row.dataset.food, base=+row.dataset.base;
-    const F=FOOD[fid], g=gramOf(d.id,fid,base);
-    row.querySelector('input').value=g;
-    row.querySelector('.ing-kcal').textContent=`${Math.round(F.k*g/100)} ккал · Б ${(F.p*g/100).toFixed(1)}`;
-  });
+/* ---------- Как обычно в это время ----------
+   Что ты чаще всего записывал в ±2 часа от сейчас за последние две недели.
+   Мало истории — добирается избранным */
+function usualNow(limit){
+  limit=limit||4;
+  const now=hm2min(nowHM()), today=isoDay(), cnt={};
+  const add=(key, item)=>{ cnt[key]=cnt[key]||{n:0, item}; cnt[key].n++; };
+  for(const k in foodLog){
+    const [c,w,d]=k.split('-').map(Number); if(!c||!w) continue;
+    const date=dateOfCW(c,w,d); if(date>=today || daysBetween(date,today)>14) continue;
+    const e=foodLog[k];
+    Object.entries(e.times||{}).forEach(([id,t])=>{
+      if(e.dishOn && e.dishOn[id] && dishById(id) && Math.abs(hm2min(t)-now)<=120) add('d:'+id, {kind:'dish', id});
+    });
+    (e.custom||[]).forEach(x=>{ if(x.t && Math.abs(hm2min(x.t)-now)<=120) add('c:'+x.name, {kind:'custom', x:{name:x.name,k:x.k,p:x.p,f:x.f,c:x.c}}); });
+  }
+  const out=Object.values(cnt).sort((a,b)=>b.n-a.n).map(v=>v.item).filter(it=>!(it.kind==='dish' && dishOn[it.id]));
+  getFavs().forEach(f=>{ if(out.length<limit && !out.some(o=>o.kind==='custom' && o.x.name===f.name)) out.push({kind:'custom', x:f, fav:true}); });
+  return out.slice(0,limit);
 }
 
 /* Блоки еды: так они идут в списке и так собирается день */
@@ -264,7 +171,6 @@ const DISH_GROUPS=[
   ['snack','Перекус и добор','']
 ];
 const catOf = d => d.cat==='extra' ? 'snack' : d.cat;
-const dishOpen={};   /* какие блоки развёрнуты целиком */
 /* С чем мясо сочетается лучше всего */
 const PAIR={chicken:['g_rice','g_buck'], bolo:['g_pasta'], mince:['g_pasta','g_buck'], curry:['g_rice','g_potato'], fish:['g_buck','g_potato'],
   teriyaki:['g_rice','g_noodles'], goulash:['g_buck','g_potato'], meatballs:['g_pasta','g_rice'], chili:['g_rice','g_lavash'],
@@ -372,23 +278,7 @@ function assembleDay(){
   Object.keys(grams).forEach(k=>delete grams[k]);
   fitToTarget();
   saveFood();
-  renderNutrition();
-}
-
-/* Полоса выбора дня. Точка сверху — сегодня, зелёная снизу — день заполнен. */
-function renderFoodDays(){
-  const box=document.getElementById('foodDays');
-  const td=todayIdx();
-  box.innerHTML=DOW_IDX.map((d,i)=>
-    `<button class="fday${i===foodDay?' on':''}${i===td?' today':''}${dayFilled(i)?' filled':''}" type="button" data-d="${i}">
-       ${d}<span class="dot"></span></button>`).join('');
-  box.querySelectorAll('.fday').forEach(b=>{
-    b.addEventListener('click',()=>{
-      foodDay=+b.dataset.d;
-      loadFoodDay();
-      renderNutrition();
-    });
-  });
+  renderAll();
 }
 
 /* Итоги дня по записи в дневнике — нужно для недельной сводки */
@@ -409,81 +299,42 @@ function totalsOfDay(d){
   return {k:Math.round(k), p:Math.round(p), f:Math.round(f), c:Math.round(c)};
 }
 
-/* Сводка за неделю: где перебор, где недобор, и что с этим делать */
-function renderWeekStats(){
-  const box=document.getElementById('weekStats');
-  const T=nutritionTarget();
-  const rows=[], filled=[];
-
+/* Сводка за неделю: где перебор, где недобор, и что с этим делать.
+   Дни ±150 от цели — норма, среднее ±100 — попадание. Меньше двух
+   заполненных дней — сравнивать нечего */
+function weekFoodStats(){
+  const T=nutritionTarget(), rows=[], filled=[];
   for(let d=0; d<7; d++){
-    const on=dayFilled(d);
-    const t=on ? totalsOfDay(d) : null;
-    rows.push({d, on, t});
-    if(on && t) filled.push({d, k:t.k, diff:t.k-T.k});
+    const on=dayFilled(d), t=on ? totalsOfDay(d) : null;
+    const diff=t ? t.k-T.k : null;
+    rows.push({d, on, t, diff, cls: !t ? 'empty' : Math.abs(diff)<=150 ? 'ok' : (diff>0 ? 'over' : 'under')});
+    if(on && t) filled.push({d, k:t.k, diff});
   }
-
-  /* меньше двух дней — сравнивать нечего, блок не показываем */
-  if(filled.length < 2){ box.innerHTML=''; return; }
-
-  const scale = T.k*0.6;                       /* ширина полосы = ±60% цели */
-  const bars = rows.map(r=>{
-    if(!r.on) return `<div class="wsrow empty"><span class="wsd">${DOW_IDX[r.d]}</span>
-      <span class="wsbar"><span class="mid" style="left:50%"></span></span><span class="wsv">—</span></div>`;
-    const diff=r.t.k-T.k;
-    const cls = Math.abs(diff)<=150 ? 'ok' : (diff>0 ? 'over' : 'under');
-    const w = Math.min(50, Math.abs(diff)/scale*100);
-    const style = diff>=0
-      ? `left:50%;width:${w}%;background:${cls==='ok'?'var(--carb)':'var(--warn)'}`
-      : `right:50%;width:${w}%;background:${cls==='ok'?'var(--carb)':'var(--cardc)'}`;
-    return `<div class="wsrow ${cls}"><span class="wsd">${DOW_IDX[r.d]}</span>
-      <span class="wsbar"><span class="mid" style="left:50%"></span><i style="${style}"></i></span>
-      <span class="wsv">${diff>0?'+':''}${diff}</span></div>`;
-  }).join('');
-
-  const avg=Math.round(filled.reduce((a,x)=>a+x.k,0)/filled.length);
-  const over=filled.filter(x=>x.diff>150);
-  const under=filled.filter(x=>x.diff<-150);
-  const avgDiff=avg-T.k;
-
+  if(filled.length<2) return {T, rows, filled, enough:false};
+  const avg=Math.round(filled.reduce((a,x)=>a+x.k,0)/filled.length), avgDiff=avg-T.k;
+  const over=filled.filter(x=>x.diff>150), under=filled.filter(x=>x.diff<-150);
   let verdict;
-  if(Math.abs(avgDiff)<=100){
-    verdict=`<p><b>Среднее за неделю ${avg} ккал при цели ${T.k}.</b> Это попадание. Отдельные дни могут гулять — организм считает неделями, а не сутками.</p>`;
-  } else if(avgDiff>0){
-    verdict=`<p><b>Среднее за неделю ${avg} ккал, это на ${avgDiff} выше цели.</b> ${state.cycle===1 ? 'Сейчас сушка, так что перебор съедает дефицит: талия стоит — ищи, откуда эти калории.' : 'При наборе массы это не катастрофа, но если талия перестала уходить — стоит подровнять.'}</p>`;
-  } else {
-    verdict=`<p><b>Среднее за неделю ${avg} ккал, это на ${-avgDiff} ниже цели.</b> ${state.cycle===1 ? 'На сушке недобор больше 300 ккал бьёт по силе и сну: добери белком, а не сладким.' : 'Вот из-за этого вес и уезжает вниз. Добирать проще всего вторым шейкером — он не занимает объём.'}</p>`;
-  }
-
-  let pattern='';
+  if(Math.abs(avgDiff)<=100) verdict={lvl:'ok', b:`Среднее ${avg} ккал при цели ${T.k} — попадание.`, x:'Отдельные дни могут гулять — организм считает неделями, а не сутками.'};
+  else if(avgDiff>0) verdict={lvl:'over', b:`Среднее ${avg} ккал — на ${avgDiff} выше цели.`, x: state.cycle===1 ? 'Сейчас сушка, так что перебор съедает дефицит: талия стоит — ищи, откуда эти калории.' : 'При наборе массы это не катастрофа, но если талия перестала уходить — стоит подровнять.'};
+  else verdict={lvl:'under', b:`Среднее ${avg} ккал — на ${-avgDiff} ниже цели.`, x: state.cycle===1 ? 'На сушке недобор больше 300 ккал бьёт по силе и сну: добери белком, а не сладким.' : 'Вот из-за этого вес и уезжает вниз. Добирать проще всего вторым шейкером — он не занимает объём.'};
+  const notes=[];
   if(over.length){
-    const names=over.map(x=>DOW_IDX[x.d]).join(', ');
+    notes.push(`Перебор: ${over.map(x=>DOW_IDX[x.d]).join(', ')}.`);
     const weekend=over.filter(x=>x.d>=5).length;
-    pattern += `<p><b>Перебор:</b> ${names}.</p>`;
-    if(weekend && weekend>=over.length/2){
-      pattern += `<p>Перебор приходится на выходные — самый частый вариант. В будни день расписан парами, а в выходные еда перестаёт быть по расписанию, и вечер собирает всё, что не съел днём.</p>`;
-    }
+    if(weekend && weekend>=over.length/2) notes.push('Перебор приходится на выходные — самый частый вариант. В будни день расписан парами, а в выходные еда перестаёт быть по расписанию, и вечер собирает всё, что не съел днём.');
   }
-  if(under.length){
-    pattern += `<p><b>Недобор:</b> ${under.map(x=>DOW_IDX[x.d]).join(', ')}. Почти всегда это дни, где выпал завтрак или обед.</p>`;
-  }
-
-  const hasOver = over.length>0;
-  const advice = hasOver ? `
-    <div class="card" style="margin:14px 0 0;background:var(--surface2)">
-      <h3>Как не улетать в перебор</h3>
-      <p><b>Это не про силу воли.</b> Перебор вечером почти всегда означает, что днём было мало. Тело добирает своё, и добирает единственным доступным способом — за один заход. Чинить надо день, а не вечер.</p>
-      <p><b>Не пропускай первые два приёма.</b> Если утром и днём съедено по плану, вечером физически не влезет столько же, сколько влезает после голодного дня.</p>
-      <p><b>Пей до и после, а не во время.</b> Литр чая вместе с ужином занимает тот же объём, что и еда — отсюда и тяжесть, и ощущение «аж плохо».</p>
-      <p><b>Ешь медленнее.</b> Сигнал насыщения приходит с задержкой минут в двадцать. За это время после голодного дня съедается заметно больше нужного.</p>
-      <p><b>Выходные держи по тому же расписанию.</b> Не строже, а просто по времени: тот же шейкер утром, тот же контейнер днём.</p>
-      <p>И главное: один день с перебором ничего не портит — считается неделя. Наедаться до состояния «плохо» не стоит не потому, что это много калорий, а потому что так хуже усваивается и портится сон.</p>
-    </div>` : '';
-
-  box.innerHTML=`<div class="wstat"><h3>Сводка за неделю · заполнено ${filled.length} из 7</h3>
-    ${bars}
-    <div style="margin-top:14px;font-size:14.5px;line-height:1.55">${verdict}${pattern}</div>
-    ${advice}</div>`;
+  if(under.length) notes.push(`Недобор: ${under.map(x=>DOW_IDX[x.d]).join(', ')}. Почти всегда это дни, где выпал завтрак или обед.`);
+  return {T, rows, filled, enough:true, avg, avgDiff, over, under, verdict, notes, advice: over.length>0};
 }
+/* Как не улетать в перебор — показывается, когда на неделе есть перебор */
+const OVER_ADVICE=[
+  ['Это не про силу воли.','Перебор вечером почти всегда означает, что днём было мало. Тело добирает своё, и добирает единственным доступным способом — за один заход. Чинить надо день, а не вечер.'],
+  ['Не пропускай первые два приёма.','Если утром и днём съедено по плану, вечером физически не влезет столько же, сколько влезает после голодного дня.'],
+  ['Пей до и после, а не во время.','Литр чая вместе с ужином занимает тот же объём, что и еда — отсюда и тяжесть, и ощущение «аж плохо».'],
+  ['Ешь медленнее.','Сигнал насыщения приходит с задержкой минут в двадцать. За это время после голодного дня съедается заметно больше нужного.'],
+  ['Выходные держи по тому же расписанию.','Не строже, а просто по времени: тот же шейкер утром, тот же контейнер днём.'],
+  ['И главное:','один день с перебором ничего не портит — считается неделя. Наедаться до состояния «плохо» не стоит не потому, что это много калорий, а потому что так хуже усваивается и портится сон.']
+];
 
 /* ############################################################
    ОТЧЁТ ЗА НЕДЕЛЮ
@@ -606,211 +457,3 @@ function buildReport(){
   return L.join('\n');
 }
 
-function renderReport(){
-  const box=document.getElementById('weekReport');
-  let filled=0;
-  for(let d=0; d<7; d++) if(dayFilled(d)) filled++;
-
-  box.innerHTML=`<div class="report">
-    <h3>Отчёт за неделю</h3>
-    <p class="rl">Питание, тренировки, рабочие веса и замеры одним текстом. Скопируй и пришли — разберу, что подправить.${filled<3?` Питание пока заполнено за ${filled} ${filled===1?'день':'дня'} — эта часть будет неполной.`:''}</p>
-    <div class="btn-row" style="margin:0 0 12px">
-      <button class="btn btn-primary" type="button" id="btnReport">Собрать отчёт</button>
-      <button class="btn" type="button" id="btnShareReport" hidden>Поделиться</button>
-    <button class="btn" type="button" id="btnCopyReport">Скопировать</button>
-    </div>
-    <textarea id="reportText" readonly hidden></textarea>
-    <div class="ok" id="reportOk" style="display:none">Скопировано</div>
-  </div>`;
-
-  const ta=box.querySelector('#reportText');
-  const ok=box.querySelector('#reportOk');
-
-  box.querySelector('#btnReport').addEventListener('click',()=>{
-    ta.value=buildReport(); ta.hidden=false;
-    ok.style.display='none';
-  });
-
-  const shareBtn=box.querySelector('#btnShareReport');
-  if(navigator.share) shareBtn.hidden=false;
-  shareBtn.addEventListener('click',()=>{
-    if(!ta.value) ta.value=buildReport();
-    navigator.share({text:ta.value}).catch(()=>{});
-  });
-
-  box.querySelector('#btnCopyReport').addEventListener('click',()=>{
-    if(!ta.value){ ta.value=buildReport(); ta.hidden=false; }
-    if(navigator.clipboard && window.isSecureContext){
-      navigator.clipboard.writeText(ta.value)
-        .then(()=>{ ok.style.display='block'; toast('Отчёт скопирован'); })
-        .catch(()=>{});
-      return;
-    }
-    ta.removeAttribute('readonly');
-    ta.select();
-    ta.setSelectionRange(0, 999999);
-    let done=false;
-    try{ done=document.execCommand('copy'); }catch(e){}
-    ta.setAttribute('readonly','');
-    if(!done && navigator.clipboard){
-      navigator.clipboard.writeText(ta.value).then(()=>{ ok.style.display='block'; }).catch(()=>{});
-    } else if(done){
-      ok.style.display='block';
-    }
-  });
-}
-
-function renderNutrition(){
-  const info=weekInfo();
-  const m=missedSessions();
-  document.getElementById('foodLede').textContent =
-      m.total ? `Пропущено сессий: ${m.total}. Цель снижена — поправка небольшая, недоедать не надо.`
-    : info.kind==='deload' ? 'Разгрузочная неделя: калорий чуть меньше, белок тот же.'
-    : 'Один заход готовки на 30–40 минут. В будни только достать и разогреть.';
-
-  renderFoodDays();
-  renderTiming();
-  renderSummary();
-  renderWeekStats();
-  renderReport();
-
-  const root=document.getElementById('dishes');
-  root.innerHTML='';
-
-  DISH_GROUPS.forEach(([cat,title,lede])=>{
-    const list=DISHES.filter(d=>catOf(d)===cat);
-    if(!list.length) return;
-    const on=list.filter(d=>dishOn[d.id]);
-    const gh=document.createElement('div');
-    gh.className='dgroup';
-    gh.innerHTML=`<div class="dgroup-top"><h3>${title}</h3><span class="dgroup-n">${on.length?`выбрано ${on.length}`:'не выбрано'}</span></div>${lede?`<p>${lede}</p>`:''}`;
-    root.appendChild(gh);
-    /* длинный блок: сначала выбранное, остальное — по кнопке */
-    const open = dishOpen[cat] || list.length<=3;
-    const shown = open ? list : (on.length ? on : list.slice(0,3));
-    shown.forEach(d=>root.appendChild(dishCard(d)));
-    if(list.length>3){
-      const b=document.createElement('button');
-      b.type='button'; b.className='btn morebtn';
-      const rest=list.length-shown.length;
-      b.textContent = open ? 'Свернуть' : `Ещё варианты · ${rest}`;
-      b.addEventListener('click',()=>{ dishOpen[cat]=!open; renderNutrition(); if(!open) gh.scrollIntoView({block:'start'}); });
-      root.appendChild(b);
-    }
-  });
-  renderCustom();
-}
-
-/* Карточка блюда: тумблер «в дне», граммовки, рецепт */
-function dishCard(d){
-    const on=!!dishOn[d.id], t=dishTotals(d);
-    const card=document.createElement('article');
-    card.className='dish'+(on?'':' off');
-    card.innerHTML=`
-      <div class="dish-head" tabindex="0" role="button" aria-expanded="false">
-        <div class="dish-ic">${ICON[d.icon]}</div>
-        <div class="dish-main">
-          <div class="dish-name">${d.name}</div>
-          <div class="dish-when">${d.when}</div>
-          <div class="dish-macros">
-            <span class="k num">${t.k} ккал</span><span class="p num">Б ${t.p}</span>
-            <span class="f num">Ж ${t.f}</span><span class="c num">У ${t.c}</span>
-          </div>
-          <div class="dish-time">
-            <button type="button" class="tbtn now">Съел сейчас</button>
-            <input type="time" class="tinp" value="${esc(mealTimes[d.id])}" aria-label="Время приёма">
-            <button type="button" class="tclr" aria-label="Убрать время" ${mealTimes[d.id]?'':'hidden'}>×</button>
-          </div>
-        </div>
-        <button class="dish-toggle" role="switch" aria-checked="${on}" aria-label="Включить в день"></button>
-      </div>
-      <div class="fold"><div class="fold-inner"><div class="dish-body">
-        ${d.ing.map(([fid,base])=>{
-          const F=FOOD[fid], g=gramOf(d.id,fid,base);
-          return `<div class="ing" data-food="${fid}" data-base="${base}">
-            <span class="ing-main"><span class="ing-name">${F.n}</span>
-              <span class="ing-kcal">${Math.round(F.k*g/100)} ккал · Б ${(F.p*g/100).toFixed(1)}</span></span>
-            <span class="gram">
-              <button type="button" data-step="-10" aria-label="Минус 10 грамм">−</button>
-              <input type="number" value="${esc(g)}" min="0" max="2000" step="5" inputmode="numeric">
-              <button type="button" data-step="10" aria-label="Плюс 10 грамм">+</button>
-              <span class="u">г</span>
-            </span></div>`;
-        }).join('')}
-        <div class="sub">
-          <div class="sub-head" tabindex="0" role="button" aria-expanded="false">
-            <span>Рецепт</span>
-            <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
-          </div>
-          <div class="fold"><div class="fold-inner"><div class="sub-body">
-            <h5>Как готовить</h5>
-            <ol>${d.steps.map(s=>`<li>${s}</li>`).join('')}</ol>
-            ${d.tip?`<div class="tip">${d.tip}</div>`:''}
-          </div></div></div>
-        </div>
-      </div></div></div>`;
-
-    bindFold(card.querySelector('.dish-head'), card);
-    const sub=card.querySelector('.sub');
-    bindFold(sub.querySelector('.sub-head'), sub);
-
-    /* Тумблер «блюдо в дне»: меняем только вид карточки и сводку */
-    const tg=card.querySelector('.dish-toggle');
-    tg.addEventListener('click',e=>{
-      e.stopPropagation();
-      const now=!dishOn[d.id];
-      dishOn[d.id]=now;
-      tg.setAttribute('aria-checked', now?'true':'false');
-      card.classList.toggle('off', !now);
-      saveFood();
-      renderSummary(); renderWeekStats(); renderFoodDays(); refreshGroupCounts();
-    });
-
-    /* Граммовки: пересчитываем цифры на месте, карточку не трогаем,
-       поэтому раскрытый список ингредиентов не закрывается */
-    card.querySelectorAll('.ing').forEach(row=>{
-      const fid=row.dataset.food, input=row.querySelector('input');
-      const commit=v=>{
-        grams[`${d.id}-${fid}`]=Math.max(0,Math.min(2000,Math.round(v)));
-        saveFood();
-        refreshDish(card, d);
-        renderSummary(); renderWeekStats(); renderFoodDays();
-      };
-      row.querySelectorAll('button[data-step]').forEach(b=>{
-        b.addEventListener('click',e=>{
-          e.stopPropagation();
-          e.preventDefault();
-          commit((+input.value||0)+(+b.dataset.step));
-        });
-      });
-      input.addEventListener('change',()=>commit(+input.value||0));
-      input.addEventListener('click',e=>e.stopPropagation());
-      input.addEventListener('keydown',e=>e.stopPropagation());
-    });
-
-    /* время приёма: «Съел сейчас» пишет текущее, поле — любое. Время отмечает блюдо как съеденное */
-    const tinp=card.querySelector('.tinp'), clr=card.querySelector('.tclr');
-    const setTime=v=>{
-      if(v){
-        mealTimes[d.id]=v;
-        if(!dishOn[d.id]){ dishOn[d.id]=true; tg.setAttribute('aria-checked','true'); card.classList.remove('off'); }
-      } else delete mealTimes[d.id];
-      tinp.value=v||''; clr.hidden=!v;
-      saveFood(); renderSummary(); renderWeekStats(); renderFoodDays(); refreshGroupCounts();
-    };
-    card.querySelector('.tbtn.now').addEventListener('click',e=>{ e.stopPropagation(); const v=nowHM(); setTime(v); toast(`${d.name} · ${v}`); });
-    tinp.addEventListener('change',()=>setTime(tinp.value));
-    clr.addEventListener('click',e=>{ e.stopPropagation(); setTime(''); });
-    /* выключил блюдо — время тоже убираем */
-    tg.addEventListener('click',()=>{ if(!dishOn[d.id] && mealTimes[d.id]){ delete mealTimes[d.id]; tinp.value=''; clr.hidden=true; saveFood(); } });
-    /* включил сегодня — значит съел сейчас: время ставится само */
-    tg.addEventListener('click',()=>{ if(dishOn[d.id] && !mealTimes[d.id] && foodDay===todayIdx() && isNowWeek()) setTime(nowHM()); });
-    return card;
-}
-function refreshGroupCounts(){
-  document.querySelectorAll('#dishes .dgroup').forEach((g,i)=>{
-    const cat=DISH_GROUPS.filter(([c])=>DISHES.some(d=>catOf(d)===c))[i][0];
-    const n=DISHES.filter(d=>catOf(d)===cat && dishOn[d.id]).length;
-    g.querySelector('.dgroup-n').textContent = n ? `выбрано ${n}` : 'не выбрано';
-  });
-}

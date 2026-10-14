@@ -4,7 +4,7 @@
    ############################################################ */
 let state={cycle:1,week:1};
 /* Настройки: неделя по дате, длина сессионного блока, поправка калорий */
-const SETTINGS_DEFAULT={auto:true, start:'2026-10-05', session:4};
+const SETTINGS_DEFAULT={auto:true, start:'2026-10-05', session:4, theme:'auto'};
 let settings={...SETTINGS_DEFAULT, kcalAdj:{}};
 /* Цикл 1: недели 1–12 сушка, дальше — сессионный блок (зима, экзамены) */
 const isSession=(c,w)=>{ c=c??state.cycle; w=w??state.week; return c===1 && w>12; };
@@ -67,7 +67,7 @@ const store={
     catch(e){
       if(!storeWarned && typeof toast==='function'){
         storeWarned=true;
-        toast('Не получилось сохранить на телефоне — сохрани копию в «Справке»');
+        toast('Не получилось сохранить на телефоне — сохрани копию: «Я» → «Настройки и данные»');
       }
       return false;
     }
@@ -81,8 +81,8 @@ const asArr=(v,fb)=>Array.isArray(v) ? v : fb;
 
 /* Все ключи данных приложения. planSchema — версия формата */
 const DATA_KEYS=['planMarks','planSkips','planFood','planPos','planTodo','planLog','planSet',
-                 'planBody','planCirc','planTests','planFav','planWatch'];
-const SCHEMA=2;
+                 'planBody','planCirc','planTests','planFav','planWatch','planCook'];
+const SCHEMA=3;
 const LEGACY_KEYS=['planGrams','planCustom'];   /* формат 1: еда лежала вне дней */
 
 /* Снимок всех данных в отдельный ключ: перед миграцией и перед восстановлением */
@@ -105,6 +105,11 @@ function migrate(){
        старые общие ключи больше никто не читает */
     LEGACY_KEYS.forEach(k=>{ try{ localStorage.removeItem(k); }catch(e){} });
     v=2;
+  }
+  if(v<3){
+    /* формат 3 — новый дизайн: старые ключи читаются как есть, добавляется
+       planCook (контейнеры недели) и пах в утреннем замере. Ничего не переписывается */
+    v=3;
   }
   store.set('planSchema',v);
 }
@@ -137,6 +142,7 @@ function loadAll(){
   body   =asObj(store.get('planBody',{}),{});
   circ   =asArr(store.get('planCirc',[]),[]);
   tests  =asArr(store.get('planTests',null),null) || SEED_TESTS.slice();
+  cook   =asObj(store.get('planCook',{}),{});
   settings=Object.assign(settings, asObj(store.get('planSet',{}),{}));
   if(!asObj(settings.kcalAdj)) settings.kcalAdj={};
   const p=asObj(store.get('planPos',null),null);
@@ -154,6 +160,8 @@ const saveLogs=()=>store.set('planLog',logs);
 let watch={};   /* данные часов по тренировке: "цикл-неделя-id дня" → {s,e,hr,mx,kc} */
 const saveWatch=()=>store.set('planWatch',watch);
 const saveSettings=()=>store.set('planSet',settings);
+let cook={};    /* контейнеры недели: "цикл-неделя" → [{m, g, n}] — блюдо, гарнир, порций */
+const saveCook=()=>store.set('planCook',cook);
 
 const maxWeek=c=>(c===3?24:(c===1?12+(settings.session|0):12));
 const key=(d,e)=>`${state.cycle}-${state.week}-${d}-${e}`;

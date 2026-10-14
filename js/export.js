@@ -109,8 +109,8 @@ function dayText(D){
   L.push('');
   const B=D.body;
   L.push('ЗАМЕРЫ УТРОМ');
-  if(B && (B.w!=null||B.hr!=null||B.knee!=null||B.back!=null||B.feel!=null)){
-    L.push(`  Вес: ${B.w!=null?R1(B.w)+' кг':'—'} · пульс: ${B.hr!=null?B.hr:'—'} · поясница: ${B.back!=null?B.back+'/10':'—'} · колено: ${B.knee!=null?B.knee+'/10':'—'} · самочувствие: ${B.feel!=null?B.feel+'/10':'—'}`);
+  if(B && (B.w!=null||B.hr!=null||B.knee!=null||B.back!=null||B.groin!=null||B.feel!=null)){
+    L.push(`  Вес: ${B.w!=null?R1(B.w)+' кг':'—'} · пульс: ${B.hr!=null?B.hr:'—'} · поясница: ${B.back!=null?B.back+'/10':'—'} · колено: ${B.knee!=null?B.knee+'/10':'—'}${B.groin!=null?` · пах: ${B.groin}/10`:''} · самочувствие: ${B.feel!=null?B.feel+'/10':'—'}`);
   } else L.push('  ничего не записано');
   D.circ.forEach(c=>L.push(`  Обхваты: талия узкая ${c.waistNarrow??'—'}, по пупку ${c.waistNavel??'—'}, бедро ${c.thigh??'—'}`));
   D.tests.forEach(t=>L.push(`  Тест: ${t.test} — ${R1(t.value)} ${t.unit}`));
@@ -148,7 +148,7 @@ function dayText(D){
 
 const csvCell=v=>{ if(v==null) return ''; const s=String(v); return /[",;\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; };
 const CSV_COLS=['date','weekday','cycle','week','training','training_status','exercises_done','exercises_total','sets_logged','tonnage_kg','top_rpe','warmup_done','cardio_done','ball_done','daily_block',
-  'kcal','kcal_target','protein','protein_target','fat','carb','meals','first_meal','last_meal','weight_kg','pulse','back_0_10','knee_0_10','feel_1_10','workout_start','workout_end','workout_min','workout_avg_hr','workout_max_hr','watch_kcal'];
+  'kcal','kcal_target','protein','protein_target','fat','carb','meals','first_meal','last_meal','weight_kg','pulse','back_0_10','knee_0_10','feel_1_10','workout_start','workout_end','workout_min','workout_avg_hr','workout_max_hr','watch_kcal','groin_0_10'];
 function dayRow(D){
   const T=D.training, F=D.food, B=D.body||{};
   const times=F.meals.map(m=>m.time).filter(Boolean).sort();
@@ -162,7 +162,7 @@ function dayRow(D){
     F.meals.length?F.total.kcal:'', D.target.kcal, F.meals.length?F.total.p:'', D.target.p, F.meals.length?F.total.f:'', F.meals.length?F.total.c:'',
     F.meals.length, times[0]||'', times[times.length-1]||'',
     B.w??'', B.hr??'', B.back??'', B.knee??'', B.feel??'',
-    (T.watch&&T.watch.start)||'', (T.watch&&T.watch.end)||'', (T.watch&&T.watch.minutes)??'', (T.watch&&T.watch.avgHr)??'', (T.watch&&T.watch.maxHr)??'', (T.watch&&T.watch.kcal)??''];
+    (T.watch&&T.watch.start)||'', (T.watch&&T.watch.end)||'', (T.watch&&T.watch.minutes)??'', (T.watch&&T.watch.avgHr)??'', (T.watch&&T.watch.maxHr)??'', (T.watch&&T.watch.kcal)??'', B.groin??''];
 }
 /* Все даты, по которым что-то записано */
 function datesWithData(){
@@ -200,56 +200,3 @@ async function copyText(t){
   ta.remove(); return ok;
 }
 
-let exDate=null;
-function renderExport(){
-  const box=document.getElementById('progExport');
-  if(!box) return;
-  if(!exDate) exDate=isoDay();
-  box.innerHTML=`<div class="card"><h3>Выгрузка</h3>
-    <p style="font-size:13.5px;margin:0 0 12px">Всё, что записано за день: замеры, тренировка с подходами, еда с временем и граммами, итоги.</p>
-    <div class="exnav">
-      <button type="button" class="btn" id="exPrev" aria-label="Предыдущий день">‹</button>
-      <input type="date" id="exDate" class="app-field" value="${exDate}">
-      <button type="button" class="btn" id="exNext" aria-label="Следующий день">›</button>
-    </div>
-    <pre class="expre" id="exPre"></pre>
-    <div class="btn-row">
-      <button type="button" class="btn btn-primary" id="exCopy">Скопировать</button>
-      <button type="button" class="btn" id="exShare">Поделиться</button>
-    </div>
-    <div class="btn-row" style="margin-top:8px">
-      <button type="button" class="btn" id="exJson">День · JSON</button>
-    </div>
-    <h5 style="margin:18px 0 8px;font-size:12.5px;color:var(--muted);font-weight:700">ВСЕ ДНИ</h5>
-    <div class="btn-row">
-      <button type="button" class="btn" id="exCsv">Таблица CSV</button>
-      <button type="button" class="btn" id="exAll">Всё в JSON</button>
-    </div>
-    <p style="font-size:12.5px;color:var(--muted);margin:10px 0 0">CSV открывается в Numbers и Excel: по строке на день, колонки — калории, белок, время первого и последнего приёма, тоннаж, вес, пульс, колено. «Поделиться» отправляет в Telegram, Файлы, почту.</p>
-  </div>`;
-  const pre=box.querySelector('#exPre'), inp=box.querySelector('#exDate');
-  let D=null;
-  const show=()=>{ D=dayExport(exDate); pre.textContent=dayText(D); };
-  const go=n=>{ exDate=addDays(exDate,n); inp.value=exDate; show(); };
-  inp.addEventListener('change',()=>{ if(inp.value){ exDate=inp.value; show(); } });
-  box.querySelector('#exPrev').addEventListener('click',()=>go(-1));
-  box.querySelector('#exNext').addEventListener('click',()=>go(+1));
-  box.querySelector('#exCopy').addEventListener('click',async()=>{ toast(await copyText(pre.textContent)?'Скопировано':'Не удалось скопировать — выдели текст вручную'); });
-  box.querySelector('#exShare').addEventListener('click',()=>{
-    if(navigator.share) navigator.share({text:pre.textContent}).catch(()=>{});
-    else shareFile(`den-${exDate}.txt`, pre.textContent, 'text/plain', 'День '+exDate);
-  });
-  box.querySelector('#exJson').addEventListener('click',()=>shareFile(`den-${exDate}.json`, JSON.stringify(D,null,1), 'application/json', 'День '+exDate));
-  box.querySelector('#exCsv').addEventListener('click',()=>{
-    const rows=allDays().map(dayRow);
-    if(!rows.length){ toast('Пока нечего выгружать'); return; }
-    const csv='﻿'+[CSV_COLS,...rows].map(r=>r.map(csvCell).join(',')).join('\r\n');
-    shareFile(`tri-cikla-dni-${isoDay()}.csv`, csv, 'text/csv', 'Три цикла · все дни');
-  });
-  box.querySelector('#exAll').addEventListener('click',()=>{
-    const days=allDays();
-    if(!days.length){ toast('Пока нечего выгружать'); return; }
-    shareFile(`tri-cikla-dni-${isoDay()}.json`, JSON.stringify({app:'tri-cikla', exported:new Date().toISOString(), days},null,1), 'application/json', 'Три цикла · все дни');
-  });
-  show();
-}

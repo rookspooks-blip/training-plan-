@@ -165,17 +165,19 @@ function lessSets(ex){
 const KNEE_HARD=['plyo'];
 function kneeAdjust(list, lvl){
   const speed=ex=>ex.badge[0]==='Скорость' || ex.badge[0]==='Выносливость';
-  if(lvl==='y') return list.map(ex=>{
+  /* полуприсед у стены перед прыжками: при жёлтом — 5 × 45 сек, при красном — вместо них */
+  const wall={id:'kW', name:'Полуприсед у стены', badge:['Суставы','b-joint'], dose:'5 × 45 сек', rest:'60 сек', tech:'w_wallsit',
+    warm:'Не нужна. Угол в колене такой, чтобы боль была не выше 3 из 10.'};
+  const beforeSpeed=out=>{ const at=out.findIndex(ex=>speed(ex)); out.splice(at<0?out.length:at, 0, wall); return out; };
+  if(lvl==='y') return beforeSpeed(list.map(ex=>{
     if(!speed(ex) || /пропустить/.test(ex.dose)) return ex;
     if(KNEE_HARD.includes(ex.tech)) return {...ex, dose:'пропустить · колено жёлтое'};
     let d=ex.dose.replace(/^(\d+)(?:–\d+)?(\s*(?:×|подход))/, (m,n,r)=>Math.max(1,Math.ceil(+n/2))+r);
     if(ex.tech==='sprint' || ex.tech==='shuttle') d+=' · на 80 %';
     return {...ex, dose:d+' · колено жёлтое'};
-  });
+  }));
   /* красный */
   const out=list.filter(ex=>!speed(ex) && ex.badge[0]!=='Тест');
-  const wall={id:'kW', name:'Полуприсед у стены', badge:['Суставы','b-joint'], dose:'5 × 45 сек', rest:'60 сек', tech:'w_wallsit',
-    warm:'Не нужна. Угол в колене такой, чтобы боль была не выше 3 из 10.'};
   const at=out.findIndex(ex=>ex.badge[0]!=='Суставы');
   out.splice(at<0?out.length:at, 0, wall);
   return out;
@@ -280,6 +282,8 @@ function adjustDays(S){
       day.when=day.when.replace(/универ, после физры|зал с кольцом, днём/, SUMMER_WHEN[sm]);
       day.note=day.note.replace(/^.*?(физр|Физр)[^.]*\.\s*/,'');
     }
+    /* физры летом нет — у Силовой Г в пятницу вечером своя заметка */
+    if(day.id==='d6') day.note='Блок массы: второй день верха, вечером. Ноги не трогаем.';
     if(sm==='exam' && day.ex.some(isLogged)) day.ex=day.ex.map(ex=>isLogged(ex)?lessSets(ex):ex);
     if(!day.alert) day.alert={lvl:sm==='exam'?'y':'g', html:SUMMER_NOTE[sm]};
   });
