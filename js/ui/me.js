@@ -7,6 +7,27 @@
    ############################################################ */
 const R1c=v=>String(Math.round(v*100)/100).replace('.',',');
 
+/* Плавная линия через точки: монотонный кубический сплайн (Фриче — Карлсон).
+   Проходит ровно через каждое значение и не делает ложных горбов между ними */
+function smoothPath(P){
+  if(P.length<3) return P.map((p,i)=>`${i?'L':'M'}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join('');
+  const n=P.length, d=[], m=[];
+  for(let i=0;i<n-1;i++){ const dx=P[i+1][0]-P[i][0]; d.push(dx ? (P[i+1][1]-P[i][1])/dx : 0); }
+  m[0]=d[0]; m[n-1]=d[n-2];
+  for(let i=1;i<n-1;i++) m[i] = d[i-1]*d[i]<=0 ? 0 : (d[i-1]+d[i])/2;
+  for(let i=0;i<n-1;i++){
+    if(!d[i]){ m[i]=0; m[i+1]=0; continue; }
+    const a=m[i]/d[i], b=m[i+1]/d[i], h=a*a+b*b;
+    if(h>9){ const t=3/Math.sqrt(h); m[i]=t*a*d[i]; m[i+1]=t*b*d[i]; }
+  }
+  let out=`M${P[0][0].toFixed(1)} ${P[0][1].toFixed(1)}`;
+  for(let i=0;i<n-1;i++){
+    const [x0,y0]=P[i], [x1,y1]=P[i+1], h=(x1-x0)/3;
+    out+=`C${(x0+h).toFixed(1)} ${(y0+m[i]*h).toFixed(1)} ${(x1-h).toFixed(1)} ${(y1-m[i+1]*h).toFixed(1)} ${x1.toFixed(1)} ${y1.toFixed(1)}`;
+  }
+  return out;
+}
+
 /* ---------- График веса: среднее за 7 дней, точки, ориентиры сушки ---------- */
 function weightChartHTML(){
   const pts=weightsSorted();
@@ -26,7 +47,7 @@ function weightChartHTML(){
   const step=(hi-lo)>6?2:1;
   let grid='';
   for(let v=lo; v<=hi; v+=step) grid+=`<line x1="${L}" x2="${W-R}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--ln)" stroke-width="1"/><text x="${L-6}" y="${Y(v)+3.5}" text-anchor="end" font-size="10" fill="var(--t3)">${v}</text>`;
-  const line=avg.map((p,i)=>`${i?'L':'M'}${X(p.d).toFixed(1)} ${Y(p.v).toFixed(1)}`).join('');
+  const line=smoothPath(avg.map(p=>[X(p.d), Y(p.v)]));
   const tgPath = tg.length ? (()=>{ const b=avgWin(addDays(settings.start,6),14); const p0={d:settings.start,v:b?b.v:tg[0].v};
     return [p0,...tg].filter(p=>p.d>=x0).map((p,i)=>`${i?'L':'M'}${X(p.d).toFixed(1)} ${Y(p.v).toFixed(1)}`).join(''); })() : '';
   return {shown, X, Y, W, H, T, B, html:`<div class="chart"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="График веса">${grid}
@@ -228,6 +249,28 @@ function openJumpTool(){
 }
 
 /* ---------- Экран ---------- */
+/* Задачи, которые вносятся данными: нажал — открылось то же окно, что и в своём разделе.
+   Записал и закрыл — задача отмечается сама (с «Отменить») */
+const TODO_ACT={
+  t1:{verb:'Записать обхваты', open:()=>circSheet(), n:()=>circ.length},
+  t5:{verb:'Записать пульс', open:()=>morningSheet(), n:()=>((body[isoDay()]||{}).hr!=null?1:0)},
+  t6:{verb:'Записать 60 м', open:()=>testRecordSheet('m60'), n:()=>tests.filter(x=>x.t==='m60').length},
+  t8:{verb:'Записать спринт', open:()=>testRecordSheet('sprint34'), n:()=>tests.filter(x=>x.t==='sprint34').length}
+};
+function openTodo(id){
+  const A=TODO_ACT[id];
+  if(!A){ todo[id]=!todo[id]; if(!todo[id]) delete todo[id]; store.set('planTodo',todo); vibe(); renderMe(); return; }
+  const before=A.n();
+  A.open();
+  const top=sheetStack[sheetStack.length-1];
+  if(top) top.after=()=>{
+    if(todo[id] || A.n()<=before) return;
+    todo[id]=true; store.set('planTodo',todo); renderAll();
+    const t=(NOW.todo.find(x=>x[0]===id)||[])[1]||'';
+    toast(`Задача выполнена: ${t.split(/[(:—]/)[0].trim().toLowerCase()}`, ()=>{ delete todo[id]; store.set('planTodo',todo); renderAll(); });
+  };
+}
+
 function renderMe(){
   const box=$('#scr-me'); if(!box) return;
   const J=testSummary('jump');
@@ -280,7 +323,9 @@ function renderMe(){
       <div class="sec" style="margin-top:16px">Последние результаты</div><dl class="kv">${NOW.results.map(r=>`<dt>${r[0]}</dt><dd>${r[1]}</dd>`).join('')}</dl>
       <div class="small muted" style="margin-top:10px">Данные из заметки от ${NOW.updated}.</div></div>
     <div class="sec">Задачи<span class="aux">осталось ${NOW.todo.filter(t=>!todo[t[0]]).length} из ${NOW.todo.length}</span></div>
-    <div class="card">${NOW.todo.map(t=>`<div class="todo-li${todo[t[0]]?' on':''}"><button type="button" class="ck${todo[t[0]]?' on':''}" data-todo="${t[0]}" aria-label="${esc(t[1])}">${IC.check}</button><span>${t[1]}</span></div>`).join('')}</div>
+    <div class="card">${NOW.todo.map(t=>{ const A=TODO_ACT[t[0]], on=!!todo[t[0]];
+      return `<div class="todo-li${on?' on':''}"><button type="button" class="ck${on?' on':''}" data-todo="${t[0]}" aria-label="${esc(t[1])} — ${on?'сделано':'не сделано'}">${IC.check}</button>
+        <button type="button" class="todo-t" data-todo-open="${t[0]}">${t[1]}${A&&!on?`<span class="link small" style="display:block;margin-top:4px">${A.verb} ›</span>`:''}</button></div>`; }).join('')}</div>
     <div class="card" style="padding:4px 16px;margin-top:22px">
       <button type="button" class="secrow" data-lib>${IC.book.replace('<svg','<svg width="22" height="22"')}<span>Библиотека</span><span class="chev" style="flex:none">›</span></button>
       <button type="button" class="secrow" data-set>${IC.gear.replace('<svg','<svg width="22" height="22"')}<span>Настройки и данные${due?`<br><small style="color:var(--bad);font-weight:700">${due.days==null?'Копий ещё не было':`Последняя копия ${due.days} ${plural(due.days,'день','дня','дней')} назад`}</small>`:''}</span><span class="chev" style="flex:none">›</span></button>
@@ -302,5 +347,6 @@ function renderMe(){
   on('[data-t]',b=>testSheet(b.dataset.t));
   on('[data-trec]',()=>testRecordSheet());
   on('[data-circ]',circSheet);
+  on('[data-todo-open]',b=>openTodo(b.dataset.todoOpen));
   on('[data-todo]',b=>{ const id=b.dataset.todo; todo[id]=!todo[id]; if(!todo[id]) delete todo[id]; store.set('planTodo',todo); vibe(); renderMe(); });
 }

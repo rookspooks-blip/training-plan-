@@ -209,6 +209,7 @@ function foodMenu(){
 }
 
 /* ---------- Экран ---------- */
+let foodRingWas=null;   /* {d, f}: что кольцо показывало до перерисовки — от него и докручиваем */
 function renderFoodTab(){
   const box=$('#scr-food'); if(!box) return;
   const T=nutritionTarget(), D=dayTotals(), mt=mealTiming(foodDay), info=weekInfo(), ms=missedSessions();
@@ -218,7 +219,7 @@ function renderFoodTab(){
     : inTarget ? `<div class="v n" data-count="${D.k}" data-fmt="k">${kfmt(D.k)}</div><div class="l" style="color:var(--ok)">в цель</div>`
     : over ? `<div class="v n" style="color:var(--wn)">+${kfmt(-left)}</div><div class="l">перебор, ккал</div>`
     : `<div class="v n" data-count="${left}" data-fmt="k">${kfmt(left)}</div><div class="l">ккал осталось</div>`;
-  const rem=(a,b,n)=>{ const x=b-a; return x>=0 ? `<b class="n">${x}</b><span>${n} ещё, г</span>` : `<b class="n" style="color:var(--wn)">+${-x}</b><span>${n} сверх, г</span>`; };
+  const rem=(a,b,n)=>{ const x=b-a; return x>=0 ? `<b class="n" data-count="${x}">${x}</b><span>${n} ещё, г</span>` : `<b class="n" style="color:var(--wn)">+${-x}</b><span>${n} сверх, г</span>`; };
 
   const conts=cookList();
   const usual=usualNow(6);
@@ -258,6 +259,10 @@ function renderFoodTab(){
       <span class="grow" style="flex:1"><b>Режим дня</b><div class="small t2">${esc(mt.title)} · ${mt.rows.filter(r=>r[2]).length} ${plural(mt.rows.filter(r=>r[2]).length,'приём','приёма','приёмов')} с белком</div></span><span class="chev">›</span></button>
   `;
 
+  /* кольцо докручивается от прежнего значения: съел — дорисовалось, сменил день — перетекло */
+  const ringF=T.k?D.k/T.k:0, rf=box.querySelector('.kring .rfill');
+  if(rf && foodRingWas) fillRing(rf, foodRingWas.f, 700);
+  foodRingWas={f:ringF};
   box.querySelector('[data-menu]').addEventListener('click',foodMenu);
   box.querySelectorAll('[data-fd]').forEach(b=>b.addEventListener('click',()=>{ foodDay=+b.dataset.fd; loadFoodDay(); renderFoodTab(); }));
   box.querySelectorAll('[data-cook]').forEach(b=>b.addEventListener('click',cookSheet));

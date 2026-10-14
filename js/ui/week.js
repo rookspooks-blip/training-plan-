@@ -101,9 +101,15 @@ function daySheet(x){
       <div class="btnrow"><button type="button" class="btn" data-nw>${dropped?'Что это значит':isMoved(e.id)?'Перенесено · изменить':'Не получается?'}</button><button type="button" class="btn" data-watch>Время и пульс</button></div>
     </div>`;
   });
+  const di=(dow+6)%7, kn=dailyCount(di), knAll=kn===DAILY.length;
   openSheet(`<div class="kick" style="margin-bottom:6px">${isToday?'Сегодня':DOW_FULL[dow]} · ${shortDate(iso)}</div>${parts.join('<div style="height:22px"></div>')}
-    <button type="button" class="btn" style="margin-top:16px" data-close>Закрыть</button>`,
+    <div class="card" style="padding:4px 16px;margin-top:18px"><button type="button" class="row" style="width:100%;text-align:left" data-knee>
+      <span class="ck${knAll?' on':''}">${IC.check}</span><span class="grow"><div class="nm">Зарядка для колен</div><div class="ds">${knAll?'сделана':kn?`${kn} из ${DAILY.length}`:'не отмечена'} · ≈${dailyMinutes()} мин</div></span><span class="chev">›</span></button></div>
+    ${isToday?'':`<button type="button" class="btn big" style="margin-top:12px" data-goday>Открыть этот день на «Сейчас»</button>`}
+    <button type="button" class="btn" style="margin-top:10px" data-close>Закрыть</button>`,
     (el,close)=>{
+      el.querySelector('[data-knee]').addEventListener('click',()=>{ close(); dailySheet(di); });
+      const gd=el.querySelector('[data-goday]'); if(gd) gd.addEventListener('click',()=>{ close(); showDayOnNow(di); });
       el.querySelectorAll('[data-day]').forEach(box=>{
         const id=box.dataset.day, e=es.find(y=>y.id===id);
         const on=(sel,f)=>box.querySelectorAll(sel).forEach(b=>b.addEventListener('click',()=>f(b)));
@@ -227,6 +233,30 @@ function bindYearScrub(box, yw, nowI, selI){
   btns.forEach((b,i)=>b.addEventListener('click',()=>{ const x=yw[i]; pickYearWeek(x.c,x.w); }));
 }
 
+/* Дни недели: нажал — этот день открывается на «Сейчас»; задержал палец — карточка дня выплывает здесь же */
+function bindDayTiles(box){
+  box.querySelectorAll('.wk [data-dow]').forEach(b=>{
+    const dow=+b.dataset.dow;
+    let t=0, fired=false, x0=0, y0=0, kill=null;
+    const cancel=()=>{ clearTimeout(t); b.classList.remove('hold'); };
+    /* после удержания палец отпускают уже над открывшимся листом: «хвостовой» click гасим, иначе он закроет лист */
+    const unkill=()=>{ if(kill){ document.removeEventListener('click',kill,true); kill=null; } };
+    b.addEventListener('pointerdown',e=>{
+      if(e.button>0) return;
+      fired=false; x0=e.clientX; y0=e.clientY;
+      b.classList.add('hold');
+      t=setTimeout(()=>{ fired=true; b.classList.remove('hold'); haptic();
+        unkill(); kill=ev=>{ ev.stopPropagation(); ev.preventDefault(); unkill(); }; document.addEventListener('click',kill,true);
+        daySheet(dow); }, 380);
+    });
+    b.addEventListener('pointermove',e=>{ if(Math.abs(e.clientX-x0)>8 || Math.abs(e.clientY-y0)>8) cancel(); });
+    b.addEventListener('pointerup',()=>{ cancel(); if(fired){ fired=false; setTimeout(unkill,350); } });
+    b.addEventListener('pointercancel',cancel); b.addEventListener('pointerleave',cancel);
+    b.addEventListener('contextmenu',e=>e.preventDefault());
+    b.addEventListener('click',()=>showDayOnNow((dow+6)%7));
+  });
+}
+
 /* Отпустил палец на неделе — она открывается. Текущая по дате — снова «по дате»; «Отменить» возвращает как было */
 function pickYearWeek(c, w){
   const prev={c:state.cycle, w:state.week, auto:settings.auto}, p=posForDate(isoDay());
@@ -275,10 +305,6 @@ function renderWeekTab(){
   }).join('');
 
   /* каждый день */
-  /* полный кружок — все четыре упражнения, дуга — часть */
-  const dots=DOW_IDX.map((n,i)=>{ const k=dailyCount(i), all=k===DAILY.length;
-    return `<button type="button" class="${all?'on':k?'part':''}${nowWeek&&i===todayIdx()?' today':''}" ${k&&!all?`style="--p:${k/DAILY.length}"`:''} data-di="${i}" aria-label="${DOW_FULL[(i+1)%7]}: ${all?'сделано':k?`${k} из ${DAILY.length}`:'не отмечено'}">${n}</button>`; }).join('');
-
   /* еда за неделю */
   const F=weekFoodStats();
   const scale=F.T.k*0.6;
@@ -311,8 +337,6 @@ function renderWeekTab(){
     <div class="sec">Неделя · ${KIND_RU[info.kind]||''}<span class="aux">${toDl}</span></div>
     <div class="wk">${tiles}</div>
     ${/^(Рабочая|Разгрузочная|Тестовая) неделя$/.test(info.label)?'':`<div class="small t2" style="margin-top:8px">${esc(info.label)}</div>`}
-    <div class="sec">Зарядка для колен · каждый день · ≈${dailyMinutes()} мин<button type="button" class="aux link" data-daily>Что это</button></div>
-    <div class="dots7">${dots}</div>
     <div class="sec">Еда за неделю · цель ${kfmt(F.T.k)} ккал</div>
     <div class="card">${foodCard}${foodFoot}</div>
     <div class="sec">Сон</div>
@@ -327,10 +351,7 @@ function renderWeekTab(){
 
   box.querySelector('[data-set]').addEventListener('click',()=>openSettings('week'));
   bindYearScrub(box, yw, nowI, selI);
-  box.querySelectorAll('[data-dow]').forEach(b=>b.addEventListener('click',()=>daySheet(+b.dataset.dow)));
-  /* день — открывает зарядку для колен именно этого дня, там отмечаются упражнения */
-  box.querySelectorAll('[data-di]').forEach(b=>b.addEventListener('click',()=>dailySheet(+b.dataset.di)));
-  box.querySelector('[data-daily]').addEventListener('click',()=>dailySheet(todayIdx()));
+  bindDayTiles(box);
   const adv=box.querySelector('[data-adv]');
   if(adv) adv.addEventListener('click',()=>openSheet(`<h2>Как не улетать в перебор</h2><div class="doc">${OVER_ADVICE.map(([b,t])=>`<p><b>${b}</b> ${t}</p>`).join('')}</div><button type="button" class="btn big" data-close>Понятно</button>`));
   box.querySelector('[data-sleep]').addEventListener('click',()=>openLibrarySection('Сон: норма недели'));

@@ -195,7 +195,8 @@ const W7 = '2026-11-16';
     const ids = w => warmupFor(w).list.map(x => x.id);
     goTab('plan'); dailySheet(0);
     const box = !!document.querySelector('.sheet') && document.querySelectorAll('.sheet details.lx').length === DAILY.length; closeSheets();
-    return { cells: document.querySelectorAll('#scr-plan .dots7 [data-di]').length, box,
+    const cells = [0, 1, 2, 3, 4, 5, 6].filter(d => { daySheet(d); const ok = !!document.querySelector('.sheet [data-knee]'); closeSheets(); return ok; }).length;
+    return { cells, box,
              warm1: ids(1), warm2: ids(2), noDaily: [1, 2, 3, 4].every(w => ids(w).every(x => !['ww', 'wg', 'wf', 'wn'].includes(x))),
              dur: [1, 2, 3, 4].map(w => warmupFor(w).dur), daily: DAILY.map(x => x.id).join(), mins: dailyMinutes() };
   });

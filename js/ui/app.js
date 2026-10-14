@@ -25,9 +25,12 @@ const TAB_ALIAS={today:'now', prog:'me', body:'me', ref:'me', plan:'plan', food:
 const TAB_RENDER={now:()=>renderNowScreen(), plan:()=>renderWeekTab(), food:()=>renderFoodTab(), me:()=>renderMe()};
 const dirty=new Set(TABS);
 const curTab=()=>document.body.dataset.tab||'now';
-function goTab(name){
+/* keep — переход «в тот день»: «Еда» не сбрасывает выбранный день, «Сейчас» перерисовывается под него */
+function goTab(name, keep){
   name=TAB_ALIAS[name]||'now';
-  if(name==='food' && curTab()!=='food'){ foodDay=todayIdx(); loadFoodDay(); dirty.add('food'); }
+  if(name==='food' && curTab()!=='food' && !keep){ foodDay=todayIdx(); loadFoodDay(); dirty.add('food'); }
+  if(name==='food' && keep) dirty.add('food');
+  if(name==='now' && keep) dirty.add('now');
   store.set('planTab', name);
   document.body.dataset.tab=name;
   TABS.forEach(t=>{ $(`#scr-${t}`).hidden = t!==name; });
@@ -48,6 +51,8 @@ function renderAll(){
   updateMini(); plRefresh(); updateBadge();
 }
 $$('#tabbar [data-go]').forEach(b=>b.addEventListener('click',()=>{
+  /* вкладка «Сейчас» из нижней панели — всегда сегодня */
+  if(b.dataset.go==='now' && nowDay!=null){ nowDay=null; nowPick=null; dirty.add('now'); if(curTab()==='now'){ goTab('now'); return; } }
   if(b.dataset.go===curTab() && !pageStack.length){ window.scrollTo({top:0, behavior:'smooth'}); return; }
   goTab(b.dataset.go);
 }));

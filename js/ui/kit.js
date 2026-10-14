@@ -72,6 +72,7 @@ function openSheet(html, bind, opt){
     sheetStack=sheetStack.filter(x=>x!==api);
     if(!sheetStack.length && $('#page').hidden && $('#player').hidden) document.body.classList.remove('locked');
     if(opt.onClose) opt.onClose();
+    if(api.after) api.after();   /* кто открыл лист чужой функцией, может узнать, что его закрыли */
   };
   const api={el:sh, close};
   sheetStack.push(api);
@@ -265,8 +266,19 @@ function countUp(el, ms){
   requestAnimationFrame(f);
 }
 /* Вкладка появилась: карточки всплывают по очереди, кольца и линии рисуются, числа набегают */
+/* Кольцо заполняется от from (0–1) до своего значения. Через Web Animations, а не CSS:
+   Safari на iPhone не всегда понимает var() внутри @keyframes, и кольцо просто появлялось готовым */
+function fillRing(el, from, ms, delay){
+  if(reducedMotion() || !el.animate) return;
+  const c=parseFloat(el.getAttribute('stroke-dasharray')), to=parseFloat(el.getAttribute('stroke-dashoffset'));
+  if(!(c>0)) return;
+  const start=c*(1-Math.max(0,Math.min(1,from||0)));
+  if(Math.abs(start-to)<0.5) return;
+  el.animate([{strokeDashoffset:start},{strokeDashoffset:to}], {duration:ms||1100, delay:delay||0, easing:'cubic-bezier(.2,.8,.2,1)', fill:'backwards'});
+}
 function enterFx(box){
   box.classList.remove('enter'); void box.offsetWidth; box.classList.add('enter');
+  box.querySelectorAll('.rfill').forEach(el=>fillRing(el, 0, 1100, 150));
   box.querySelectorAll('[data-count]').forEach(el=>countUp(el));
   clearTimeout(box._fx); box._fx=setTimeout(()=>box.classList.remove('enter'), 1100);
 }

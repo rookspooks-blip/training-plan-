@@ -410,7 +410,8 @@ body.playing #toast{ bottom:calc(env(safe-area-inset-bottom) + 150px); }
 .todo-li{ display:flex; gap:12px; align-items:flex-start; padding:8px 0; }
 .todo-li + .todo-li{ border-top:1px solid var(--ln); }
 .todo-li .ck{ width:36px; height:36px; margin-top:2px; }
-.todo-li.on span{ color:var(--t3); text-decoration:line-through; }
+.todo-li.on .todo-t{ color:var(--t3); text-decoration:line-through; }
+.todo-t{ flex:1; text-align:left; color:inherit; font:inherit; padding:6px 0; min-height:36px; }
 dl.kv{ display:grid; grid-template-columns:auto 1fr; gap:6px 14px; margin:0; font-size:15px; }
 dl.kv dt{ color:var(--t3); font-weight:700; }
 dl.kv dd{ margin:0; font-weight:700; }
@@ -579,7 +580,6 @@ body.playing #toast{ top:calc(env(safe-area-inset-top) + 64px); bottom:auto; }
 .wrap.enter > :nth-child(4){ animation-delay:.12s; } .wrap.enter > :nth-child(5){ animation-delay:.16s; }
 .wrap.enter > :nth-child(6){ animation-delay:.20s; } .wrap.enter > :nth-child(7){ animation-delay:.24s; }
 .wrap.enter > :nth-child(n+8){ animation-delay:.28s; }
-.wrap.enter .rfill{ animation:ringfill 1s .15s var(--smooth) both; }
 .wrap.enter .draw{ stroke-dasharray:1; animation:draw 1s .2s var(--smooth) both; }
 .wrap.enter .bars7 .trk i{ animation:grow .7s .25s var(--smooth) both; transform-origin:0 50%; }
 .wrap.enter .bars7 .trk i[style*="right:"]{ transform-origin:100% 50%; }
@@ -661,3 +661,7 @@ body.playing #toast{ top:calc(env(safe-area-inset-top) + 64px); bottom:auto; }
 .dots7 .part{ color:var(--tx); background:radial-gradient(var(--s2) 60%, transparent 61%), conic-gradient(var(--ok) calc(var(--p) * 360deg), var(--s3) 0); }
 .year.scrub i{ box-shadow:none !important; outline:none; }
 .year.scrub .hot i{ box-shadow:0 0 0 2px var(--tx) !important; }
+
+/* ---------- Дни недели: нажал — день на «Сейчас», задержал — карточка выплывает ---------- */
+.wk .wd{ -webkit-touch-callout:none; user-select:none; -webkit-user-select:none; transition:transform .38s var(--smooth), filter .38s; }
+.wk .wd.hold{ transform:scale(.92); filter:brightness(1.12); }

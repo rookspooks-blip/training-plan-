@@ -58,8 +58,8 @@ const recList=items=>items.map(x=>{ const t=TECH[x.tech]||{text:''};
   return `<details class="lx"><summary><b>${x.name}</b><span>${x.dose}</span></summary>${figFor(x.tech,x.name)}<div class="tech">${t.text}</div></details>`; }).join('');
 
 /* Какой сегодня день — от этого зависит душ: после силовой холод нельзя */
-function todayKind(){
-  const td=todayIdx();
+function todayKind(td){
+  td=td??todayIdx();
   const e=buildWeek().find(x=>(x.dow===0?6:x.dow-1)===td && x.type!=='rest' && !(x.type==='gym' && isDropped(x.id)));
   if(!e) return 'rest';
   if(e.type==='gym') return (e.id==='d2'||e.id==='d4') ? 'speed' : 'strength';

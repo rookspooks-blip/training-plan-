@@ -110,15 +110,17 @@ const sheetOpt = async (p, a) => { await p.click(`.sheet [data-a="${a}"]`); awai
   check('тап по полоске — плеер', await visible(p, '#player .pl-dock'));
   await ctx.close();
 }
+/* удержание дня на «Плане» — карточка дня (короткое нажатие открывает день на «Сейчас») */
+const hold = async (p, sel) => { const bb = await (await p.$(sel)).boundingBox(); await p.mouse.move(bb.x + bb.width / 2, bb.y + bb.height / 2); await p.mouse.down(); await p.waitForTimeout(500); await p.mouse.up(); await p.waitForTimeout(100); };
 /* 4. «Не получается?»: пропуск переносит, «Вернуть в свой день» отменяет, «Болею» — пауза с подтверждением */
 {
   const { ctx, p } = await at('2026-10-12T09:00:00', { planOnboarded: true });
   await p.click('#tabbar [data-go="plan"]');
-  await p.click('#scr-plan [data-dow="1"]'); await p.click('.sheet [data-nw]'); await sheetOpt(p, 'skip');
+  await hold(p, '#scr-plan [data-dow="1"]'); await p.click('.sheet [data-nw]'); await sheetOpt(p, 'skip');
   check('пропуск = перенос на вторник', await p.evaluate(() => isMoved('d1') && buildWeek().find(e => e.id === 'd1').dow === 2));
-  await p.click('#scr-plan [data-dow="2"]'); await p.click('.sheet [data-day="d1"] [data-nw]'); await sheetOpt(p, 'back');
+  await hold(p, '#scr-plan [data-dow="2"]'); await p.click('.sheet [data-day="d1"] [data-nw]'); await sheetOpt(p, 'back');
   check('вернул в свой день', await p.evaluate(() => !isMoved('d1') && buildWeek().find(e => e.id === 'd1').dow === 1));
-  await p.click('#scr-plan [data-dow="1"]'); await p.click('.sheet [data-nw]'); await sheetOpt(p, 'ill');
+  await hold(p, '#scr-plan [data-dow="1"]'); await p.click('.sheet [data-nw]'); await sheetOpt(p, 'ill');
   check('«Болею» спрашивает подтверждение', await visible(p, '.sheet [data-ok]') && await p.evaluate(() => !isDropped('d1')));
   await p.click('.sheet [data-ok]');
   check('болею: все тренировки недели отменены', await p.evaluate(() => ['d1', 'c-tue', 'd2', 'd3', 'c-sun'].every(isDropped)));   /* на 2-й неделе пятницы нет (С9), среда — отдых */

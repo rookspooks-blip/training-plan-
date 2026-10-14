@@ -70,9 +70,10 @@ const close = async p => { ok('_errors', p.errs.length === 0, p.errs.join(' | ')
   ok(1, /Неделя 3 из 12/.test(t) && /Цикл 1 · сушка · свой вес/.test(t) && /рабочая/.test(t), 'План: «Неделя 3 из 12», «Цикл 1 · сушка · свой вес», «рабочая»');
   ok(4, await E(p, () => document.querySelectorAll('#scr-plan .year [data-yi]').length === 52), 'полоса года: 52 недели (12 + 4 сессии + 12 + 24)');
   ok(24, await E(p, () => document.querySelectorAll('#scr-plan .wk .wd').length === 7 && !!document.querySelector('#scr-plan .wd.today')), '7 дней цветом, сегодня в рамке');
-  ok(26, await E(p, () => document.querySelectorAll('#scr-plan .dots7 [data-di]').length === 7), '7 кружков «Каждый день»');
-  await p.click('#scr-plan [data-di="0"]');
-  ok(26, await E(p, () => /Понедельник/.test(document.querySelector('#sheets .sheet .kick').textContent) && document.querySelectorAll('#sheets .sheet [data-dx]').length === 4), 'кружок дня открывает «Каждый день» этого дня');
+  { const bb = await (await p.$('#scr-plan .wk [data-dow="1"]')).boundingBox(); await p.mouse.move(bb.x + bb.width / 2, bb.y + bb.height / 2); await p.mouse.down(); await p.waitForTimeout(500); await p.mouse.up(); await p.waitForTimeout(100); }
+  ok(26, await E(p, () => !!document.querySelector('#sheets .sheet [data-knee]')), 'удержание дня — карточка дня, в ней зарядка для колен');
+  await p.click('#sheets .sheet [data-knee]');
+  ok(26, await E(p, () => /Понедельник/.test(document.querySelector('#sheets .sheet .kick').textContent) && document.querySelectorAll('#sheets .sheet [data-dx]').length === 4), 'зарядка этого дня по упражнениям');
   await p.click('#sheets .sheet [data-t]');
   ok(26, await E(p, () => !!marks['1-3-daily-0']), 'прошлый день отмечается');
   ok(20, await E(p, () => !document.querySelector('#toast button').hidden), 'тост с «Отменить»');
