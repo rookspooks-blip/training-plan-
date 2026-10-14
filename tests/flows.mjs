@@ -24,7 +24,7 @@ let fails = 0;
 const check = (name, ok, extra='') => { console.log(`${ok ? 'OK  ' : 'FAIL'} ${name}${extra ? ' — ' + extra : ''}`); if (!ok) fails++; };
 const browser = await chromium.launch();
 async function at(time, data = {}) {
-  const ctx = await browser.newContext({ ...devices['iPhone 15 Pro'], serviceWorkers: 'block' });
+  const ctx = await browser.newContext({ ...devices['iPhone 15 Pro'], reducedMotion: 'reduce', serviceWorkers: 'block' });
   const p = await ctx.newPage();
   p.errs = [];
   p.on('pageerror', e => p.errs.push(e.message));

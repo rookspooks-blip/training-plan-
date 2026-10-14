@@ -8,7 +8,7 @@ const $=s=>document.querySelector(s);
 const $$=(s,root)=>[...(root||document).querySelectorAll(s)];
 const svgI=p=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
 const IC={
-  check:svgI('<path d="M5 12.5l4.5 4.5L19 7.5"/>'),
+  check:svgI('<path pathLength="1" d="M5 12.5l4.5 4.5L19 7.5"/>'),
   plus:svgI('<path d="M12 5v14M5 12h14"/>'),
   minus:svgI('<path d="M5 12h14"/>'),
   close:svgI('<path d="M6 6l12 12M18 6L6 18"/>'),
@@ -64,7 +64,10 @@ function openSheet(html, bind, opt){
   document.body.classList.add('locked');
   const close=()=>{
     if(!sh.isConnected) return;
-    dim.remove(); sh.remove();
+    /* уходит плавно; при «уменьшить движение» — сразу */
+    if(reducedMotion()){ dim.remove(); sh.remove(); }
+    else{ const gone=()=>{ dim.remove(); sh.remove(); }; dim.classList.add('out'); sh.classList.add('out'); sh.style.pointerEvents='none'; dim.style.pointerEvents='none';
+      sh.addEventListener('animationend',gone,{once:true}); setTimeout(gone,450); }
     sheetStack=sheetStack.filter(x=>x!==api);
     if(!sheetStack.length && $('#page').hidden && $('#player').hidden) document.body.classList.remove('locked');
     if(opt.onClose) opt.onClose();
@@ -128,7 +131,7 @@ function ringSVG(size, stroke, frac, color){
   const r=(size-stroke)/2, c=2*Math.PI*r, f=Math.max(0,Math.min(1,frac||0));
   return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" aria-hidden="true">
     <circle class="bg" cx="${size/2}" cy="${size/2}" r="${r}" stroke-width="${stroke}" fill="none"/>
-    ${f>0?`<circle cx="${size/2}" cy="${size/2}" r="${r}" stroke="${color}" stroke-width="${stroke}" fill="none" stroke-linecap="round" stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${(c*(1-f)).toFixed(1)}"/>`:''}
+    ${f>0?`<circle class="rfill" style="--circ:${c.toFixed(1)}" cx="${size/2}" cy="${size/2}" r="${r}" stroke="${color}" stroke-width="${stroke}" fill="none" stroke-linecap="round" stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${(c*(1-f)).toFixed(1)}"/>`:''}
   </svg>`;
 }
 
@@ -199,4 +202,27 @@ const plural=(n,a,b,c)=>{ n=Math.abs(n)%100; const m=n%10; return n>10&&n<20?c:m
 function applyTheme(){
   const t=settings.theme||'auto', r=document.documentElement;
   if(t==='light'||t==='dark') r.dataset.theme=t; else delete r.dataset.theme;
+}
+
+/* ---------- Движение ---------- */
+const reducedMotion=()=>{ try{ return matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){ return false; } };
+/* Число набегает от нуля. Если кадры не идут, остаётся итоговое значение из разметки */
+function countUp(el, ms){
+  if(reducedMotion()) return;
+  const to=+el.dataset.count, k=el.dataset.fmt==='k', dec=+(el.dataset.dec||0), t0=performance.now(), d=ms||750;
+  const show=v=>{ el.textContent = k ? kfmt(v) : (dec ? v.toFixed(dec).replace('.',',') : String(Math.round(v))); };
+  const f=t=>{ const p=Math.min(1,(t-t0)/d); show(to*(1-Math.pow(1-p,3))); if(p<1) requestAnimationFrame(f); else show(to); };
+  requestAnimationFrame(f);
+}
+/* Вкладка появилась: карточки всплывают по очереди, кольца и линии рисуются, числа набегают */
+function enterFx(box){
+  box.classList.remove('enter'); void box.offsetWidth; box.classList.add('enter');
+  box.querySelectorAll('[data-count]').forEach(el=>countUp(el));
+  clearTimeout(box._fx); box._fx=setTimeout(()=>box.classList.remove('enter'), 1100);
+}
+/* Отметка, поставленная этим нажатием, «выскакивает» и дорисовывается */
+function popNewChecks(box, prev){
+  const now=$$('.ck', box);
+  if(now.length!==prev.length) return;
+  now.forEach((e,i)=>{ if(!prev[i] && e.classList.contains('on')) e.classList.add('pop'); });
 }

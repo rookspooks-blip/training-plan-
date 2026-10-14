@@ -215,9 +215,9 @@ function renderFoodTab(){
   const left=T.k-D.k, inTarget=D.k && Math.abs(left)<=120, over=D.k && left<-120;
   const ringCol = !D.k ? 'var(--s3)' : over ? 'var(--wn)' : inTarget ? 'var(--ok)' : 'var(--kc)';
   const center = !D.k ? `<div class="v n">${kfmt(T.k)}</div><div class="l">цель · отметь, что съел</div>`
-    : inTarget ? `<div class="v n">${kfmt(D.k)}</div><div class="l" style="color:var(--ok)">в цель</div>`
+    : inTarget ? `<div class="v n" data-count="${D.k}" data-fmt="k">${kfmt(D.k)}</div><div class="l" style="color:var(--ok)">в цель</div>`
     : over ? `<div class="v n" style="color:var(--wn)">+${kfmt(-left)}</div><div class="l">перебор, ккал</div>`
-    : `<div class="v n">${kfmt(left)}</div><div class="l">ккал осталось</div>`;
+    : `<div class="v n" data-count="${left}" data-fmt="k">${kfmt(left)}</div><div class="l">ккал осталось</div>`;
   const rem=(a,b,n)=>{ const x=b-a; return x>=0 ? `<b class="n">${x}</b><span>${n} ещё, г</span>` : `<b class="n" style="color:var(--wn)">+${-x}</b><span>${n} сверх, г</span>`; };
 
   const conts=cookList();

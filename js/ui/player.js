@@ -147,7 +147,9 @@ function openPlayer(id, at){
   if(at==='sum') PL.i=PL.steps.length-1;
   PL.photo2=false;
   closeSheets();
-  $('#player').hidden=false; document.body.classList.add('playing','locked');
+  const pl=$('#player'), wasHidden=pl.hidden;
+  pl.hidden=false; document.body.classList.add('playing','locked');
+  if(wasHidden && !reducedMotion()){ pl.classList.remove('opening'); void pl.offsetWidth; pl.classList.add('opening'); }
   plRender(); updateMini();
 }
 function startWorkout(id){
@@ -344,7 +346,7 @@ function plRender(){
       : `<button type="button" class="btn big pri" data-min>Закрыть</button>`;
   }
 
-  box.className = media.img ? '' : 'pl-noimg';
+  box.classList.toggle('pl-noimg', !media.img);
   box.innerHTML=`${plTop(e)}<div class="pl-scroll">${media.html}<div class="pl-body${PL.anim?' in':''}">${main}</div></div><div class="pl-dock">${dock}</div>`;
   PL.anim=false;
   plBind(e, st);
@@ -353,7 +355,7 @@ function plRender(){
 function plRenderRest(e){
   const box=$('#player'), left=plLeft(), R=PL.rest, nx=plNextText(PL.steps[PL.i]);
   const size=300, sw=18, r=(size-sw)/2, c=2*Math.PI*r;
-  box.className='pl-noimg';
+  box.classList.add('pl-noimg');
   box.innerHTML=`${plTop(e)}<div class="pl-scroll"><div class="pl-rest">
       <div class="bigring"><svg viewBox="0 0 ${size} ${size}" aria-hidden="true">
         <circle cx="${size/2}" cy="${size/2}" r="${r}" stroke="var(--s3)" stroke-width="${sw}" fill="none"/>

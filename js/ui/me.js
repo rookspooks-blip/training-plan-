@@ -33,7 +33,7 @@ function weightChartHTML(){
       ${tgPath?`<path d="${tgPath}" fill="none" stroke="var(--t3)" stroke-width="1.5" stroke-dasharray="4 4"/>`:''}
       ${tg.map(g=>`<path d="M${X(g.d)} ${Y(g.v)-5}l5 5-5 5-5-5z" fill="var(--s1)" stroke="var(--t3)" stroke-width="1.5"/>`).join('')}
       ${shown.map(p=>`<circle cx="${X(p.d).toFixed(1)}" cy="${Y(p.w).toFixed(1)}" r="2.6" fill="var(--t3)" opacity=".75"/>`).join('')}
-      <path d="${line}" fill="none" stroke="var(--acc)" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>
+      <path class="draw" pathLength="1" d="${line}" fill="none" stroke="var(--acc)" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>
       <line data-cross x1="0" x2="0" y1="${T}" y2="${H-B}" stroke="var(--tx)" stroke-width="1" opacity="0"/>
       <circle data-dot r="4.5" fill="var(--acc)" stroke="var(--s1)" stroke-width="2" opacity="0"/>
       <text x="${L}" y="${H-6}" font-size="10" fill="var(--t3)">${shortDate(x0)}</text><text x="${W-R}" y="${H-6}" font-size="10" fill="var(--t3)" text-anchor="end">${shortDate(x1)}</text></svg>
@@ -239,7 +239,7 @@ function renderMe(){
   else {
     const f=J.first.v, v=J.shown.v, gain=(v-f)/f, fill=Math.max(0,Math.min(1,gain/0.2));
     jump=`<div class="hero c-spd tap" data-jsheet><div class="k">Прыжок с места · ${shortDate(J.last.d)}</div>
-      <div style="display:flex;align-items:flex-end;gap:10px;margin-top:6px"><span class="n" style="font-size:64px;font-weight:900;letter-spacing:-.03em;line-height:.9">${R1c(v)}</span><span style="font-size:20px;font-weight:800;margin-bottom:6px">см</span>
+      <div style="display:flex;align-items:flex-end;gap:10px;margin-top:6px"><span class="n" data-count="${v}" data-dec="${Number.isInteger(v)?0:1}" style="font-size:64px;font-weight:900;letter-spacing:-.03em;line-height:.9">${R1c(v)}</span><span style="font-size:20px;font-weight:800;margin-bottom:6px">см</span>
         <span style="margin-left:auto;font-weight:800;margin-bottom:8px">${gain>=0?'+':''}${R1c(v-f)} см · ${gain>=0?'+':''}${Math.round(gain*100)} %</span></div>
       <div class="goal" style="background:rgba(255,255,255,.25)"><i style="width:${fill*100}%;background:#fff"></i><u style="left:50%"></u><u style="left:75%"></u></div>
       <div class="gl" style="color:inherit;opacity:.9"><span>старт ${R1c(f)}</span><span>хорошо ${Math.round(f*1.1)}–${Math.round(f*1.15)}</span><span>отлично ${Math.round(f*1.2)}</span></div>

@@ -42,7 +42,7 @@ const BASE = {
   planCirc: [{ d: '2026-10-05', a: 80, b: 84, h: 56 }],
 };
 async function at(time, data = {}, opts = {}) {
-  const ctx = await browser.newContext({ ...devices['iPhone 15 Pro'], serviceWorkers: 'block', acceptDownloads: true, ...(opts.ctx || {}) });
+  const ctx = await browser.newContext({ ...devices['iPhone 15 Pro'], reducedMotion: 'reduce', serviceWorkers: 'block', acceptDownloads: true, ...(opts.ctx || {}) });
   const p = await ctx.newPage();
   p.errs = [];
   p.on('pageerror', e => p.errs.push(e.message));

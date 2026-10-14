@@ -31,16 +31,20 @@ function goTab(name){
   store.set('planTab', name);
   document.body.dataset.tab=name;
   TABS.forEach(t=>{ $(`#scr-${t}`).hidden = t!==name; });
-  const sc=$(`#scr-${name}`); sc.classList.remove('enter'); void sc.offsetWidth; sc.classList.add('enter');
+
   $$('#tabbar [data-go]').forEach(b=>{ b.classList.toggle('on', b.dataset.go===name); b.setAttribute('aria-current', b.dataset.go===name?'page':'false'); });
   if(pageStack.length) closePage(true);
   if(dirty.has(name)){ dirty.delete(name); TAB_RENDER[name](); }
+  enterFx($(`#scr-${name}`));
   window.scrollTo(0,0);
 }
 function renderAll(){
   TABS.forEach(t=>dirty.add(t));
-  const t=curTab();
+  const t=curTab(), box=$(`#scr-${t}`);
+  const prev=$$('.ck', box).map(e=>e.classList.contains('on'));
+  box.classList.remove('enter');   /* перерисовка после нажатия не запускает вход заново */
   dirty.delete(t); TAB_RENDER[t]();
+  popNewChecks(box, prev);
   updateMini(); plRefresh(); updateBadge();
 }
 $$('#tabbar [data-go]').forEach(b=>b.addEventListener('click',()=>{
@@ -56,6 +60,7 @@ function openPage(title, htmlFn, bind){
   closeSheets();
   pageStack.push({title, htmlFn, bind, y:0});
   drawPage();
+  if(!reducedMotion()){ el.classList.remove('in'); void el.offsetWidth; el.classList.add('in'); }
 }
 function drawPage(){
   const p=pageStack[pageStack.length-1], el=$('#page');

@@ -26,7 +26,7 @@ const browser = await chromium.launch();
 
 /* Открыть приложение «в дату» с подложенными данными */
 async function at(date, data = {}) {
-  const ctx = await browser.newContext({ ...devices['iPhone 15 Pro'], serviceWorkers: 'block' });
+  const ctx = await browser.newContext({ ...devices['iPhone 15 Pro'], reducedMotion: 'reduce', serviceWorkers: 'block' });
   const p = await ctx.newPage();
   p.errs = [];
   p.on('pageerror', e => p.errs.push(e.message));

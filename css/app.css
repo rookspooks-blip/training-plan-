@@ -59,7 +59,7 @@ button{ cursor:pointer; border:0; background:none; padding:0; }
 .n,.tnum{ font-variant-numeric:tabular-nums; }
 .tnum{ font-weight:700; }
 [hidden]{ display:none !important; }
-@media (prefers-reduced-motion: reduce){ *{ transition-duration:.01ms !important; animation-duration:.01ms !important; } }
+@media (prefers-reduced-motion: reduce){ *,*::before,*::after{ transition-duration:.01ms !important; animation-duration:.01ms !important; animation-delay:0s !important; transition-delay:0s !important; } }
 :focus-visible{ outline:3px solid var(--acc); outline-offset:2px; }
 
 .wrap{ max-width:560px; margin:0 auto; padding:0 18px; }
@@ -547,8 +547,66 @@ body.playing #toast{ top:calc(env(safe-area-inset-top) + 64px); bottom:auto; }
 @media (max-width:400px){ .wd .dt{ font-size:11px; letter-spacing:-.02em; } .wd{ padding:10px 1px; } }
 
 /* Лёгкие переходы: вкладка и шаг плеера — 150 мс, при «уменьшить движение» отключаются выше */
-.wrap.enter{ animation:scrin .15s ease-out; }
 .pl-body.in{ animation:plin .16s ease-out; }
 @keyframes scrin{ from{ opacity:0; transform:translateY(6px); } to{ opacity:1; transform:none; } }
 @keyframes plin{ from{ opacity:0; transform:translateX(14px); } to{ opacity:1; transform:none; } }
 .inp.area{ min-height:120px; padding:12px; font-size:16px; font-weight:600; line-height:1.4; resize:vertical; font-variant-numeric:normal; }
+
+/* ============================================================
+   ДВИЖЕНИЕ. Только transform и opacity — идёт на 60 кадрах.
+   Пружина — cubic-bezier с перелётом; при «уменьшить движение» всё выше сводится к нулю
+   ============================================================ */
+:root{ --spring:cubic-bezier(.34,1.56,.64,1); --smooth:cubic-bezier(.2,.8,.2,1); }
+@keyframes rise{ from{ opacity:0; transform:translateY(18px) scale(.985); } to{ opacity:1; transform:none; } }
+@keyframes ringfill{ from{ stroke-dashoffset:var(--circ); } }
+@keyframes draw{ from{ stroke-dashoffset:1; } to{ stroke-dashoffset:0; } }
+@keyframes grow{ from{ transform:scaleX(0); } to{ transform:none; } }
+@keyframes pop{ 0%{ transform:scale(.55); } 55%{ transform:scale(1.22); } 100%{ transform:scale(1); } }
+@keyframes tabpop{ 0%{ transform:scale(.7) translateY(3px); } 60%{ transform:scale(1.18) translateY(-2px); } 100%{ transform:none; } }
+@keyframes sheetup{ from{ transform:translateY(100%); } 60%{ transform:translateY(-1.5%); } to{ transform:none; } }
+@keyframes sheetdown{ to{ transform:translateY(100%); } }
+@keyframes dimin{ from{ opacity:0; } }
+@keyframes dimout{ to{ opacity:0; } }
+@keyframes pagein{ from{ transform:translateX(28px); opacity:0; } to{ transform:none; opacity:1; } }
+@keyframes plopen{ from{ transform:translateY(24px) scale(.97); opacity:0; } to{ transform:none; opacity:1; } }
+@keyframes toastin{ from{ transform:translateY(24px) scale(.96); opacity:0; } 60%{ transform:translateY(-3px) scale(1.01); opacity:1; } to{ transform:none; opacity:1; } }
+
+/* вход вкладки: карточки по очереди */
+.wrap.enter > *{ animation:rise .5s var(--smooth) both; }
+.wrap.enter > :nth-child(2){ animation-delay:.04s; } .wrap.enter > :nth-child(3){ animation-delay:.08s; }
+.wrap.enter > :nth-child(4){ animation-delay:.12s; } .wrap.enter > :nth-child(5){ animation-delay:.16s; }
+.wrap.enter > :nth-child(6){ animation-delay:.20s; } .wrap.enter > :nth-child(7){ animation-delay:.24s; }
+.wrap.enter > :nth-child(n+8){ animation-delay:.28s; }
+.wrap.enter .rfill{ animation:ringfill 1s .15s var(--smooth) both; }
+.wrap.enter .draw{ stroke-dasharray:1; animation:draw 1s .2s var(--smooth) both; }
+.wrap.enter .bars7 .trk i{ animation:grow .7s .25s var(--smooth) both; transform-origin:0 50%; }
+.wrap.enter .bars7 .trk i[style*="right:"]{ transform-origin:100% 50%; }
+.wrap.enter .year i{ animation:grow .6s var(--smooth) both; transform-origin:50% 100%; }
+
+/* пружинное нажатие */
+.btn,.pill,.tile,.opt,.zone,.tst,.lb,.icbtn,.ck,.days7 button,.wd,.seg button,.scale10 button,.dots7 button,.it,.secrow,.pl-cb,.pl-done,.rpe button,#mini,.stepper button,.set-row{
+  transition:transform .35s var(--spring), background-color .15s, filter .15s, box-shadow .2s; }
+.btn:active,.pill:active,.tile:active,.opt:active,.zone:active,.tst:active,.lb:active,.icbtn:active,.days7 button:active,.wd:active,.seg button:active,.scale10 button:active,.dots7 button:active,.secrow:active,.pl-cb:active,.pl-done:active,.rpe button:active,#mini:active,.stepper button:active{
+  transform:scale(.95); transition-duration:.07s; }
+.it.tap:active{ transform:scale(.985); transition-duration:.07s; }
+
+/* отметка */
+.ck.pop{ animation:pop .42s var(--smooth); }
+.ck.pop svg path{ stroke-dasharray:1; animation:draw .32s .08s ease-out both; }
+
+/* листы и страницы */
+.dim{ animation:dimin .25s ease-out; }
+.dim.out{ animation:dimout .22s ease-in forwards; }
+.sheet{ animation:sheetup .5s var(--smooth); }
+.sheet.out{ animation:sheetdown .24s cubic-bezier(.4,0,1,1) forwards; }
+#page.in{ animation:pagein .36s var(--smooth); }
+#player.opening{ animation:plopen .4s var(--smooth); }
+#toast.show{ animation:toastin .45s var(--spring); }
+#mini:not([hidden]){ animation:rise .4s var(--smooth); }
+#tabbar .on svg{ animation:tabpop .45s var(--spring); }
+.pl-body.in{ animation:plin .32s var(--smooth); }
+.pl-photo{ transition:opacity .2s; }
+.bigring .arc{ transition:stroke-dashoffset .26s linear; }
+.sl .th{ transition:transform .15s var(--spring); }
+.sl:active .th{ transform:scale(1.12); }
+@keyframes plin{ from{ opacity:0; transform:translateX(26px); } to{ opacity:1; transform:none; } }
