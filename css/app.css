@@ -641,15 +641,17 @@ body.playing #toast{ top:calc(env(safe-area-inset-top) + 64px); bottom:auto; }
 .dxrow .ck{ margin-top:4px; }
 .dxrow details.lx{ border-top:0; }
 
-/* ---------- Полоса года: зажал — выросла, ведёшь пальцем — подпись недели ---------- */
+/* ---------- Полоса года: зажал — выросла, столбики у пальца раздуваются, как Dock на Mac ---------- */
 .ywrap{ position:relative; }
 .year{ touch-action:pan-y; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; transition:height .25s var(--smooth); }
-.year.scrub{ height:96px; }
-.year i{ transform-origin:50% 100%; transition:transform .14s var(--smooth), opacity .14s; }
-.year.scrub i{ transform:scaleX(calc(1 + var(--f,0) * .9)) scaleY(calc(1 + var(--f,0) * .25)); }
-.year.scrub button:not(.hot) i{ opacity:calc(.35 + var(--f,0) * .5); }
+.year.scrub{ height:104px; }
+.year button{ transition:flex-grow .24s var(--smooth); }
+.year.follow button{ transition:flex-grow .07s linear; }
+.year i{ transform-origin:50% 100%; transition:transform .24s var(--smooth), opacity .2s, border-radius .2s; }
+.year.follow i{ transition:transform .07s linear, opacity .1s; }
+.year.scrub i{ transform:scaleY(calc(1 + var(--f,0) * .3)); border-radius:calc(2px + var(--f,0) * 4px); opacity:calc(.45 + var(--f,0) * .55); }
 .year.scrub .hot i{ opacity:1; }
-.ytip{ position:absolute; left:0; bottom:calc(100% + 10px); z-index:5; width:max-content; max-width:min(300px, 100%); pointer-events:none;
+.ytip{ position:absolute; left:0; bottom:calc(100% + 36px); z-index:5; width:max-content; max-width:min(300px, 100%); pointer-events:none;
   background:var(--tx); color:var(--bg); border-radius:14px; padding:8px 12px; box-shadow:0 8px 24px rgba(0,0,0,.25); font-size:13px; line-height:1.35; }
 .ytip b{ display:block; font-size:15px; }
 .ytip span{ display:block; opacity:.8; }
@@ -658,4 +660,4 @@ body.playing #toast{ top:calc(env(safe-area-inset-top) + 64px); bottom:auto; }
 .ytip:not([hidden]){ animation:tipin .15s ease-out; }
 .dots7 .part{ color:var(--tx); background:radial-gradient(var(--s2) 60%, transparent 61%), conic-gradient(var(--ok) calc(var(--p) * 360deg), var(--s3) 0); }
 .year.scrub i{ box-shadow:none !important; outline:none; }
-.year.scrub .hot i{ outline:2px solid var(--tx); outline-offset:1px; }
+.year.scrub .hot i{ box-shadow:0 0 0 2px var(--tx) !important; }

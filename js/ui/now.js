@@ -104,12 +104,12 @@ function toggleDailyItem(i, n){
   const undo=dailyUndo(i), ons=DAILY.map((_,m)=>dailyItemOn(i,m));
   ons[n]=!ons[n];
   setDailyItems(i, ons); vibe(); renderAll();
-  if(ons.every(Boolean)) toast('Каждый день — все четыре сделаны', undo);
+  if(ons.every(Boolean)) toast('Зарядка для колен — все четыре сделаны', undo);
 }
 function toggleDaily(i){
   const was=!!marks[dailyKey(i)], undo=dailyUndo(i);
   setDailyItems(i, DAILY.map(()=>!was)); vibe(); renderAll();
-  toast(was?'Каждый день — отметка снята':'Каждый день — отмечено', undo);
+  toast(was?'Зарядка для колен — отметка снята':'Зарядка для колен — сделана', undo);
 }
 /* Тренировка одним нажатием: отметить все упражнения или снять отметки. Подходы в журнале не трогаются */
 function toggleGymDone(e){
@@ -132,8 +132,8 @@ function dailySheet(i){
   i = i ?? todayIdx();
   const html=()=>{ const done=!!marks[dailyKey(i)];
     const today=i===todayIdx() && isNowWeek();
-    return `<div class="kick">${today?'Сегодня':`${DOW_FULL[(i+1)%7]}, ${shortDate(dateOfCW(state.cycle,state.week,i))}`}</div><h2>Каждый день · ≈${dailyMinutes()} мин</h2>
-    <div class="sub">Колени, пах и стопа. Делается каждый день, даже в разгрузку и в дни тренировок: отдельно от разминки, в любое время — утром, в перерыве между парами, вечером. Отмечай каждое упражнение кружком.</div>
+    return `<div class="kick">${today?'Сегодня':`${DOW_FULL[(i+1)%7]}, ${shortDate(dateOfCW(state.cycle,state.week,i))}`}</div><h2>Зарядка для колен · ≈${dailyMinutes()} мин</h2>
+    <div class="sub">Четыре коротких упражнения, чтобы колено не болело от прыжков, а пах не тянуло. Делается каждый день, даже в разгрузку и в дни тренировок: отдельно от разминки, в любое время — утром, в перерыве между парами, вечером. Отмечай каждое упражнение кружком.</div>
     <div class="doc">${DAILY.map((x,n)=>{ const t=TECH[x.tech]||{text:''}, on=dailyItemOn(i,n);
       return `<div class="dxrow"><button type="button" class="ck${on?' on':''}" data-dx="${n}" aria-pressed="${on}" aria-label="${esc(x.name)} — ${on?'сделано':'не сделано'}">${IC.check}</button>
         <details class="lx"><summary><b>${n+1}. ${x.name}</b><span>${x.dose}</span></summary>${figFor(x.tech,x.name)}<div class="tech">${t.text}</div></details></div>`; }).join('')}
@@ -235,7 +235,7 @@ function eveningHero(es){
   es.filter(e=>e.type==='run').forEach(e=>lines.push([isRunDone(e)||isDropped(e.id), 'Велосипед + мяч', 'r:'+e.id]));
   lines.push([morningDone(iso), morningDone(iso)?`Утро: ${morningLine(iso)}`:'Утренний замер не записан', 'm']);
   const dn=dailyCount(td);
-  lines.push([dn===DAILY.length, `Каждый день${dn&&dn<DAILY.length?` · ${dn} из ${DAILY.length}`:''}`, 'daily']);
+  lines.push([dn===DAILY.length, `Зарядка для колен${dn&&dn<DAILY.length?` · ${dn} из ${DAILY.length}`:''}`, 'daily']);
   lines.push([t.k>0 && Math.abs(t.k-T.k)<=120, `Еда: ${kfmt(t.k)} из ${kfmt(T.k)} ккал`, 'food']);
   return `<div class="hero"><div class="k" style="color:var(--t3)">Итоги дня</div><div class="t">Как прошёл день</div>
     <div style="margin-top:10px">${lines.map(([ok,txt,ev])=>`<button type="button" class="row" style="width:100%" data-ev="${ev}"><span class="ck${ok?' on':''}">${IC.check}</span><span class="grow" style="text-align:left"><div class="nm">${esc(txt)}</div></span></button>`).join('')}</div>
@@ -272,8 +272,8 @@ function mealLogged(td, at){
 }
 function dailyHero(){
   const td=todayIdx(), done=!!marks[dailyKey(td)], dn=dailyCount(td);
-  return `<div class="hero c-car"><div class="k">${done?'Сделано':dn?`${dn} из ${DAILY.length}`:'В любое время'} · ≈${dailyMinutes()} мин</div><div class="t">Каждый день</div>
-    <div class="s">Колени, пах и стопа. Нажми на упражнение, когда сделал.</div>
+  return `<div class="hero c-car"><div class="k">${done?'Сделано':dn?`${dn} из ${DAILY.length}`:'В любое время'} · ≈${dailyMinutes()} мин</div><div class="t">Зарядка для колен</div>
+    <div class="s">Чтобы колено не болело от прыжков, а пах не тянуло. Каждый день, в любое время. Нажми на упражнение, когда сделал.</div>
     <div class="chips">${DAILY.map((x,n)=>{ const on=dailyItemOn(td,n); return `<button type="button" class="chip dx${on?' on':''}" data-dx="${n}" aria-pressed="${on}">${IC.check}${esc(x.name)}</button>`; }).join('')}</div>
     <div class="btnrow"><button type="button" class="btn white" data-dhow>Как делать</button><button type="button" class="btn white" data-dtog>${done?'Снять все':'Сделал все'}</button></div></div>`;
 }
@@ -291,7 +291,7 @@ function nowSteps(es, week, rest){
   const gyms=es.filter(e=>e.type==='gym'), runs=es.filter(e=>e.type==='run');
   if(rest && !gyms.length && !runs.length) S.push({id:'rest', t:'00:00', label:'Отдых', html:()=>restHero(rest, week)});
   S.push({id:'m', t:'08:30', label:'Утренний замер', html:()=>morningHero()});
-  S.push({id:'daily', t:'08:31', label:'Каждый день', html:dailyHero});
+  S.push({id:'daily', t:'08:31', label:'Зарядка для колен', html:dailyHero});
   gyms.forEach(e=>S.push({id:'g:'+e.id, t:trainingTime(e)||'17:00', label:e.day.title, html:()=>trainingHero(e)}));
   runs.forEach(e=>S.push({id:'r:'+e.id, t:trainingTime(e)||'09:00', label:'Велосипед + мяч', html:()=>cardioHero(e)}));
   mealTiming(td).rows.filter(r=>!/^(Подъём|Тренировка|Физра)/.test(r[1])).forEach(r=>S.push({id:'f:'+r[0], t:r[0], label:String(r[1]).split(/ — |: /)[0], html:()=>mealHero(r)}));
@@ -344,7 +344,7 @@ function timelineItems(es){
   const iso=isoDay(), td=todayIdx(), items=[];
   items.push({t:'08:30', c:'c-kc', nm:'Утренний замер', ds: morningDone(iso)?morningLine(iso):'вес, пульс, колено, поясница, пах', done:morningDone(iso), act:'morning'});
   const dn=dailyCount(td);
-  items.push({t:'любое время', sort:'08:31', c:'c-car', nm:'Каждый день', ds:dn&&dn<DAILY.length?`${dn} из ${DAILY.length} · колени, пах, стопа`:`колени, пах, стопа · ${dailyMinutes()} мин`, done:!!marks[dailyKey(td)], act:'daily', ck:true});
+  items.push({t:'любое время', sort:'08:31', c:'c-car', nm:'Зарядка для колен', ds:dn&&dn<DAILY.length?`${dn} из ${DAILY.length} · колени, пах, стопа`:`колени, пах, стопа · ${dailyMinutes()} мин`, done:!!marks[dailyKey(td)], act:'daily', ck:true});
   es.forEach(e=>{
     if(e.type==='gym') items.push({t:trainingTime(e)||'—', c:typeClass(e), nm:e.day.title+(isDropped(e.id)?' · отменена':''), ds:`≈${dayMinutes(e.day,state.week)} мин`, done:isGymDone(e)||isDropped(e.id), act:'gym', id:e.id, ck:true});
     if(e.type==='run') items.push({t:trainingTime(e), c:'c-car', nm:'Велосипед + мяч', ds:e.dur, done:isRunDone(e)||isDropped(e.id), act:'run', id:e.id, ck:true});

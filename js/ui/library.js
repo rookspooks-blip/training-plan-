@@ -30,7 +30,7 @@ function techCatalog(){
     day.ex.forEach(ex=>{ add(ex.tech, ex.name, ex.badge[0]); const A=ALTS[ex.name]; if(A) add(A.tech, A.name, ex.badge[0]); });
     (warmupOf(day,w).list||[]).forEach(s=>add(s.tech, s.name, 'Разминка'));
   })); }catch(e){} });
-  DAILY.forEach(x=>add(x.tech, x.name, 'Каждый день'));
+  DAILY.forEach(x=>add(x.tech, x.name, 'Зарядка для колен'));
   add(BALL.tech, BALL.name, 'Мяч');
   add('bike_setup','Велосипед: настройка','Кардио'); add('run_setup','Бег: настройка','Кардио');
   STRETCH.forEach(x=>add(x.tech, 'Растяжка: '+x.name.toLowerCase(), 'Восстановление'));

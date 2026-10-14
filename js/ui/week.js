@@ -145,7 +145,7 @@ function habitRows(){
   return [
     {t:'Лёг в одно и то же время', v:old('sl1')?'✓ за неделю':`${n('sl1')} из 7`, s:'отмечается вечером в «Итогах дня»'},
     {t:'Не пропустил ни одного приёма пищи', v:old('sl2')?'✓ за неделю':`${n('sl2')} из 7`, s:'отмечается вечером в «Итогах дня»'},
-    {t:'Сделал ежедневный блок', v:`${dailyN} из 7`, s:'считается по отметкам «Каждый день»'},
+    {t:'Сделал зарядку для колен', v:`${dailyN} из 7`, s:'день засчитан, когда отмечены все четыре упражнения'},
     {t:'Взвесился утром натощак', v:`${weighN} из 7`, s:'по утренним взвешиваниям, нужно минимум 3'},
     {t:'Записал рабочие веса', v:gyms.length?`${loggedN} из ${gyms.length}`:'—', s:'по записанным подходам'}
   ];
@@ -160,21 +160,47 @@ function bindYearScrub(box, yw, nowI, selI){
     const when=i===nowI?'сейчас':i===selI?'открыта':i<nowI?'пройдена':'';
     return `<b>${weekTitle(x.c,x.w)}</b><span>Цикл ${x.c} · ${cycleGoal(x.c,x.w)} · ${KIND_RU[x.k]||''}</span>
       <span>${shortDate(dateOfCW(x.c,x.w,0))}–${shortDate(dateOfCW(x.c,x.w,6))} · ${i+1}-я неделя года из ${yw.length}${when?` · ${when}`:''}</span>`; };
-  let on=false, live=false, cur=-1, pid=null, x0=0, lx=0, hold=0;
-  const at=cx=>{ const r=bar.getBoundingClientRect(); return Math.max(0, Math.min(yw.length-1, Math.floor((cx-r.left)/r.width*yw.length))); };
-  const show=i=>{
-    if(i===cur) return;
-    if(cur>=0) haptic();
-    cur=i;
-    btns.forEach((b,j)=>{ const f=Math.max(0, 1-Math.abs(j-i)/4); b.style.setProperty('--f', f.toFixed(2)); b.classList.toggle('hot', j===i); });
-    tip.innerHTML=tipHTML(i); tip.hidden=false;
-    const wr=wrap.getBoundingClientRect(), br=btns[i].getBoundingClientRect(), w=tip.offsetWidth;
-    const cx=br.left+br.width/2-wr.left, left=Math.max(0, Math.min(wr.width-w, cx-w/2));
+  let on=false, live=false, cur=-1, pid=null, x0=0, lx=0, hold=0, raf=0, follow=0;
+  /* как Dock на Mac: столбики у пальца плавно расширяются колоколом, соседи раздвигаются, дальние чуть сжимаются.
+     Центр колокола φ (в номерах недель) подбираем так, чтобы его середина была ровно под пальцем */
+  const n=btns.length, G=2.4, RB=9;
+  const bell=t=>t<1 ? (Math.cos(Math.PI*t)+1)/2 : 0;
+  const grows=phi=>btns.map((_,j)=>1+G*bell(Math.abs(j-phi)/RB));
+  const posOf=(phi,g,W,gap)=>{   /* где на экране окажется точка φ при ширинах g */
+    const u=(W-gap*(n-1))/g.reduce((a,b)=>a+b,0), k=Math.min(n-1,Math.floor(phi)), fr=phi-k;
+    let x=0; for(let m=0;m<k;m++) x+=g[m]*u+gap;
+    return x+g[k]*u*(0.5+fr);
+  };
+  const paint=()=>{
+    raf=0;
+    const r=bar.getBoundingClientRect(), W=r.width, gap=parseFloat(getComputedStyle(bar).columnGap)||0, x=lx-r.left;
+    let lo=0, hi=n-1;
+    for(let it=0; it<22; it++){ const mid=(lo+hi)/2; if(posOf(mid,grows(mid),W,gap)<x) lo=mid; else hi=mid; }
+    const phi=(lo+hi)/2, g=grows(phi);
+    btns.forEach((b,j)=>{ b.style.flexGrow=g[j].toFixed(3); b.style.setProperty('--f', ((g[j]-1)/G).toFixed(3)); });
+    const i=Math.max(0, Math.min(n-1, Math.round(phi)));
+    if(i!==cur){
+      if(cur>=0) haptic();
+      if(cur>=0) btns[cur].classList.remove('hot'); btns[i].classList.add('hot'); cur=i;
+      tip.innerHTML=tipHTML(i); tip.hidden=false;
+    }
+    /* подпись — над пальцем */
+    const wr=wrap.getBoundingClientRect(), w=tip.offsetWidth, cx=Math.max(4, Math.min(wr.width-4, lx-wr.left)), left=Math.max(0, Math.min(wr.width-w, cx-w/2));
     tip.style.transform=`translateX(${left}px)`; tip.style.setProperty('--ax', `${cx-left}px`);
   };
+  const show=()=>{ if(!raf) raf=requestAnimationFrame(paint); };
   /* полоса растёт не сразу: после короткого удержания или движения вбок — иначе мешала бы прокрутке */
-  const begin=()=>{ if(!on||live) return; live=true; clearTimeout(hold); try{ bar.setPointerCapture(pid); }catch(_){} bar.classList.add('scrub'); vibe(6); show(at(lx)); };
-  const stop=()=>{ clearTimeout(hold); on=false; live=false; cur=-1; bar.classList.remove('scrub'); tip.hidden=true; btns.forEach(b=>{ b.style.removeProperty('--f'); b.classList.remove('hot'); }); };
+  const begin=()=>{
+    if(!on||live) return; live=true; clearTimeout(hold);
+    try{ bar.setPointerCapture(pid); }catch(_){}
+    bar.classList.add('scrub'); vibe(6); paint();
+    follow=setTimeout(()=>bar.classList.add('follow'), 230);   /* раскрылась — дальше идёт за пальцем без задержки */
+  };
+  const stop=()=>{
+    clearTimeout(hold); clearTimeout(follow); if(raf){ cancelAnimationFrame(raf); raf=0; }
+    on=false; live=false; cur=-1; bar.classList.remove('scrub','follow'); tip.hidden=true;
+    btns.forEach(b=>{ b.style.flexGrow=''; b.style.removeProperty('--f'); b.classList.remove('hot'); });
+  };
   bar.addEventListener('pointerdown',e=>{
     if(e.button>0) return;
     on=true; live=false; pid=e.pointerId; x0=lx=e.clientX;
@@ -184,7 +210,7 @@ function bindYearScrub(box, yw, nowI, selI){
     if(!on||e.pointerId!==pid) return;
     lx=e.clientX;
     if(!live){ if(Math.abs(lx-x0)>6) begin(); return; }
-    show(at(lx));
+    show();
   });
   /* короткий тап — обычный click по неделе ниже; после ведения пальцем неделю открываем сами,
      а «хвостовой» click гасим — иначе он нажмёт то, что окажется под пальцем после перерисовки */
@@ -285,7 +311,7 @@ function renderWeekTab(){
     <div class="sec">Неделя · ${KIND_RU[info.kind]||''}<span class="aux">${toDl}</span></div>
     <div class="wk">${tiles}</div>
     ${/^(Рабочая|Разгрузочная|Тестовая) неделя$/.test(info.label)?'':`<div class="small t2" style="margin-top:8px">${esc(info.label)}</div>`}
-    <div class="sec">Каждый день · ≈${dailyMinutes()} мин<button type="button" class="aux link" data-daily>Что делать</button></div>
+    <div class="sec">Зарядка для колен · каждый день · ≈${dailyMinutes()} мин<button type="button" class="aux link" data-daily>Что это</button></div>
     <div class="dots7">${dots}</div>
     <div class="sec">Еда за неделю · цель ${kfmt(F.T.k)} ккал</div>
     <div class="card">${foodCard}${foodFoot}</div>
@@ -302,7 +328,7 @@ function renderWeekTab(){
   box.querySelector('[data-set]').addEventListener('click',()=>openSettings('week'));
   bindYearScrub(box, yw, nowI, selI);
   box.querySelectorAll('[data-dow]').forEach(b=>b.addEventListener('click',()=>daySheet(+b.dataset.dow)));
-  /* день — открывает «Каждый день» именно этого дня, там отмечаются упражнения */
+  /* день — открывает зарядку для колен именно этого дня, там отмечаются упражнения */
   box.querySelectorAll('[data-di]').forEach(b=>b.addEventListener('click',()=>dailySheet(+b.dataset.di)));
   box.querySelector('[data-daily]').addEventListener('click',()=>dailySheet(todayIdx()));
   const adv=box.querySelector('[data-adv]');

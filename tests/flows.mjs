@@ -66,7 +66,7 @@ const sheetOpt = async (p, a) => { await p.click(`.sheet [data-a="${a}"]`); awai
 {
   const { ctx, p } = await at('2026-10-12T17:00:00', { planOnboarded: true });
   check('пустых подсказок колена/поясницы нет', !(await p.evaluate(() => /Утром оцени, как она/.test(document.body.innerText))));
-  check('«Каждый день» в ленте и в день тренировки', await p.evaluate(() => [...document.querySelectorAll('#scr-now .it .nm')].some(e => e.textContent === 'Каждый день')));
+  check('«Зарядка для колен» в ленте и в день тренировки', await p.evaluate(() => [...document.querySelectorAll('#scr-now .it .nm')].some(e => e.textContent === 'Зарядка для колен')));
   await p.click('#scr-now [data-start]');
   check('плеер открыт, время начала записано', (await visible(p, '#player .pl-dock')) && await p.evaluate(() => watch['1-2-d1'].s === '17:00'));
   /* пары: подход A → подход B → отдых */

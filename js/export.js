@@ -131,7 +131,7 @@ function dayText(D){
     L.push(`  ${T.title} ${T.dur} — ${T.skipped?'пропущено':(T.done?'сделано':'не отмечено')}${T.ball?' · мяч сделан':''}`);
     if(T.watch) L.push(watchLine(T.watch));
   } else L.push(`  ${T.title}`);
-  if(D.dailyBlock!==null) L.push(`  Ежедневный блок: ${D.dailyBlock?'сделан':'не отмечен'}`);
+  if(D.dailyBlock!==null) L.push(`  Зарядка для колен: ${D.dailyBlock?'сделана':'не отмечена'}`);
   L.push('');
   const tg=D.target, F=D.food;
   L.push(`ЕДА · цель ${tg.kcal} ккал, Б${tg.p} Ж${tg.f} У${tg.c}`);
