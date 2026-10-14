@@ -367,7 +367,7 @@ function nutritionTarget(){
       :                  {k:3175,p:158,f:110,c:388};
   }
   else {
-    const x=cycle3(Math.min(state.week,24));
+    const x=cycle3(state.week);
     t = (x.kind==='hyper') ? {k:3400,p:170,f:115,c:421} : {k:3200,p:170,f:108,c:387};
   }
   /* поправка по замерам (вкладка «Прогресс»): ±150 ккал за счёт углеводов */

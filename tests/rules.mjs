@@ -54,13 +54,14 @@ const W7 = '2026-11-16';
     '1-4-d3-c5': log('2026-10-31', 'Жим гантелей стоя', '12', '10', 8),
   } });
   const r = await p.evaluate(() => ({ pos: [state.cycle, state.week], rt: returnInfo() }));
-  const ex = await dayEx(p, 'd1');
-  const row = ex.find(x => x.id === 'a5');
-  const pl = await p.evaluate(() => { const d = buildWeek().find(e => e.id === 'd1').day; const ex = d.ex.find(x => x.id === 'a5'); return planFor(ex, parseDose(ex.dose), logKey('d1', 'a5')); });
+  const ex = await dayEx(p, 'd5');
+  const row = ex.find(x => x.id === 'e1');
+  const pl = await p.evaluate(() => { const d = buildWeek().find(e => e.id === 'd5').day; const ex = d.ex.find(x => x.id === 'e1'); return planFor(ex, parseDose(ex.dose), logKey('d5', 'e1')); });
   check('неделя по дате 1/7', r.pos.join('/') === '1/7', r.pos.join('/'));
   check('перерыв 16 дн. замечен', r.rt && r.rt.gap === 16 && r.rt.lvl === 1, JSON.stringify(r.rt));
-  check('на подход меньше', /^2 ×/.test(row.dose), row.dose);
-  check('вес ниже прошлого', pl.w > 0 && pl.w < 14, String(pl.w));
+  check('на подход меньше', /^3 ×/.test(row.dose), row.dose);
+  /* 10–20 дней — тот же вес, без прибавки (21+ — минус 10 %) */
+  check('вес без прибавки: как в прошлый раз', pl.w === 14, String(pl.w));
   check('пояснение на дне', await p.evaluate(() => { renderAll(); return /Возвращение после перерыва/.test(document.body.innerText); }));
   await ctx.close();
 }
@@ -103,11 +104,11 @@ const W7 = '2026-11-16';
 /* 5. Замены: нордические → скольжение по умолчанию, можно вернуть */
 {
   const { ctx, p } = await at(W7);
-  let ex = await dayEx(p, 'd1');
-  check('по умолчанию скольжение пяток (без опоры нордические опасны)', ex.some(x => x.id === 'a9' && x.name === 'Скольжение пяток на полотенце' && x.dose === '3 × 10'), JSON.stringify(ex.find(x => x.id === 'a9')));
+  let ex = await dayEx(p, 'd3');
+  check('по умолчанию скольжение пяток (без опоры нордические опасны)', ex.some(x => x.id === 'cN' && x.name === 'Скольжение пяток на полотенце' && x.dose === '3 × 10'), JSON.stringify(ex.find(x => x.id === 'cN')));
   await p.evaluate(() => setSub('Нордические сгибания', false));
-  ex = await dayEx(p, 'd1');
-  check('нордические возвращаются кнопкой', ex.some(x => x.id === 'a9' && x.name === 'Нордические сгибания' && x.dose === '3 × 5'));
+  ex = await dayEx(p, 'd3');
+  check('нордические возвращаются кнопкой', ex.some(x => x.id === 'cN' && x.name === 'Нордические сгибания' && x.dose === '3 × 5'));
   await p.evaluate(() => setSub('Жим гантелей стоя', true));
   ex = await dayEx(p, 'd3');
   check('жим стоя → сидя', ex.some(x => x.id === 'c5' && x.name === 'Жим гантелей сидя со спинкой'));
@@ -141,8 +142,10 @@ const W7 = '2026-11-16';
 /* 8. Конец плана */
 {
   const { ctx, p } = await at('2027-12-20');
-  const r = await p.evaluate(() => ({ pos: [state.cycle, state.week], label: weekInfo().label }));
-  check('после 52 недель — «план пройден»', r.pos.join('/') === '3/24' && /План пройден/.test(r.label), JSON.stringify(r));
+  const r = await p.evaluate(() => ({ pos: [state.cycle, state.week], label: weekInfo().label,
+    kinds: [19, 24, 25, 30, 31].map(w => weekKind(3, w)), title: document.getElementById('wbTitle').textContent }));
+  check('после 52 недель — «план пройден», недели идут дальше', r.pos[0] === 3 && r.pos[1] > 24 && /План пройден/.test(r.label), JSON.stringify(r));
+  check('повтор последнего блока: 25 = 19, 30 = 24 (разгрузка), 31 = 19', r.kinds.join() === 'build,deload,build,deload,build' && /^Повтор блока/.test(r.title), JSON.stringify(r));
   check('ошибок нет', p.errs.length === 0, p.errs.join(' | '));
   await ctx.close();
 }
@@ -160,9 +163,11 @@ const W7 = '2026-11-16';
   await ctx.close();
 }
 {
-  const { ctx, p } = await at('2026-11-20', { planBody: { '2026-11-20': { knee: 7 } } });
-  const ex = await dayEx(p, 'd4');
-  check('пятница при красном колене: вместо стартов стена', !ex.some(x => /Старты|Ускорения/.test(x.name)) && ex.some(x => x.name === 'Полуприсед у стены'), ex.map(x => x.name).join(', '));
+  /* с 3-й недели пятница без тренировки, а неделя считается (раньше падала на пустой пятнице) */
+  const { ctx, p } = await at('2026-11-20');
+  const r = await p.evaluate(() => ({ d4: buildWeek().some(x => x.id === 'd4'), days: buildWeek().length,
+    rendered: document.querySelectorAll('#weekstrip .wchip').length }));
+  check('пятница с 3-й недели свободна, неделя на месте', !r.d4 && r.days === 7 && r.rendered === 7, JSON.stringify(r));
   await ctx.close();
 }
 
@@ -170,7 +175,7 @@ const W7 = '2026-11-16';
 {
   const { ctx, p } = await at('2026-10-06');
   const r = await p.evaluate(() => {
-    const a9 = (c, w) => withWeek(c, w, () => buildWeek().find(x => x.id === 'd1').day.ex.find(x => x.id === 'a9'));
+    const a9 = (c, w) => withWeek(c, w, () => { const W = buildWeek(); return W.find(x => x.id === 'd1').day.ex.find(x => x.id === 'a9') || W.find(x => x.id === 'd3').day.ex.find(x => x.id === 'cN'); });
     const d = [1, 2, 5, 9].map(w => a9(1, w).dose);
     setSub('Нордические сгибания', false);
     const nord = a9(1, 1);
@@ -227,11 +232,11 @@ const W7 = '2026-11-16';
 {
   const { ctx, p } = await at('2026-11-06');
   const r = await p.evaluate(() => ({
-    w5: buildWeek().find(x => x.id === 'd4').day.ex.map(x => x.name),
-    w2: withWeek(1, 2, () => buildWeek().find(x => x.id === 'd4').day.ex.map(x => x.name)),
+    w5: buildWeek().find(x => x.id === 'd2').day.ex.map(x => x.name),
+    w2: withWeek(1, 4, () => buildWeek().find(x => x.id === 'd2').day.ex.map(x => x.name)),
     warm: [1, 2, 3, 4].every(w => { const l = warmupFor(w).list.map(x => x.id); return l.includes('wt') && l.includes('wv'); })
   }));
-  check('пятница: остановки с 5-й недели, раньше нет', r.w5.includes('Ускорение с остановкой') && !r.w2.includes('Ускорение с остановкой'), JSON.stringify(r));
+  check('четверг: остановки на скорости с 5-й недели, раньше нет', r.w5.includes('Ускорение с остановкой') && !r.w2.includes('Ускорение с остановкой'), JSON.stringify(r));
   check('тибиальные и скольжение по стене во всех разминках', r.warm);
   await ctx.close();
 }
@@ -243,11 +248,11 @@ const W7 = '2026-11-16';
     const names = (c, w, id) => withWeek(c, w, () => (buildWeek().find(x => x.id === id) || { day: { ex: [] } }).day.ex.map(x => x.name + ': ' + x.dose));
     const date = (c, w) => dateOfCW(c, w, 4);
     return { c2: names(2, 3, 'd3'), c1: names(1, 3, 'd3'), c3: names(3, 3, 'd3'),
-             apr: names(3, 2, 'd4'), jul: names(3, 12, 'd4'), dates: [date(3, 2), date(3, 12)],
+             apr: names(3, 2, 'd4'), jul: names(3, 12, 'd4'), aug: names(3, 16, 'd4'), dates: [date(3, 2), date(3, 12), date(3, 16)],
              photo: photoOf('bench', 'Жим штанги лёжа') };
   });
   check('жим лёжа 3 × 5 в цикле 2, в циклах 1 и 3 нет', r.c2.some(x => /^Жим штанги лёжа: 3 × 5/.test(x)) && !r.c1.concat(r.c3).some(x => /лёжа/.test(x)) && !!r.photo, JSON.stringify(r.c2));
-  check('пятница летом цикла 3 — данки, весной — первый шаг', r.jul.some(x => /^Данки/.test(x)) && !r.apr.some(x => /^Данки/.test(x)), JSON.stringify({ apr: r.apr, jul: r.jul, d: r.dates }));
+  check('данки — пятницы каникул; в практику и весной их нет', r.aug.some(x => /^Данки/.test(x)) && !r.jul.some(x => /^Данки/.test(x)) && !r.apr.some(x => /^Данки/.test(x)), JSON.stringify({ apr: r.apr, jul: r.jul, aug: r.aug, d: r.dates }));
   await ctx.close();
 }
 
@@ -256,12 +261,12 @@ const W7 = '2026-11-16';
   const { ctx, p } = await at('2027-06-02');
   const r = await p.evaluate(() => {
     const at = (c, w) => withWeek(c, w, () => { const W = buildWeek(); const d1 = W.find(x => x.id === 'd1').day, d2 = W.find(x => x.id === 'd2').day, d4 = W.find(x => x.id === 'd4');
-      return { mode: summerMode(), d1: d1.ex[1].dose, d2when: d2.when, d4: d4 && d4.day.title, kind: weekKind(c, w), pe: noPE() }; });
+      return { mode: summerMode(), d1: (d1.ex.find(x => x.tech === 'squat') || d1.ex[0]).dose, d2when: d2.when, d4: d4 && d4.day.title, kind: weekKind(c, w), pe: noPE() }; });
     return { jun: at(3, 7), jul: at(3, 12), aug: at(3, 16), oct: at(1, 1), y: summerDates() };
   });
-  check('июнь — сессия: на подход меньше, без «после физры»', r.jun.mode === 'exam' && /^3 ×/.test(r.jun.d1) && !/физр/.test(r.jun.d2when) && r.jun.d4 === 'Первый шаг', JSON.stringify(r.jun));
-  check('июль — практика: вечером, по пятницам данки', r.jul.mode === 'practice' && /вечер/.test(r.jul.d2when) && r.jul.d4 === 'Данки', JSON.stringify(r.jul));
-  check('август — каникулы: днём, блок силы вместо массы', r.aug.mode === 'vacation' && /днём/.test(r.aug.d2when) && r.aug.kind !== 'hyper', JSON.stringify(r.aug));
+  check('июнь — сессия: на подход меньше, без «после физры», пятница свободна', r.jun.mode === 'exam' && /^3 ×/.test(r.jun.d1) && !/физр/.test(r.jun.d2when) && !r.jun.d4, JSON.stringify(r.jun));
+  check('июль — практика: вечером, данков нет', r.jul.mode === 'practice' && /вечер/.test(r.jul.d2when) && !r.jul.d4, JSON.stringify(r.jul));
+  check('август — каникулы: днём, по пятницам данки, блок силы вместо массы', r.aug.mode === 'vacation' && /днём/.test(r.aug.d2when) && r.aug.d4 === 'Данки' && r.aug.kind !== 'hyper', JSON.stringify(r.aug));
   check('осенью летнего режима нет', r.oct.mode === null, JSON.stringify(r.oct));
   await ctx.close();
 }

@@ -883,6 +883,7 @@ body.timing #toTop{ opacity:0; pointer-events:none; }
   transition:opacity .2s, transform .2s; box-shadow:0 8px 24px rgba(0,0,0,.4);
 }
 .toast.show{ opacity:1; transform:translate(-50%,0); }
+body.timing .toast{ bottom:calc(var(--navh) + env(safe-area-inset-bottom) + 92px); }
 
 /* Подсказка «установи на экран Домой» — только в Safari, не в самом приложении */
 .install{

@@ -43,7 +43,7 @@ function cardioFor(){
     return { tue:{dur: dl?'20 мин':'25–30 мин', note:'80–85 оборотов, пульс 135–140', mode:'bike'},
              sun:{dur: dl?'20 мин':'25–30 мин', note:'Велосипед или дорожка — по состоянию голени', mode:'bike'} };
   }
-  const hyper = cycle3(Math.min(state.week,24)).kind==='hyper';
+  const hyper = cycle3(state.week).kind==='hyper';
   return { tue:{dur: dl?'20 мин':'30 мин', note:'80–85 оборотов, пульс 135–140', mode:'bike'},
            sun:{dur: dl?'20 мин':(hyper?'30 мин':'30–35 мин'), note:'Велосипед или дорожка — по состоянию голени', mode:'bike'} };
 }
@@ -146,7 +146,8 @@ function layout(){
 function buildWeek(){
   const S=buildDays(state.cycle,state.week), C=cardioFor();
   if(noPE() && !isSession()) S[1]=homeSpeedDay();          /* четверг: физры не было */
-  if(!isSession()) S[3]=fridayDay(state.cycle,state.week);  /* пятница: первый шаг после физры */
+  /* пятница: «Первый шаг» (недели 1–2 цикла 1) или данки в каникулы; в остальные недели дня нет */
+  if(!isSession()){ const F=fridayDay(state.cycle,state.week); if(F) S[3]=F; }
   const U=upperDay(state.cycle,state.week);  if(U) S[4]=U;   /* среда: верх дома */
   const G=massDay(state.cycle,state.week);   if(G) S[5]=G;   /* пятница вечером: верх в блоках массы */
   adjustDays(S);                                            /* замены, колено, перерыв, усталость */

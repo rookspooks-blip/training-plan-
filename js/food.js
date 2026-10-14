@@ -499,7 +499,9 @@ function buildReport(){
   const L=[];
 
   L.push(`ОТЧЁТ ЗА НЕДЕЛЮ`);
-  L.push(isSession() ? `Цикл 1 · ${info.label}` : `Цикл ${state.cycle}, неделя ${state.week} из ${state.cycle===1?12:maxWeek(state.cycle)} · ${info.label}`);
+  L.push(isSession() ? `Цикл 1 · ${info.label}`
+    : (state.cycle===3 && state.week>24) ? `Цикл 3, повтор последнего блока, неделя ${(state.week-25)%6+1} из 6 · ${weekKind(3,state.week)==='deload'?'разгрузочная':'рабочая'}`
+    : `Цикл ${state.cycle}, неделя ${state.week} из ${state.cycle===1?12:maxWeek(state.cycle)} · ${info.label}`);
   if(info.shift) L.push(`Прогрессия сдвинута на ${info.shift} нед. из-за пропусков`);
   L.push('');
 

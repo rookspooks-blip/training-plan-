@@ -324,7 +324,7 @@ function adjustDays(S){
 function plannedBar(){
   return memo('bar', ()=>{
     const c=state.cycle, out={};
-    const tbl = c===2 ? C2[Math.min(loadWeek(),12)] : cycle3(Math.min(loadWeek(),24));
+    const tbl = c===2 ? C2[Math.min(loadWeek(),12)] : cycle3(loadWeek());
     const want={squat:'sq', trap:'tr'};
     buildDays(c, state.week).forEach(day=>day.ex.forEach(ex0=>{
       const ex=applySub(ex0);
@@ -353,12 +353,13 @@ function planFor(ex, P, k){
     if(rt) return isBar ? r25(w*(1-rt.cut)) : Math.max(0, rDb(w*(1-rt.cut)));
     return w;
   };
-  const cutR=r=> r==null ? r : Math.max(1, r-(rt?(rt.lvl===2?2:1):1));
+  /* повторов на 1–2 меньше; удержание на время не режем — подходов и так меньше */
+  const cutR=r=> (r==null || P.timed) ? r : Math.max(1, r-(rt?(rt.lvl===2?2:1):1));
   pl.sets=pl.sets.map(s=>({w:cutW(s.w), r:cutR(s.r)}));
   pl.w=cutW(pl.w);
   const w=pl.sets[0]&&pl.sets[0].w;
   pl.t = rt
-    ? `<b>после перерыва</b>: ${w?`${fmtW(w)} кг, `:''}${pl.sets[0]&&pl.sets[0].r!=null?`по ${pl.sets[0].r} повт., `:''}запас 2–3 повтора. <span style="color:var(--muted)">По плану было: ${pl.t}</span>`
+    ? `<b>после перерыва</b>: ${w?`${fmtW(w)} кг, `:''}${pl.sets[0]&&pl.sets[0].r!=null?`по ${pl.sets[0].r} ${P.timed?'сек':'повт.'}, `:''}запас 2–3 повтора. <span style="color:var(--muted)">По плану было: ${pl.t}</span>`
     : `<b>${ft.exam?'сессия, держим':'лёгкий день'}</b>: ${w?`${fmtW(w)} кг, `:''}без отказа. <span style="color:var(--muted)">По плану было: ${pl.t}</span>`;
   return pl;
 }

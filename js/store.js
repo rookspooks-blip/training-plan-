@@ -115,8 +115,9 @@ function posForDate(iso){
   const c1=12+(settings.session|0);
   if(n<c1) return {cycle:1, week:n+1};
   if(n<c1+12) return {cycle:2, week:n-c1+1};
-  /* после 24-й недели цикла 3 план закончился: остаёмся на последней неделе */
-  return {cycle:3, week:Math.min(24, n-c1-12+1), end:n-c1-12+1>24};
+  /* после 24-й недели цикла 3 план пройден: недели 25, 26… повторяют последний блок */
+  const w=n-c1-12+1;
+  return {cycle:3, week:w, end:w>24};
 }
 function applyAuto(){
   if(!settings.auto || !settings.start) return false;
@@ -140,7 +141,7 @@ function loadAll(){
   if(!asObj(settings.kcalAdj)) settings.kcalAdj={};
   const p=asObj(store.get('planPos',null),null);
   if(p){ state.cycle=[1,2,3].includes(p.cycle)?p.cycle:1; state.week=Math.max(1,p.week|0); }
-  if(state.week>maxWeek(state.cycle)) state.week=maxWeek(state.cycle);
+  if(state.week>maxWeek(state.cycle) && state.cycle!==3) state.week=maxWeek(state.cycle);   /* в цикле 3 после 24-й — повтор блока */
   applyAuto();
   foodDay=todayIdx();
   loadFoodDay();

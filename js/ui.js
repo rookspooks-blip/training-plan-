@@ -224,10 +224,13 @@ function renderHeader(){
   /* Заголовок: неделя и её тип. Подпись: цикл и цель (в циклах 2–3 — рабочие веса) */
   const KIND={build:'рабочая', hyper:'рабочая', deload:'разгрузка', test:'тестовая'};
   const ses=settings.session|0;
+  const repeat = state.cycle===3 && state.week>24;   /* план пройден, повтор последнего блока */
   document.getElementById('wbTitle').textContent = isSession()
     ? `Сессия · неделя ${state.week-12} из ${ses}`
+    : repeat ? `Повтор блока · неделя ${(state.week-25)%6+1} из 6 · ${KIND[info.kind]||''}`
     : `Неделя ${state.week} из ${state.cycle===1?12:maxWeek(state.cycle)} · ${KIND[info.kind]||''}`;
   const goal = isSession() ? 'поддержание формы'
+    : repeat ? 'план пройден · повтор последнего блока'
     : state.cycle===1 ? 'сушка · свой вес'
     : (info.kind==='build'||info.kind==='hyper') ? info.label.replace(/^Блок [АБ] · /,'').toLowerCase()
     : state.cycle===2 ? 'сила · штанга' : 'гипертрофия';

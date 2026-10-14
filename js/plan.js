@@ -90,9 +90,12 @@ const r25 = x => Math.round(x/2.5)*2.5;
 
 /* Цикл 3: 24 недели, блоки по 6. Чётный блок — гипертрофия,
    нечётный — реконверсия. Шестая неделя блока разгрузочная. */
+/* После 24-й недели план пройден: повторяется последний блок (недели 19–24).
+   Номера недель идут дальше (25, 26…), чтобы записи первого прохода не перезаписывались */
+const c3w = w => w<=24 ? w : 19 + (w-25)%6;
 function cycle3(week){
   const base={sq:105,tr:125,oh:52.5};
-  const blk=Math.floor((week-1)/6), wIn=((week-1)%6)+1;
+  const m=c3w(week), blk=Math.floor((m-1)/6), wIn=((m-1)%6)+1;
   /* июль–август — каникулы, главный блок года: сила и мощность, а не масса,
      чтобы к осеннему отбору прийти на пике прыжка */
   const holiday = typeof summerModeOf==='function' && summerModeOf(3,week)==='vacation';
@@ -110,7 +113,7 @@ function weekKind(c,w){
   if(c===1 && w>12) return 'session';
   if(c===1) return (w===4||w===8)?'deload':(w===12?'test':'build');
   if(c===2) return C2[Math.min(w,12)].kind;
-  return cycle3(Math.min(w,24)).kind;
+  return cycle3(w).kind;
 }
 
 function weekInfo(){
@@ -124,8 +127,8 @@ function weekInfo(){
   if(c===2){ const x=plannedBar();   /* те же веса, что в карточках упражнений */
     return {kind, shift:sh, label: kind==='deload'?'Разгрузочная неделя':kind==='test'?'Тестовая неделя':`Присед ${fmtW(x.sq)} · тяга ${fmtW(x.tr)} · жим ${x.oh?fmtW(x.oh):'гантели'}`,
             where:'Цикл 2 · абсолютная сила · зал со штангой'}; }
-  const x={...cycle3(Math.min(lw,24)), ...plannedBar()};
-  if(w===24 && posForDate(isoDay()).end) return {kind, shift:0, label:'План пройден · повторяй последний блок',
+  const x={...cycle3(lw), ...plannedBar()};
+  if(w>24) return {kind, shift:0, label:'План пройден · повторяй последний блок',
           where:'Год закончен. Новый план — с новой датой старта в настройках недели'};
   return {kind, shift:sh, label: kind==='deload'?'Разгрузочная неделя':`${x.blockName} · присед ${fmtW(x.sq)} · тяга ${fmtW(x.tr)}`,
           where:'Цикл 3 · гипертрофия и реконверсия · зал со штангой'};
@@ -243,10 +246,11 @@ function copenDose(c,lw,dl){
    Разминки нет: после физры ты разогрет */
 function fridayDay(cycle, week){
   const dl = weekKind(cycle,week)==='deload';
-  /* Лето цикла 3 (июнь–август): пар и физры нет, зал свободен — пятница
-     становится днём данков. Это то, ради чего весь год */
+  /* Каникулы (после практики до 31 августа): пар и физры нет, зал свободен —
+     пятница становится днём данков, днём на свежие ноги. Это то, ради чего весь год.
+     В практику днём занят — данков нет, пятница как обычно */
   const sm = summerModeOf(cycle, week);
-  if(sm==='practice' || sm==='vacation') return {id:'d4', title:'Данки', when:'Пятница · зал с кольцом, днём', noWarm:false, warmup:WARM_A,
+  if(sm==='vacation') return {id:'d4', title:'Данки', when:'Пятница · зал с кольцом, днём', noWarm:false, warmup:WARM_A,
     note:'Свежие ноги, после разминки. Прыжки на максимум — только пока высота не падает: как только данк перестал заходить, день закончен.',
     ex:[
       {id:'f1',name:'Старты из баскетбольной стойки',badge:['Скорость','b-speed'],dose:dl?'3 × 5 м':'4 × 5–10 м',rest:'60–90 сек',tech:'sprint',warm:'Не нужна — после разминки. Первый старт на 80 %.'},
@@ -462,8 +466,8 @@ function cycle2Days(week, lw){
 /* Цикл 3: блоки по 6 недель, масса ↔ сила. В блоках массы — разгибания
    и сгибания ног в тренажёре в конце дней ног и второй день верха (Силовая Г) */
 function cycle3Days(week, lw){
-  const cal=cycle3(Math.min(week,24));              /* календарь */
-  const w=cycle3(Math.min(lw,24));                 /* веса со сдвигом */
+  const cal=cycle3(week);                          /* календарь */
+  const w=cycle3(lw);                              /* веса со сдвигом */
   const dl=cal.kind==='deload', hyper=cal.kind==='hyper', S3=dl?2:3, I2=dl?1:2, rp=w.reps;
   return [
   {id:'d1',warmup:WARM_A,title:'Силовая А · присед',when:'Понедельник · зал со штангой',note:w.blockName,ex:[
