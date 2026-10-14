@@ -243,7 +243,22 @@ function eveningHero(es){
     ${[['sl1','Лёг в одно и то же время'],['sl2','Не пропустил ни одного приёма пищи']].map(([id,txt])=>`<button type="button" class="row" style="width:100%" data-hab="${hk(id)}"><span class="ck${marks[hk(id)]?' on':''}">${IC.check}</span><span class="grow" style="text-align:left"><div class="nm">${txt}</div></span></button>`).join('')}
     <div class="note" style="margin-top:12px"><b>Сон: ${S.target}, отбой 01:00</b>${S.why}</div>
     <div class="note"><b>Душ: ${sh.t.toLowerCase()}</b>${sh.x()}</div>
+    <button type="button" class="btn big pri hb" data-drep>Отчёт за день</button>
   </div>`;
+}
+
+/* Отчёт за день: тренировка, подходы, замер, еда, сон — одним текстом, как в выгрузке */
+function dayReportSheet(iso){
+  iso=iso||isoDay();
+  const txt=dayText(dayExport(iso));
+  openSheet(`<div class="kick">${iso===isoDay()?'Сегодня':shortDate(iso)}</div><h2>Отчёт за день</h2>
+    <div class="sub">Всё за день одним текстом — скопируй и пришли.</div>
+    <div class="expre" style="max-height:50vh">${esc(txt)}</div>
+    <div class="btnrow"><button type="button" class="btn pri" data-copy>Скопировать</button><button type="button" class="btn" data-share>Поделиться</button></div>`,
+    el=>{
+      el.querySelector('[data-copy]').addEventListener('click',async()=>{ toast(await copyText(txt)?'Отчёт за день скопирован':'Не вышло скопировать — выдели текст вручную'); });
+      el.querySelector('[data-share]').addEventListener('click',()=>{ if(navigator.share) navigator.share({text:txt}).catch(()=>{}); else shareFile(`den-${iso}.txt`, txt, 'text/plain', 'День '+iso); });
+    });
 }
 
 /* ---------- Дела дня листаются свайпом, как треки ---------- */
@@ -452,6 +467,7 @@ function renderNowScreen(){
   }));
   /* итоги дня: привычки */
   box.querySelectorAll('[data-hab]').forEach(b=>b.addEventListener('click',()=>{ const k=b.dataset.hab; if(marks[k]) delete marks[k]; else marks[k]=true; saveMarks(); vibe(); renderAll(); }));
+  box.querySelectorAll('[data-drep]').forEach(b=>b.addEventListener('click',()=>dayReportSheet()));
   /* итоги дня: строки нажимаются — отметить сделанное или открыть, где это поправить */
   box.querySelectorAll('[data-ev]').forEach(b=>b.addEventListener('click',()=>{
     const ev=b.dataset.ev, e=week.find(x=>x.id===ev.slice(2));

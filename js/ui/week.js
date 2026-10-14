@@ -122,23 +122,7 @@ function daySheet(x){
     });
 }
 
-/* ---------- Состав другой недели ---------- */
-function weekPeekSheet(c, w){
-  const html=withWeek(c,w,()=>{
-    const wk=buildWeek(), info=weekInfo(), T=nutritionTarget();
-    const days=[1,2,3,4,5,6,0].map(d=>{ const es=wk.filter(e=>e.dow===d);
-      return `<div class="row"><span class="bar ${typeClass(es.find(e=>e.type==='gym')||es.find(e=>e.type==='run')||es[0])}" style="width:6px;height:36px;border-radius:3px"></span>
-        <span class="grow"><div class="nm">${DOW_FULL[d]}</div><div class="ds">${es.map(e=>e.type==='gym'?e.day.title:e.title).join(' + ')}</div></span></div>`; }).join('');
-    return `<div class="kick">${KIND_RU[info.kind]||''} · цикл ${c}</div><h2>${weekTitle(c,w)}</h2>
-      <div class="sub">${/^(Рабочая|Разгрузочная|Тестовая) неделя$/.test(info.label)?'':esc(info.label)+' · '}${shortDate(dateOfCW(c,w,0))}–${shortDate(dateOfCW(c,w,6))} · ${kfmt(T.k)} ккал</div>
-      <div class="card" style="padding:4px 16px">${days}</div>`;
-  });
-  const cur=state.cycle===c && state.week===w;
-  openSheet(`${html}${cur?'<div class="muted small" style="margin:6px 0">Эта неделя сейчас открыта.</div>':`<button type="button" class="btn big pri" data-open>Открыть эту неделю</button>`}
-    <button type="button" class="btn" style="margin-top:10px" data-close>Закрыть</button>`,
-    (el,close)=>{ const b=el.querySelector('[data-open]'); if(b) b.addEventListener('click',()=>{ close(); setWeekManual(c,w); }); });
-}
-/* Выбрал неделю руками, не совпадающую с датой — автовыбор выключается */
+/* ---------- Ручной выбор недели ---------- */
 function setWeekManual(c, w){
   if(settings.auto){
     const p=posForDate(isoDay());
@@ -202,19 +186,34 @@ function bindYearScrub(box, yw, nowI, selI){
     if(!live){ if(Math.abs(lx-x0)>6) begin(); return; }
     show(at(lx));
   });
-  /* короткий тап — обычный click по неделе ниже; после ведения пальцем лист открываем сами,
-     а «хвостовой» click гасим — иначе он попадёт в фон нового листа и сразу закроет его */
+  /* короткий тап — обычный click по неделе ниже; после ведения пальцем неделю открываем сами,
+     а «хвостовой» click гасим — иначе он нажмёт то, что окажется под пальцем после перерисовки */
   bar.addEventListener('pointerup',e=>{
     if(!on||e.pointerId!==pid) return;
     const was=live, i=cur; stop();
     if(!was || i<0) return;
     const kill=ev=>{ ev.stopPropagation(); ev.preventDefault(); };
     document.addEventListener('click',kill,true); setTimeout(()=>document.removeEventListener('click',kill,true),400);
-    const x=yw[i]; weekPeekSheet(x.c,x.w);
+    const x=yw[i]; pickYearWeek(x.c,x.w);
   });
   bar.addEventListener('touchmove',e=>{ if(live && e.cancelable) e.preventDefault(); },{passive:false});   /* ведёшь пальцем — страница не едет */
   bar.addEventListener('pointercancel',stop);   /* страницу повели вверх-вниз — это прокрутка, не выбор */
-  btns.forEach((b,i)=>b.addEventListener('click',()=>{ const x=yw[i]; weekPeekSheet(x.c,x.w); }));
+  btns.forEach((b,i)=>b.addEventListener('click',()=>{ const x=yw[i]; pickYearWeek(x.c,x.w); }));
+}
+
+/* Отпустил палец на неделе — она открывается. Текущая по дате — снова «по дате»; «Отменить» возвращает как было */
+function pickYearWeek(c, w){
+  const prev={c:state.cycle, w:state.week, auto:settings.auto}, p=posForDate(isoDay());
+  if(prev.c===c && prev.w===w) return;
+  const byDate=!p.pre && p.cycle===c && Math.min(p.week, c===3?24:p.week)===w;
+  if(byDate){ settings.auto=true; saveSettings(); applyAuto(); }
+  else { settings.auto=false; saveSettings(); state.cycle=c; state.week=w; savePos(); }
+  foodDay=todayIdx(); loadFoodDay(); renderAll(); vibe();
+  toast(byDate ? 'Открыта текущая неделя — снова по дате' : `Открыта ${weekTitle(c,w).toLowerCase()}, цикл ${c}${prev.auto?' · выбор по дате выключен':''}`, ()=>{
+    settings.auto=prev.auto; saveSettings();
+    if(prev.auto) applyAuto(); else { state.cycle=prev.c; state.week=prev.w; savePos(); }
+    foodDay=todayIdx(); loadFoodDay(); renderAll();
+  });
 }
 
 /* ---------- Экран ---------- */
@@ -281,7 +280,7 @@ function renderWeekTab(){
     <div class="card">
       <div class="ywrap"><div class="ytip" aria-hidden="true" hidden></div><div class="year" role="list">${yw.map((x,i)=>`<button type="button" class="${i<nowI?'past':''}${i===nowI?' now':''}" data-yi="${i}" aria-label="Цикл ${x.c}, ${weekTitle(x.c,x.w)}, ${KIND_RU[x.k]||''}" style="--c:${x.col}"><i style="height:${x.h}%;${i===selI?'box-shadow:0 0 0 2px var(--acc)':''}"></i></button>`).join('')}</div></div>
       <div class="yleg"><span><i style="background:${CYC_COL.cut}"></i>сушка</span><span><i style="background:${CYC_COL.ses}"></i>сессия</span><span><i style="background:${CYC_COL.str}"></i>сила</span><span><i style="background:${CYC_COL.hyp}"></i>масса</span><span><i style="background:${CYC_COL.test}"></i>тест</span></div>
-      <div class="small t2" style="margin-top:8px">${nowI>=0?`▲ сейчас ${weekTitle(p.cycle,p.week).toLowerCase()}, цикл ${p.cycle}.`:'План ещё не начался.'} Низкие столбики — разгрузки. Зажми полосу и веди пальцем — увидишь каждую неделю, отпусти — откроется её состав.</div>
+      <div class="small t2" style="margin-top:8px">${nowI>=0?`▲ сейчас ${weekTitle(p.cycle,p.week).toLowerCase()}, цикл ${p.cycle}.`:'План ещё не начался.'} Низкие столбики — разгрузки. Зажми полосу и веди пальцем — увидишь каждую неделю, отпусти — она откроется.</div>
     </div>
     <div class="sec">Неделя · ${KIND_RU[info.kind]||''}<span class="aux">${toDl}</span></div>
     <div class="wk">${tiles}</div>
