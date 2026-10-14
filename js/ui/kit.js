@@ -39,7 +39,18 @@ document.addEventListener('click',e=>{
   const f=toastUndo; toastUndo=null; $('#toast').classList.remove('show');
   if(f){ f(); vibe(); }
 });
-const vibe=(ms)=>{ try{ navigator.vibrate && navigator.vibrate(ms||12); }catch(e){} };
+/* Отклик на касание. Safari на iPhone не знает navigator.vibrate, но даёт отклик переключателю
+   (iOS 17.4+): щёлкаем скрытый <input switch>. Вне касания пальцем iOS может его не дать */
+let hapticEl=null;
+function haptic(){
+  try{
+    if(!hapticEl){ const l=document.createElement('label'); l.setAttribute('aria-hidden','true');
+      l.style.cssText='position:fixed;left:-100px;top:-100px;opacity:0;pointer-events:none'; l.innerHTML='<input type="checkbox" switch tabindex="-1">';
+      document.body.appendChild(l); hapticEl=l; }
+    hapticEl.click();
+  }catch(e){}
+}
+const vibe=(ms)=>{ try{ if(navigator.vibrate) navigator.vibrate(ms||12); else haptic(); }catch(e){} };
 
 /* ---------- Лист снизу: второй уровень, один за раз ---------- */
 let sheetStack=[];

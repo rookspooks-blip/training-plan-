@@ -109,7 +109,7 @@ function plBeep(){
       });
     }
   }catch(e){}
-  try{ navigator.vibrate && navigator.vibrate([200,100,200]); }catch(e){}
+  try{ if(navigator.vibrate) navigator.vibrate([200,100,200]); else [0,180,360].forEach(t=>setTimeout(haptic,t)); }catch(e){}
 }
 async function plWakeOn(){ try{ if('wakeLock' in navigator && !PL.wake) PL.wake=await navigator.wakeLock.request('screen'); }catch(e){} }
 function plWakeOff(){ try{ PL.wake && PL.wake.release(); }catch(e){} PL.wake=null; }
@@ -176,7 +176,7 @@ function plRefresh(){
 }
 
 /* ---------- Переходы ---------- */
-function plGo(i){ if(PL.rest) plStopRest(); PL.i=Math.max(0,Math.min(PL.steps.length-1,i)); PL.photo2=false; plRender(); $('#player .pl-scroll') && ($('#player .pl-scroll').scrollTop=0); }
+function plGo(i){ if(PL.rest) plStopRest(); PL.anim=true; PL.i=Math.max(0,Math.min(PL.steps.length-1,i)); PL.photo2=false; plRender(); $('#player .pl-scroll') && ($('#player .pl-scroll').scrollTop=0); }
 function plGroups(e){
   const g=[]; if(!e.day.noWarm) g.push({warm:true});
   plExList(e).forEach(ex=>g.push({ex})); return g;
@@ -210,7 +210,7 @@ function plAdvance(fromDone){
   }
   /* следующий шаг уже сделан (вернулся назад и прошёл заново) — отдыха нет */
   if(rs && plStepDone(nx, plEntry())) rs=0;
-  PL.i++; PL.photo2=false;
+  PL.i++; PL.photo2=false; PL.anim=true;
   if(rs>0) plStartRest(rs, cur.ex.name);
   plRender();
   const sc=$('#player .pl-scroll'); if(sc) sc.scrollTop=0;
@@ -345,7 +345,8 @@ function plRender(){
   }
 
   box.className = media.img ? '' : 'pl-noimg';
-  box.innerHTML=`${plTop(e)}<div class="pl-scroll">${media.html}<div class="pl-body">${main}</div></div><div class="pl-dock">${dock}</div>`;
+  box.innerHTML=`${plTop(e)}<div class="pl-scroll">${media.html}<div class="pl-body${PL.anim?' in':''}">${main}</div></div><div class="pl-dock">${dock}</div>`;
+  PL.anim=false;
   plBind(e, st);
 }
 

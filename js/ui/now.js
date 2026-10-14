@@ -9,8 +9,8 @@ const cycleShort=()=> isSession() ? 'сессия' : state.cycle===1 ? 'сушк
 const todayEntries=()=>{ const dow=new Date().getDay(); return buildWeek().filter(e=>e.dow===dow); };
 const isGymDone=e=> sessionState(e.id)==='done' || (e.day && e.day.ex.length && e.day.ex.every(x=>marks[key(e.id,x.id)]));
 const isRunDone=e=> !!marks[key(e.id,e.ex)];
-function morningOf(iso){ const b=body[iso]||{}; return {w:num(b.w), hr:num(b.hr), knee:num(b.knee), back:num(b.back), groin:num(b.groin)}; }
-const morningDone=iso=>{ const m=morningOf(iso); return m.w!=null || m.knee!=null || m.back!=null || m.hr!=null || m.groin!=null; };
+function morningOf(iso){ const b=body[iso]||{}; return {w:num(b.w), hr:num(b.hr), knee:num(b.knee), back:num(b.back), groin:num(b.groin), sleep:num(b.sleep)}; }
+const morningDone=iso=>{ const m=morningOf(iso); return m.w!=null || m.knee!=null || m.back!=null || m.hr!=null || m.groin!=null || m.sleep!=null; };
 function setBody(iso, f, v){
   const cur=body[iso]||{};
   if(v===''||v==null) delete cur[f]; else cur[f]=v;
@@ -75,6 +75,7 @@ function morningLine(iso){
   if(m.knee!=null) parts.push(`колено ${m.knee}`);
   if(m.back!=null) parts.push(`поясница ${m.back}`);
   if(m.groin!=null) parts.push(`пах ${m.groin}`);
+  if(m.sleep!=null) parts.push(`сон ${fmt1(m.sleep)} ч`);
   return parts.join(' · ');
 }
 
@@ -166,6 +167,7 @@ function morningHero(){
   return `<div class="hero" id="morning"><div class="k" style="color:var(--t3)">Сначала замер · 30 секунд</div>
     ${morningFormHTML(isoDay())}
     <div class="muted small" style="margin-top:12px">Пишется сразу. По колену, пояснице и паху план подстраивается.</div>
+    <button type="button" class="link" data-health style="margin-top:8px">Вставить из «Здоровья»</button>
     <button type="button" class="btn big pri hb" data-mdone>Готово</button></div>`;
 }
 function eveningHero(es){
@@ -278,7 +280,7 @@ function renderNowScreen(){
 
   /* утренний замер в карточке */
   const mh=box.querySelector('#morning');
-  if(mh){ bindMorningForm(mh, iso); mh.querySelector('[data-mdone]').addEventListener('click',()=>{ if(!morningDone(iso)){ toast('Ничего не записано — сдвинь хотя бы одно'); return; } mEdit=false; renderAll(); toast(`Замер записан: ${morningLine(iso)}`); }); }
+  if(mh){ bindMorningForm(mh, iso); mh.querySelector('[data-health]').addEventListener('click',pasteHealth); mh.querySelector('[data-mdone]').addEventListener('click',()=>{ if(!morningDone(iso)){ toast('Ничего не записано — сдвинь хотя бы одно'); return; } mEdit=false; renderAll(); toast(`Замер записан: ${morningLine(iso)}`); }); }
   /* тренировка */
   box.querySelectorAll('[data-start]').forEach(b=>b.addEventListener('click',()=>startWorkout(b.closest('[data-day]').dataset.day)));
   box.querySelectorAll('[data-play]').forEach(b=>b.addEventListener('click',()=>openPlayer(b.closest('[data-day]').dataset.day)));

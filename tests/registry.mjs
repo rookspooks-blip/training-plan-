@@ -104,10 +104,10 @@ const close = async p => { ok('_errors', p.errs.length === 0, p.errs.join(' | ')
   ok(23, /free-exercise-db/.test(t) && /Unlicense/.test(t), 'источник фото');
   ok(193, await E(p, () => !!document.querySelector('#page [data-sub]') && !!document.querySelector('#page [data-ics]')) && /календарь только напоминает/.test(t), '«Подписаться», «Скачать .ics», «календарь только напоминает»');
   ok(151, await E(p, () => /Понедельник|Вторник|Среда|Четверг|Пятница|Суббота|Воскресенье/.test(document.querySelector('#page [data-pre]').textContent) && !!document.querySelector('#page [data-exd="-1"]') && !!document.querySelector('#page [data-exjson]')), 'день текстом с ‹ ›, «День · JSON»');
-  ok(152, await E(p, () => !!document.querySelector('#page [data-csv]') && !!document.querySelector('#page [data-alljson]') && CSV_COLS.length === 36), 'CSV (35 колонок + пах) и JSON');
+  ok(152, await E(p, () => !!document.querySelector('#page [data-csv]') && !!document.querySelector('#page [data-alljson]') && CSV_COLS.length === 37), 'CSV (35 колонок + пах + сон) и JSON');
   const dl = p.waitForEvent('download'); await p.click('#page [data-csv]');
   const csv = fs.readFileSync(await (await dl).path(), 'utf8');
-  ok(152, csv.charCodeAt(0) === 0xFEFF && csv.split('\r\n')[0].split(',').length === 36, 'CSV с BOM');
+  ok(152, csv.charCodeAt(0) === 0xFEFF && csv.split('\r\n')[0].split(',').length === 37, 'CSV с BOM');
   /* тема */
   await p.click('#page [data-theme] [data-v="dark"]');
   ok(22, await E(p, () => document.documentElement.dataset.theme === 'dark'), 'тёмная тема');

@@ -47,6 +47,21 @@ function settingsHTML(){
       <button type="button" class="btn" style="margin-top:10px" data-report>Отчёт за неделю</button>
       <div class="small muted" style="margin-top:10px">CSV открывается в Numbers и Excel: по строке на день, колонки — калории, белок, время первого и последнего приёма, тоннаж, вес, пульс, колено, пах. «Поделиться» отправляет в Telegram, Файлы, почту.</div></div>
 
+    <div class="sec">Импорт из «Здоровья»</div>
+    <div class="card"><p class="t2">Вес, пульс, сон и данные тренировки с часов можно не вводить: команда на iPhone достаёт их из «Здоровья» и копирует строкой, а здесь — одно нажатие.</p>
+      <button type="button" class="btn big pri" data-health>Вставить из «Здоровья»</button>
+      <details class="lx" style="margin-top:12px"><summary><b>Как настроить команду</b><span>один раз</span></summary>
+        <ol class="small t2" style="padding-left:20px">
+          <li>«Команды» → «+» → «Найти образцы Здоровья»: тип «Масса тела», сначала новые, лимит 1.</li>
+          <li>Так же для «Пульс в покое» и для сна («Время во сне»: сумма за прошлую ночь в часах).</li>
+          <li>Для тренировки: «Найти тренировки», последняя → начало и конец в виде <b>ЧЧ:ММ</b>, активные ккал, средний пульс.</li>
+          <li>«Текст» из этих значений в виде <b>${HEALTH_SAMPLE}</b>, затем «Скопировать в буфер обмена».</li>
+          <li>Запускай команду утром (можно автоматизацией «Когда выключу будильник»), потом открой приложение и нажми кнопку выше.</li>
+        </ol>
+        <p class="small muted">Пропущенные поля можно не писать. <b>d=2026-10-22</b> — другая дата. Пульс «в покое» из «Здоровья» близок к пульсу лёжа, но не тот же: сравнивай только со своими же числами. Названия действий в «Командах» зависят от версии iOS.</p>
+        <button type="button" class="btn" data-sample>Скопировать пример строки</button>
+      </details></div>
+
     <div class="sec">Резервная копия</div>
     <div class="card">
       <div class="note ${due?'y':'g'}" style="margin-bottom:12px"><b>${last?`Последняя копия: ${shortDate(last)}${due&&due.days!=null?` — ${due.days} ${plural(due.days,'день','дня','дней')} назад`:''}`:'Копий ещё не было'}</b>${due?'Сохрани копию — раз в неделю хватает.':'Напомню через 7 дней.'}</div>
@@ -56,6 +71,7 @@ function settingsHTML(){
       <input type="file" data-file accept="application/json,.json" hidden>
       ${auto?`<div class="small muted" style="margin-top:10px">Автокопия от ${esc(new Date(auto.saved).toLocaleString('ru-RU',{day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'}))} — ${esc(auto.reason||'')}. <button type="button" class="link" data-auto-back>Вернуть её</button></div>`:''}
       <div class="small muted" style="margin-top:10px">«Сохранить копию» открывает меню iPhone: выбери «Сохранить в Файлы» или отправь себе в Telegram. «Восстановить» — выбери этот файл, текущие данные заменятся.</div>
+      ${badgeSupported() && isStandalone && 'Notification' in window && Notification.permission==='default' ? `<button type="button" class="btn" style="margin-top:12px" data-badge>Значок на иконке, когда пора сохранить копию</button>` : ''}
       <button type="button" class="btn danger" style="margin-top:12px" data-wipe>Удалить все данные с телефона</button></div>
 
     <div class="sec">Календарь iPhone</div>
@@ -114,6 +130,10 @@ function openSettings(focus){
     });
     on('[data-report]','click',async()=>{ const ok=await copyText(buildReport()); toast(ok?'Отчёт за неделю скопирован':'Не вышло скопировать — открой отчёт в «Плане»'); });
     show();
+    /* Здоровье, значок */
+    on('[data-health]','click',pasteHealth);
+    on('[data-sample]','click',async()=>{ toast(await copyText(HEALTH_SAMPLE)?'Пример скопирован':'Не удалось скопировать'); });
+    on('[data-badge]','click',async()=>{ await enableBadge(); redraw(); });
     /* копия */
     on('[data-backup]','click',async()=>{ await exportBackup(); renderAll(); redraw(); });
     const inp=el.querySelector('[data-file]');

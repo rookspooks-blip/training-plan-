@@ -545,3 +545,10 @@ button.tile{ width:100%; }
 .pl-noimg .pl-dots .c i{ background:var(--c,var(--acc)); }
 body.playing #toast{ top:calc(env(safe-area-inset-top) + 64px); bottom:auto; }
 @media (max-width:400px){ .wd .dt{ font-size:11px; letter-spacing:-.02em; } .wd{ padding:10px 1px; } }
+
+/* Лёгкие переходы: вкладка и шаг плеера — 150 мс, при «уменьшить движение» отключаются выше */
+.wrap.enter{ animation:scrin .15s ease-out; }
+.pl-body.in{ animation:plin .16s ease-out; }
+@keyframes scrin{ from{ opacity:0; transform:translateY(6px); } to{ opacity:1; transform:none; } }
+@keyframes plin{ from{ opacity:0; transform:translateX(14px); } to{ opacity:1; transform:none; } }
+.inp.area{ min-height:120px; padding:12px; font-size:16px; font-weight:600; line-height:1.4; resize:vertical; font-variant-numeric:normal; }

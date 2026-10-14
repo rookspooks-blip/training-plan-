@@ -109,8 +109,8 @@ function dayText(D){
   L.push('');
   const B=D.body;
   L.push('ЗАМЕРЫ УТРОМ');
-  if(B && (B.w!=null||B.hr!=null||B.knee!=null||B.back!=null||B.groin!=null||B.feel!=null)){
-    L.push(`  Вес: ${B.w!=null?R1(B.w)+' кг':'—'} · пульс: ${B.hr!=null?B.hr:'—'} · поясница: ${B.back!=null?B.back+'/10':'—'} · колено: ${B.knee!=null?B.knee+'/10':'—'}${B.groin!=null?` · пах: ${B.groin}/10`:''} · самочувствие: ${B.feel!=null?B.feel+'/10':'—'}`);
+  if(B && (B.w!=null||B.hr!=null||B.knee!=null||B.back!=null||B.groin!=null||B.sleep!=null||B.feel!=null)){
+    L.push(`  Вес: ${B.w!=null?R1(B.w)+' кг':'—'} · пульс: ${B.hr!=null?B.hr:'—'} · поясница: ${B.back!=null?B.back+'/10':'—'} · колено: ${B.knee!=null?B.knee+'/10':'—'}${B.groin!=null?` · пах: ${B.groin}/10`:''}${B.sleep!=null?` · сон: ${R1(B.sleep)} ч`:''} · самочувствие: ${B.feel!=null?B.feel+'/10':'—'}`);
   } else L.push('  ничего не записано');
   D.circ.forEach(c=>L.push(`  Обхваты: талия узкая ${c.waistNarrow??'—'}, по пупку ${c.waistNavel??'—'}, бедро ${c.thigh??'—'}`));
   D.tests.forEach(t=>L.push(`  Тест: ${t.test} — ${R1(t.value)} ${t.unit}`));
@@ -148,7 +148,7 @@ function dayText(D){
 
 const csvCell=v=>{ if(v==null) return ''; const s=String(v); return /[",;\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; };
 const CSV_COLS=['date','weekday','cycle','week','training','training_status','exercises_done','exercises_total','sets_logged','tonnage_kg','top_rpe','warmup_done','cardio_done','ball_done','daily_block',
-  'kcal','kcal_target','protein','protein_target','fat','carb','meals','first_meal','last_meal','weight_kg','pulse','back_0_10','knee_0_10','feel_1_10','workout_start','workout_end','workout_min','workout_avg_hr','workout_max_hr','watch_kcal','groin_0_10'];
+  'kcal','kcal_target','protein','protein_target','fat','carb','meals','first_meal','last_meal','weight_kg','pulse','back_0_10','knee_0_10','feel_1_10','workout_start','workout_end','workout_min','workout_avg_hr','workout_max_hr','watch_kcal','groin_0_10','sleep_h'];
 function dayRow(D){
   const T=D.training, F=D.food, B=D.body||{};
   const times=F.meals.map(m=>m.time).filter(Boolean).sort();
@@ -162,7 +162,7 @@ function dayRow(D){
     F.meals.length?F.total.kcal:'', D.target.kcal, F.meals.length?F.total.p:'', D.target.p, F.meals.length?F.total.f:'', F.meals.length?F.total.c:'',
     F.meals.length, times[0]||'', times[times.length-1]||'',
     B.w??'', B.hr??'', B.back??'', B.knee??'', B.feel??'',
-    (T.watch&&T.watch.start)||'', (T.watch&&T.watch.end)||'', (T.watch&&T.watch.minutes)??'', (T.watch&&T.watch.avgHr)??'', (T.watch&&T.watch.maxHr)??'', (T.watch&&T.watch.kcal)??'', B.groin??''];
+    (T.watch&&T.watch.start)||'', (T.watch&&T.watch.end)||'', (T.watch&&T.watch.minutes)??'', (T.watch&&T.watch.avgHr)??'', (T.watch&&T.watch.maxHr)??'', (T.watch&&T.watch.kcal)??'', B.groin??'', B.sleep??''];
 }
 /* Все даты, по которым что-то записано */
 function datesWithData(){

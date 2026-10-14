@@ -31,6 +31,7 @@ function goTab(name){
   store.set('planTab', name);
   document.body.dataset.tab=name;
   TABS.forEach(t=>{ $(`#scr-${t}`).hidden = t!==name; });
+  const sc=$(`#scr-${name}`); sc.classList.remove('enter'); void sc.offsetWidth; sc.classList.add('enter');
   $$('#tabbar [data-go]').forEach(b=>{ b.classList.toggle('on', b.dataset.go===name); b.setAttribute('aria-current', b.dataset.go===name?'page':'false'); });
   if(pageStack.length) closePage(true);
   if(dirty.has(name)){ dirty.delete(name); TAB_RENDER[name](); }
@@ -40,7 +41,7 @@ function renderAll(){
   TABS.forEach(t=>dirty.add(t));
   const t=curTab();
   dirty.delete(t); TAB_RENDER[t]();
-  updateMini(); plRefresh();
+  updateMini(); plRefresh(); updateBadge();
 }
 $$('#tabbar [data-go]').forEach(b=>b.addEventListener('click',()=>{
   if(b.dataset.go===curTab() && !pageStack.length){ window.scrollTo({top:0, behavior:'smooth'}); return; }
@@ -100,3 +101,6 @@ loadAll();
 applyTheme();
 { const t=store.get('planTab','now'); document.body.dataset.tab=TAB_ALIAS[t]||'now'; goTab(TAB_ALIAS[t]||'now'); }
 updateMini();
+persistStorage();
+importFromLocation();
+updateBadge();
