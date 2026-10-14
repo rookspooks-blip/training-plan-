@@ -113,6 +113,26 @@ function migrate(){
   }
   store.set('planSchema',v);
 }
+/* Зимняя сессия: период по датам. Сушка идёт ровно 12 недель, поэтому сессия начинается не раньше
+   понедельника после неё; недели между концом сушки и «с» — те же поддерживающие тренировки.
+   Длина в неделях (settings.session) считается из даты «по» и хранится как раньше — так план,
+   выгрузки и календарь работают без изменений */
+const sesBase=()=>addDays(settings.start, 12*7);
+function winterSession(){
+  const base=sesBase(), weeks=settings.session|0;
+  if(!weeks) return {weeks:0, base, from:null, to:null};
+  const to=addDays(base, weeks*7-1);
+  const f=settings.sesFrom;
+  const from=(f && f>=base && f<=to) ? f : base;
+  return {weeks, base, from, to};
+}
+/* «по» → недели: до воскресенья недели, в которую попала дата. Раньше начала — сессии нет */
+function weeksUntil(iso){
+  const base=sesBase();
+  if(!iso || iso<base) return 0;
+  return Math.min(12, Math.ceil((daysBetween(base, iso)+1)/7));
+}
+
 /* Где в плане находится дата: сушка 12 нед → сессия → цикл 2 → цикл 3 */
 function posForDate(iso){
   const n=Math.floor(daysBetween(settings.start, iso)/7);

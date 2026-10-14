@@ -89,14 +89,31 @@ const close = async p => { ok('_errors', p.errs.length === 0, p.errs.join(' | ')
   ok(4, await E(p, () => document.querySelectorAll('#page [data-cyc] [data-c]').length === 3 && document.querySelectorAll('#page .wpick .dl').length >= 2 && document.querySelectorAll('#page .wpick .ss').length === 4), '3 цикла, разгрузки/тест и сессия отмечены');
   ok(5, await E(p, () => document.querySelector('#page [data-auto]').checked === true), '«Неделя по дате» включена по умолчанию');
   ok(6, await E(p, () => document.querySelector('#page [data-start]').value === '2026-10-05'), 'старт 05.10.2026');
-  ok(7, /Сессионный блок/.test(t) && await E(p, () => settings.session === 4), 'сессия 4 недели');
-  ok(8, /каникулы до 31 августа/.test(t) && await E(p, () => document.querySelector('#page [data-prac]').value === '2027-07-24'), 'практика до 24.07, каникулы до 31.08');
+  ok(7, /Зимняя сессия/.test(t) && await E(p, () => settings.session === 4 && document.querySelector('#page [data-wt]').value === '2027-01-24' && document.querySelector('#page [data-wf]').value === '2026-12-28'), 'сессия 4 недели: 28.12–24.01');
+  ok(8, /каникулы до 31 августа/.test(t) && await E(p, () => document.querySelector('#page [data-pt]').value === '2027-07-24' && document.querySelector('#page [data-pf]').value === '2027-07-01' && document.querySelector('#page [data-ef]').value === '2027-06-01' && document.querySelector('#page [data-et]').value === '2027-06-30'), 'лето по умолчанию: сессия июнь, практика 01.07–24.07, каникулы до 31.08');
   ok(199, /Меняет всё приложение: веса, разминку, калории, кардио и сон/.test(t) && /Жёлтая рамка — разгрузка или тест, синяя — сессия/.test(t), 'пояснение и легенда цветов');
-  for (let i = 0; i < 6; i++) await p.click('#page [data-ses="-1"]');
-  ok(7, await E(p, () => settings.session === 0), 'нижняя граница 0');
-  for (let i = 0; i < 10; i++) await p.click('#page [data-ses="1"]');
-  ok(7, await E(p, () => settings.session === 8), 'верхняя граница 8');
-  for (let i = 0; i < 4; i++) await p.click('#page [data-ses="-1"]');
+  /* зимняя сессия по датам */
+  await p.fill('#page [data-wt]', '2027-01-10'); await p.waitForTimeout(100);
+  ok(7, await E(p, () => settings.session === 2 && maxWeek(1) === 14 && posForDate('2027-01-11').cycle === 2), '«по» 10.01 — две недели, цикл 2 с 11.01');
+  await p.click('#toast button');
+  ok(7, await E(p, () => settings.session === 4), '«Отменить» вернула четыре недели');
+  await p.fill('#page [data-wt]', '2027-02-14'); await p.waitForTimeout(100);
+  ok(7, await E(p, () => settings.session === 7), '«по» 14.02 — семь недель');
+  await p.fill('#page [data-wf]', '2026-12-01'); await p.waitForTimeout(100);
+  ok(7, await E(p, () => !settings.sesFrom && /не раньше/.test(document.querySelector('#toast span').textContent)), '«с» раньше конца сушки не принимается');
+  await p.fill('#page [data-wf]', '2027-01-11'); await p.waitForTimeout(100);
+  ok(7, await E(p, () => settings.sesFrom === '2027-01-11' && winterSession().from === '2027-01-11'), '«с» позже конца сушки сохраняется');
+  await p.fill('#page [data-wt]', '2000-01-01'); await p.waitForTimeout(100);
+  ok(7, await E(p, () => settings.session === 0 && maxWeek(1) === 12), 'дата раньше начала — сессии нет');
+  await p.click('#toast button');
+  /* лето по датам */
+  await p.fill('#page [data-et]', '2027-06-20'); await p.fill('#page [data-pt]', '2027-07-10'); await p.waitForTimeout(100);
+  ok(8, await E(p, () => { const S = summerDates(); return S.exam[1] === '2027-06-20' && S.practice[0] === '2027-06-21' && S.practiceEnd === '2027-07-10'; }), 'период сессии и практики меняется');
+  await p.fill('#page [data-pf]', '2027-08-30'); await p.waitForTimeout(100);
+  ok(8, await E(p, () => /позже конца/.test(document.querySelector('#toast span').textContent) && summerDates().practice[0] === '2027-06-21'), '«с» позже «по» не принимается');
+  await p.fill('#page [data-et]', ''); await p.fill('#page [data-pt]', ''); await p.waitForTimeout(100);
+  ok(8, await E(p, () => summerDates().exam[1] === '2027-06-30' && summerDates().practiceEnd === '2027-07-24'), 'пустое поле — даты по умолчанию');
+  await E(p, () => { settings.session = 4; delete settings.sesFrom; delete settings.exFrom; delete settings.exTo; delete settings.prFrom; delete settings.prTo; saveSettings(); renderAll(); });
   await p.click('#page .wpick [data-w="5"]');
   ok(5, await E(p, () => settings.auto === false && state.week === 5 && /автовыбор по дате выключен/.test(document.querySelector('#toast').textContent)), 'ручной выбор выключает автовыбор, тост');
   await p.click('#page [data-auto]');

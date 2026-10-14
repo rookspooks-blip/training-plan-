@@ -670,3 +670,9 @@ body.playing #toast{ top:calc(env(safe-area-inset-top) + 64px); bottom:auto; }
 ul.src{ padding-left:18px; margin:6px 0 0; }
 ul.src li{ margin:4px 0; font-size:14px; }
 ul.src a{ color:var(--acc); text-decoration:none; }
+
+/* ---------- Настройки: период «с — по» ---------- */
+.range{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:8px; }
+.range label{ display:flex; align-items:center; gap:6px; font-weight:800; color:var(--t2); min-width:0; }
+.range label span{ flex:none; }
+.range input[type=date]{ flex:1; width:100%; min-width:0; max-width:100%; box-sizing:border-box; min-height:44px; border-radius:12px; border:2px solid var(--ln); background:var(--s1); color:var(--tx); padding:0 6px; font-weight:700; font-size:14px; }

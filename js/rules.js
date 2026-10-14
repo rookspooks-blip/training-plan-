@@ -278,16 +278,25 @@ function typicalMinutes(){
    Каникулы (до 31 августа): главный блок года — днём, на свежие ноги.
    Физры летом нет, поэтому скоростные дни не «после физры».
    Режим считается по дате недели, а не по номеру цикла */
-function summerDates(){
+/* Даты лета можно менять в настройках: сессия (июнь по умолчанию), практика, каникулы до конца августа.
+   Пустое или перевёрнутое («с» позже «по») — берутся даты по умолчанию */
+function summerDefaults(){
   const st=settings.start||SETTINGS_DEFAULT.start;
   const y=+st.slice(0,4) + (+st.slice(5,7)>=7 ? 1 : 0);
-  return {y, exam:[`${y}-06-01`,`${y}-06-30`], practiceEnd:settings.practiceEnd||`${y}-07-24`, end:`${y}-08-31`};
+  return {y, exFrom:`${y}-06-01`, exTo:`${y}-06-30`, prTo:`${y}-07-24`, end:`${y}-08-31`};
+}
+function summerDates(){
+  const D=summerDefaults(), ok=(a,b)=>a && b && /^\d{4}-\d\d-\d\d$/.test(a) && /^\d{4}-\d\d-\d\d$/.test(b) && a<=b;
+  const exam = ok(settings.exFrom, settings.exTo) ? [settings.exFrom, settings.exTo] : [D.exFrom, D.exTo];
+  const prTo = settings.prTo || settings.practiceEnd || D.prTo;       /* practiceEnd — старое имя */
+  const prFrom = settings.prFrom && settings.prFrom<=prTo ? settings.prFrom : addDays(exam[1],1);
+  return {y:D.y, exam, practice:[prFrom, prTo], practiceEnd:prTo, end:D.end};
 }
 function summerModeOf(c,w){
   const d=dateOfCW(c,w,2), S=summerDates();     /* середина недели */
   if(d>=S.exam[0] && d<=S.exam[1]) return 'exam';
-  if(d>S.exam[1] && d<=S.practiceEnd) return 'practice';
-  if(d>S.practiceEnd && d<=S.end) return 'vacation';
+  if(d>=S.practice[0] && d<=S.practice[1]) return 'practice';
+  if(d>S.practice[1] && d<=S.end) return 'vacation';
   return null;
 }
 const summerMode=()=>summerModeOf(state.cycle,state.week);

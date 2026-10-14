@@ -7,6 +7,15 @@
 let exDate=null;
 let setCycle=null;   /* какой цикл раскрыт в выборе недели */
 
+const fmtDay=iso=>dOf(iso).toLocaleDateString('ru-RU',{day:'numeric',month:'long'});
+/* Период «с — по»: две даты в одной строке и пояснение под ними */
+function periodRow(title, idFrom, idTo, from, to, hint, min){
+  return `<div class="set-row" style="display:block;padding:12px 0"><b style="font-size:16px">${title}</b>
+    <div class="range"><label><span>с</span><input type="date" data-${idFrom} value="${esc(from||'')}" ${min?`min="${esc(min)}"`:''} aria-label="${esc(title)}: начало"></label>
+      <label><span>по</span><input type="date" data-${idTo} value="${esc(to||'')}" aria-label="${esc(title)}: конец"></label></div>
+    <div class="small muted" style="margin-top:6px">${hint}</div></div>`;
+}
+
 function settingsHTML(){
   const auto=asObj(store.get('planAutoBackup',null),null);
   const customDates = settings.start!==SETTINGS_DEFAULT.start || (settings.session|0)!==SETTINGS_DEFAULT.session;
@@ -18,6 +27,7 @@ function settingsHTML(){
     weeks+=`<button type="button" class="${fl}${state.cycle===c&&state.week===w?' on':''}" data-w="${w}" aria-label="Неделя ${k==='session'?'сессии '+(w-12):w}">${k==='session'?'С'+(w-12):w}</button>`;
   }
   const th=settings.theme||'auto';
+  const WS=winterSession(), SD=summerDates();
   return `
     <div class="sec">Оформление</div>
     <div class="card"><div class="seg" data-theme>${[['auto','Как в iPhone'],['light','Светлая'],['dark','Тёмная']].map(([v,t])=>`<button type="button" class="${th===v?'on':''}" data-v="${v}">${t}</button>`).join('')}</div>
@@ -32,8 +42,12 @@ function settingsHTML(){
         <div class="wpick">${weeks}</div>
         <div class="small muted" style="margin-top:6px">Жёлтая рамка — разгрузка или тест, синяя — сессия.</div></div>
       <div class="set-row"><span class="grow"><b>Старт плана</b><span>понедельник недели 1</span></span><input type="date" data-start value="${esc(settings.start)}" aria-label="Старт плана"></div>
-      <div class="set-row"><span class="grow"><b>Сессионный блок</b><span>недель после сушки, до цикла 2 · 0–8</span></span><span class="stepper"><button type="button" data-ses="-1" aria-label="Меньше">−</button><b class="n">${settings.session|0}</b><button type="button" data-ses="1" aria-label="Больше">+</button></span></div>
-      <div class="set-row"><span class="grow"><b>Практика летом до</b><span>после неё — каникулы до 31 августа</span></span><input type="date" data-prac value="${esc(summerDates().practiceEnd)}" aria-label="Конец практики"></div>
+      ${periodRow('Зимняя сессия', 'wf', 'wt', WS.from, WS.to, WS.weeks
+          ? `${WS.weeks} ${plural(WS.weeks,'неделя','недели','недель')} после сушки · цикл 2 начнётся ${fmtDay(addDays(WS.base, WS.weeks*7))}. Раньше ${fmtDay(WS.base)} начать нельзя: сушка идёт 12 недель. Недели между её концом и «с» — те же поддерживающие тренировки.`
+          : `Сессии нет — после сушки сразу цикл 2 (${fmtDay(WS.base)}). Выбери «по», чтобы добавить сессию.`, WS.base)}
+      ${periodRow('Летняя сессия', 'ef', 'et', SD.exam[0], SD.exam[1], 'Подготовка к экзаменам: две короткие силовые и прыжки, подходов вдвое меньше.')}
+      ${periodRow('Практика', 'pf', 'pt', SD.practice[0], SD.practice[1], 'Днём занят — тренировки вечером. После практики каникулы до 31 августа — главный блок года.')}
+      <div class="small muted" style="margin-top:10px">Пустое поле возвращает даты по умолчанию. От дат зависят нагрузка, калории и время тренировок.</div>
     </div>
 
     <div class="sec">Выгрузки</div>
@@ -102,12 +116,47 @@ function openSettings(focus){
     on('[data-cyc] [data-c]','click',b=>{ setCycle=+b.dataset.c; redraw(); });
     on('.wpick [data-w]','click',b=>{ const w=+b.dataset.w, c=setCycle, wasAuto=settings.auto; setWeekManual(c,w); if(!wasAuto || settings.auto) toast(`Открыта ${weekTitle(c,w).toLowerCase()}, цикл ${c}`); redraw(); });
     on('[data-start]','change',b=>{ if(!b.value) return; settings.start=b.value; saveSettings(); if(settings.auto) applyAuto(); setCycle=state.cycle; renderAll(); redraw(); });
-    on('[data-ses]','click',b=>{
-      settings.session=Math.max(0, Math.min(8, (settings.session|0)+(+b.dataset.ses))); saveSettings();
+    /* периоды: сессии и практика. Любое изменение — с «Отменить»; записи и отметки не трогаются,
+       меняется только то, какая дата к какой неделе относится */
+    const KEYS=['session','sesFrom','exFrom','exTo','prFrom','prTo','practiceEnd'];
+    const change=(fn, msg)=>{
+      const before={}; KEYS.forEach(k=>{ before[k]=settings[k]; });
+      fn(); saveSettings();
       if(state.cycle===1 && state.week>maxWeek(1)){ state.week=maxWeek(1); savePos(); }
-      if(settings.auto) applyAuto(); renderAll(); redraw();
+      if(settings.auto) applyAuto();
+      renderAll(); redraw();
+      toast(msg, ()=>{ KEYS.forEach(k=>{ if(before[k]===undefined) delete settings[k]; else settings[k]=before[k]; });
+        saveSettings(); if(settings.auto) applyAuto(); renderAll(); redraw(); });
+    };
+    const bad=msg=>{ toast(msg); redraw(); };
+    on('[data-wf]','change',b=>{
+      const v=b.value, base=sesBase();
+      if(!v){ change(()=>{ delete settings.sesFrom; }, 'Начало сессии — сразу после сушки'); return; }
+      if(v<base) return bad(`Сессия начинается не раньше ${fmtDay(base)}: сушка идёт 12 недель`);
+      change(()=>{ settings.sesFrom=v; if(weeksUntil(v)>(settings.session|0)) settings.session=weeksUntil(v); }, 'Начало сессии сохранено');
     });
-    on('[data-prac]','change',b=>{ if(!b.value) return; settings.practiceEnd=b.value; saveSettings(); renderAll(); redraw(); });
+    on('[data-wt]','change',b=>{
+      const v=b.value;
+      if(!v || v<sesBase()){ change(()=>{ settings.session=0; delete settings.sesFrom; }, 'Сессии нет: после сушки сразу цикл 2'); return; }
+      change(()=>{ settings.session=weeksUntil(v); if(settings.sesFrom && settings.sesFrom>addDays(sesBase(), settings.session*7-1)) delete settings.sesFrom; },
+        `Сессия по ${fmtDay(addDays(sesBase(), weeksUntil(v)*7-1))} — ${weeksUntil(v)} ${plural(weeksUntil(v),'неделя','недели','недель')}`);
+    });
+    const summer=(key, idF, idT)=>{
+      on(`[data-${idF}]`,'change',b=>{
+        if(!b.value){ change(()=>{ delete settings[key[0]]; }, 'Начало — по умолчанию'); return; }
+        const to=summerDates()[key[2]==='ex'?'exam':'practice'][1];
+        if(b.value>to) return bad('Начало позже конца периода');
+        change(()=>{ settings[key[0]]=b.value; if(key[2]==='ex' && !settings.exTo) settings.exTo=to; }, 'Даты сохранены');
+      });
+      on(`[data-${idT}]`,'change',b=>{
+        if(!b.value){ change(()=>{ delete settings[key[1]]; if(key[1]==='prTo') delete settings.practiceEnd; }, 'Конец — по умолчанию'); return; }
+        const from=summerDates()[key[2]==='ex'?'exam':'practice'][0];
+        if(b.value<from) return bad('Конец раньше начала периода');
+        change(()=>{ settings[key[1]]=b.value; if(key[1]==='prTo') delete settings.practiceEnd; if(key[2]==='ex' && !settings.exFrom) settings.exFrom=from; }, 'Даты сохранены');
+      });
+    };
+    summer(['exFrom','exTo','ex'],'ef','et');
+    summer(['prFrom','prTo','pr'],'pf','pt');
     /* выгрузки */
     const pre=el.querySelector('[data-pre]'), di=el.querySelector('[data-exdate]');
     let D=null;
