@@ -158,7 +158,9 @@ function habitRows(){
 }
 
 /* ---------- Полоса года: зажал — выросла, ведёшь пальцем — подпись недели, отпустил — её состав ---------- */
+let yearAbort=null;   /* слушатели окна снимаем при каждой перерисовке «Плана», чтобы они не копились */
 function bindYearScrub(box, yw, nowI, selI){
+  if(yearAbort) yearAbort.abort(); yearAbort=new AbortController(); const sig={signal:yearAbort.signal};
   const bar=box.querySelector('.year'), tip=box.querySelector('.ytip'), wrap=box.querySelector('.ywrap');
   if(!bar) return;
   const btns=[...bar.children];
@@ -183,7 +185,12 @@ function bindYearScrub(box, yw, nowI, selI){
     let lo=0, hi=n-1;
     for(let it=0; it<22; it++){ const mid=(lo+hi)/2; if(posOf(mid,grows(mid),W,gap)<x) lo=mid; else hi=mid; }
     const phi=(lo+hi)/2, g=grows(phi);
-    btns.forEach((b,j)=>{ b.style.flexGrow=g[j].toFixed(3); b.style.setProperty('--f', (amp*bell(Math.abs(j-phi)/RB)).toFixed(3)); });
+    btns.forEach((b,j)=>{
+      const f=amp*bell(Math.abs(j-phi)/RB), q=b.firstElementChild;
+      b.style.flexGrow=g[j].toFixed(3);
+      q.style.height=Math.min(100, yw[j].h*(1+.35*f)).toFixed(1)+'%';
+      q.style.opacity=(j===Math.round(phi) ? 1 : .5+.5*f).toFixed(2);
+    });
     const i=Math.max(0, Math.min(n-1, Math.round(phi)));
     if(i!==cur){
       if(cur>=0) haptic();
@@ -216,7 +223,9 @@ function bindYearScrub(box, yw, nowI, selI){
   const clean=()=>{
     cancelAnimationFrame(ampRaf); if(raf){ cancelAnimationFrame(raf); raf=0; }
     amp=0; cur=-1; bar.classList.remove('scrub'); tip.hidden=true;
-    btns.forEach(b=>{ b.style.flexGrow=''; b.style.removeProperty('--f'); b.classList.remove('hot'); });
+    btns.forEach((b,j)=>{ b.style.flexGrow=''; b.style.removeProperty('--f'); b.classList.remove('hot');
+      const q=b.firstElementChild; q.style.height=yw[j].h+'%'; q.style.opacity=''; });
+    void bar.offsetWidth;   /* принудительная перерисовка: Safari иногда оставляет старый кадр */
   };
   const stop=(soft)=>{
     clearTimeout(hold); on=false; live=false;
@@ -244,6 +253,10 @@ function bindYearScrub(box, yw, nowI, selI){
     document.addEventListener('click',kill,true); setTimeout(()=>document.removeEventListener('click',kill,true),400);
     const x=yw[i]; pickYearWeek(x.c,x.w);
   });
+  /* iPhone иногда теряет pointerup у полосы (захват, перерисовка) — тогда жест заканчиваем по окну и по потере захвата */
+  window.addEventListener('pointerup',e=>{ if(on && live && e.pointerId===pid) bar.dispatchEvent(new PointerEvent('pointerup',{pointerId:pid, clientX:e.clientX, clientY:e.clientY})); }, sig);
+  window.addEventListener('touchend',()=>{ if(on && live) setTimeout(()=>{ if(on && live) bar.dispatchEvent(new PointerEvent('pointerup',{pointerId:pid, clientX:lx})); }, 60); }, sig);
+  bar.addEventListener('lostpointercapture',e=>{ if(e.target===bar && on && live) setTimeout(()=>{ if(on && live) bar.dispatchEvent(new PointerEvent('pointerup',{pointerId:pid, clientX:lx})); }, 60); });
   bar.addEventListener('touchmove',e=>{ if(live && e.cancelable) e.preventDefault(); },{passive:false});   /* ведёшь пальцем — страница не едет */
   bar.addEventListener('pointercancel',()=>stop(true));   /* страницу повели вверх-вниз — это прокрутка, не выбор */
   btns.forEach((b,i)=>b.addEventListener('click',()=>{ const x=yw[i]; pickYearWeek(x.c,x.w); }));

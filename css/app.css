@@ -646,10 +646,9 @@ body.playing #toast{ top:calc(env(safe-area-inset-top) + 64px); bottom:auto; }
    переход отставал от пальца, и пик оказывался не под ним */
 .ywrap{ position:relative; }
 .year{ touch-action:pan-y; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; }
-.year.scrub{ overflow:visible; }   /* высота полосы не меняется — страница под пальцем не прыгает; столбики вырастают вверх */
-.year i{ transform-origin:50% 100%; }
-.year.scrub i{ transform:scaleY(calc(1 + var(--f,0) * .5)); border-radius:calc(2px + var(--f,0) * 4px); opacity:calc(.45 + var(--f,0) * .55); box-shadow:none !important; outline:none; }
-.year.scrub .hot i{ opacity:1; box-shadow:0 0 0 2px var(--tx) !important; }
+.year.scrub{ }   /* высота полосы не меняется — страница под пальцем не прыгает; растут только ширина и высота столбиков внутри полосы */
+.year.scrub i{ box-shadow:none !important; outline:none; }
+.year.scrub .hot i{ box-shadow:0 0 0 2px var(--tx) !important; }
 .ytip{ position:absolute; left:0; bottom:calc(100% + 44px); z-index:5; width:max-content; max-width:min(300px, 100%); pointer-events:none;
   background:var(--tx); color:var(--bg); border-radius:14px; padding:8px 12px; box-shadow:0 8px 24px rgba(0,0,0,.25); font-size:13px; line-height:1.35; }
 .ytip.below{ bottom:auto; top:calc(100% + 14px); }
