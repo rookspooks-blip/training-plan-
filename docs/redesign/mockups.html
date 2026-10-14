@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Макеты · Три цикла</title>
+<style>
+/* Токены новой визуальной системы (тёмная тема). Роли, а не «красивые цвета»:
+   действие — лайм, сделано — зелёный, внимание — янтарь, опасно — красный, время и кардио — голубой */
+:root{
+  --bg:#0F1012; --surface:#191A1D; --surface-2:#232428; --line:#2E3035;
+  --text:#F4F4F2; --text-2:#B9BBC1; --text-3:#90939A;
+  --action:#D7FF3A; --on-action:#0F1012;
+  --done:#4ADE80; --warn:#FFB020; --danger:#FF5A4E; --info:#6CB8FF; --test:#B69CFF;
+  --r:16px; --gap:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#2a2b2f;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Arial,sans-serif;color:var(--text);padding:24px;display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start}
+.num{font-variant-numeric:tabular-nums}
+.phone{width:393px;height:852px;background:var(--bg);border-radius:44px;overflow:hidden;position:relative;box-shadow:0 0 0 10px #000, 0 20px 50px rgba(0,0,0,.5);flex:none}
+.cap{width:393px;color:#ddd;font-size:15px;margin-top:14px;text-align:center}
+.wrap{display:flex;flex-direction:column}
+.status{height:47px;display:flex;justify-content:space-between;align-items:flex-end;padding:0 32px 6px;font-size:16px;font-weight:600}
+.scroll{position:absolute;top:47px;left:0;right:0;bottom:0;overflow:hidden;padding:0 16px}
+
+/* Шапка: неделя и редкие действия вверху — туда тянутся редко */
+.hdr{display:flex;align-items:center;gap:10px;padding:10px 0 12px}
+.hdr .t{flex:1}
+.hdr .d{font-size:13px;color:var(--text-3);font-weight:600;letter-spacing:.02em;text-transform:uppercase}
+.hdr .w{font-size:22px;font-weight:800;letter-spacing:-.01em;margin-top:2px}
+.hdr .w i{font-style:normal;color:var(--action)}
+.ic{width:44px;height:44px;border-radius:22px;background:var(--surface);display:grid;place-items:center;color:var(--text-2);font-size:19px;font-weight:700}
+.band{height:4px;border-radius:2px;background:var(--action);margin:-4px 0 12px;width:56px}
+
+/* Неделя в одну строку: 7 дней видно сразу */
+.strip{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:14px}
+.strip div{height:56px;border-radius:12px;background:var(--surface);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:13px;color:var(--text-3);font-weight:600}
+.strip b{font-size:15px;color:var(--text)}
+.strip .on{outline:2px solid var(--action);background:var(--surface-2)}
+.strip .ok b{color:var(--done)}
+.strip .rest b{color:var(--text-3)}
+.strip .car b{color:var(--info)}
+
+.card{background:var(--surface);border-radius:var(--r);padding:16px;margin-bottom:var(--gap)}
+.card h3{font-size:17px;font-weight:700;display:flex;align-items:center;gap:8px}
+.card h3 .sp{flex:1}
+.k{font-size:13px;color:var(--text-3);font-weight:600}
+.sub{font-size:15px;color:var(--text-2);margin-top:4px;line-height:1.35}
+.row{display:flex;align-items:center;gap:12px;min-height:56px}
+.row + .row{border-top:1px solid var(--line)}
+.ck{width:44px;height:44px;border-radius:22px;border:2px solid var(--line);flex:none;display:grid;place-items:center;font-size:20px;font-weight:800}
+.ck.done{background:var(--done);border-color:var(--done);color:var(--bg)}
+.ck.cur{border-color:var(--action)}
+.grow{flex:1;min-width:0}
+.nm{font-size:17px;font-weight:600}
+.ds{font-size:15px;color:var(--text-2);margin-top:2px}
+.ds b{color:var(--text);font-weight:700}
+.chev{color:var(--text-3);font-size:20px}
+
+/* Ввод утра */
+.field{display:flex;align-items:center;gap:8px;margin-top:10px}
+.field .lb{width:92px;font-size:15px;color:var(--text-2)}
+.step{width:48px;height:48px;border-radius:12px;background:var(--surface-2);display:grid;place-items:center;font-size:22px;font-weight:700}
+.val{flex:1;height:48px;border-radius:12px;background:var(--bg);border:2px solid var(--action);display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:800}
+.val small{font-size:15px;color:var(--text-3);margin-left:6px;font-weight:600}
+.val.plain{border-color:var(--line)}
+.scale{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-top:8px}
+.scale span{height:44px;border-radius:10px;background:var(--surface-2);display:grid;place-items:center;font-size:17px;font-weight:700}
+.scale .y{color:var(--warn)} .scale .r{color:var(--danger)}
+.scale .sel{background:var(--done);color:var(--bg)}
+.scale .blank{background:transparent}
+.slab{font-size:15px;color:var(--text-2);margin-top:14px}
+
+/* Плитки быстрой еды */
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.tiles span{min-height:56px;border-radius:12px;background:var(--surface-2);padding:9px 12px;font-size:15px;font-weight:600;line-height:1.2}
+.tiles small{display:block;color:var(--text-3);font-size:13px;font-weight:600;margin-top:3px}
+.tiles .bad{box-shadow:inset 0 0 0 2px rgba(255,176,32,.6)}
+
+.kcal{display:flex;align-items:baseline;gap:8px;margin-top:6px}
+.kcal b{font-size:34px;font-weight:800}
+.bars{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px}
+.bar{height:6px;border-radius:3px;background:var(--surface-2);overflow:hidden;margin-top:5px}
+.bar i{display:block;height:100%}
+
+/* Нижняя кнопка — главное действие экрана, у большого пальца */
+.dock{position:absolute;left:0;right:0;bottom:0;padding:10px 16px 0;background:linear-gradient(to top,var(--bg) 78%,rgba(15,16,18,0))}
+.primary{height:56px;border-radius:16px;background:var(--action);color:var(--on-action);font-size:17px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:10px}
+.primary small{font-weight:700;opacity:.7;font-size:15px}
+.tabs{display:grid;grid-template-columns:repeat(4,1fr);height:83px;padding-top:8px;margin:10px -16px 0;border-top:1px solid var(--line);background:var(--bg)}
+.tabs div{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--text-3)}
+.tabs i{width:26px;height:26px;border-radius:7px;border:2px solid currentColor;display:block}
+.tabs .on{color:var(--action)}
+
+/* Тренировка */
+.wh{display:flex;align-items:center;gap:10px;padding:8px 0 12px}
+.wh .t{flex:1}
+.wh .w{font-size:20px;font-weight:800}
+.ex{background:var(--surface);border-radius:var(--r);margin-bottom:8px;padding:0 14px}
+.ex.cur{outline:2px solid var(--action)}
+.ex .row{min-height:60px}
+.note{font-size:15px;color:var(--text-2);padding:0 0 10px;line-height:1.35}
+.note b{color:var(--text)}
+.sets{padding-bottom:12px}
+.set{display:grid;grid-template-columns:28px 1fr 22px 1fr 56px;align-items:center;gap:6px;height:60px}
+.set + .set{border-top:1px solid var(--line)}
+.set .n{font-size:15px;color:var(--text-3);font-weight:700}
+.cell{height:48px;border-radius:12px;background:var(--surface-2);display:flex;flex-direction:column;justify-content:center;align-items:center;line-height:1.05}
+.cell b{font-size:24px;font-weight:800}
+.cell small{font-size:13px;color:var(--text-3);font-weight:600}
+.cell.ghost b{color:var(--text-2)}
+.x{text-align:center;color:var(--text-3);font-size:17px}
+.sck{width:56px;height:48px;border-radius:12px;border:2px solid var(--line);display:grid;place-items:center;font-size:22px;font-weight:800;color:var(--text-3)}
+.sck.done{background:var(--done);border-color:var(--done);color:var(--bg)}
+.set.active{background:rgba(215,255,58,.06);margin:0 -14px;padding:0 14px}
+.set.active .sck{border-color:var(--action);color:var(--action)}
+.rpe{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:8px}
+.rpe span{height:48px;border-radius:12px;background:var(--surface-2);display:grid;place-items:center;font-size:20px;font-weight:800}
+.rpe .h{color:var(--warn)}
+.leg{display:flex;justify-content:space-between;font-size:13px;color:var(--text-3);margin-top:6px}
+.timer{height:72px;border-radius:18px;background:var(--surface-2);border:2px solid var(--info);display:flex;align-items:center;gap:10px;padding:0 10px 0 16px}
+.timer .tt{flex:1}
+.timer .l{font-size:13px;color:var(--text-2);font-weight:600}
+.timer .v{font-size:34px;font-weight:800;color:var(--info);line-height:1}
+.tb{height:52px;min-width:56px;padding:0 12px;border-radius:14px;background:var(--surface);display:grid;place-items:center;font-size:17px;font-weight:800}
+.prog{height:4px;border-radius:2px;background:var(--line);margin-top:6px;overflow:hidden}
+.prog i{display:block;height:100%;background:var(--info);width:62%}
+.pill{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:14px;font-size:13px;font-weight:700}
+.pill.y{background:rgba(255,176,32,.15);color:var(--warn)}
+.pill.g{background:rgba(74,222,128,.13);color:var(--done)}
+.pill.i{background:rgba(108,184,255,.14);color:var(--info)}
+
+/* Неделя */
+.day{display:grid;grid-template-columns:40px 1fr auto;align-items:center;gap:10px;min-height:56px}
+.day + .day{border-top:1px solid var(--line)}
+.day .dw{font-size:15px;font-weight:800;color:var(--text-2)}
+.day .st{font-size:13px;font-weight:700}
+.dots{display:flex;gap:6px;margin-top:10px}
+.dots i{width:32px;height:32px;border-radius:16px;background:var(--surface-2);display:grid;place-items:center;font-style:normal;font-size:13px;font-weight:700;color:var(--text-3)}
+.dots .d{background:var(--done);color:var(--bg)}
+.wsb{display:grid;grid-template-columns:28px 1fr 52px;align-items:center;gap:8px;height:24px;font-size:13px;color:var(--text-2)}
+.wsb .tr{height:8px;background:var(--surface-2);border-radius:4px;position:relative}
+.wsb .tr:after{content:"";position:absolute;left:50%;top:-3px;bottom:-3px;width:1px;background:var(--text-3)}
+.wsb .tr i{position:absolute;top:0;bottom:0;border-radius:4px}
+
+/* Прогресс */
+.hero{display:flex;align-items:baseline;gap:8px}
+.hero b{font-size:40px;font-weight:800;letter-spacing:-.02em}
+.chart{height:150px;margin-top:10px}
+.lights{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.light{background:var(--surface);border-radius:14px;padding:12px}
+.light .lv{font-size:22px;font-weight:800;margin-top:4px}
+.tests{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.tst{background:var(--surface);border-radius:14px;padding:12px}
+.tst .v{font-size:24px;font-weight:800;margin-top:2px}
+.tst .v small{font-size:13px;color:var(--text-3);margin-left:3px}
+
+/* Лист (второй уровень) */
+.dim{position:absolute;inset:0;background:rgba(0,0,0,.55)}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--surface);border-radius:24px 24px 0 0;padding:10px 16px 34px}
+.grab{width:40px;height:5px;border-radius:3px;background:var(--line);margin:0 auto 14px}
+.sheet h2{font-size:22px;font-weight:800}
+.opt{display:flex;align-items:center;gap:12px;min-height:60px;border-top:1px solid var(--line)}
+.opt:first-of-type{border-top:0}
+.opt .grow b{font-size:17px;font-weight:700;display:block}
+.opt .grow span{font-size:15px;color:var(--text-2)}
+.secbtn{height:48px;border-radius:14px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:700}
+.danger{color:var(--danger)}
+.sec{font-size:13px;color:var(--text-3);font-weight:700;letter-spacing:.04em;text-transform:uppercase;margin:16px 0 8px}
+.toast{position:absolute;left:16px;right:16px;bottom:186px;height:52px;border-radius:14px;background:var(--text);color:var(--bg);display:flex;align-items:center;padding:0 8px 0 16px;font-size:15px;font-weight:700}
+.toast span{flex:1}
+.toast b{height:40px;padding:0 12px;border-radius:10px;display:grid;place-items:center;color:#0057D9}
+</style>
+</head>
+<body>
+
+<!-- 1. Сегодня утром -->
+<div class="wrap"><div class="phone" id="m1">
+  <div class="status"><span>8:31</span><span>●●● 100%</span></div>
+  <div class="scroll">
+    <div class="hdr"><div class="t"><div class="d">Пн, 19 октября</div><div class="w">Неделя 3 · <i>рабочая</i></div></div><div class="ic">?</div><div class="ic">⚙</div></div>
+    <div class="band"></div>
+    <div class="strip">
+      <div class="on"><b>Пн</b>А</div><div class="car"><b>Вт</b>вело</div><div><b>Ср</b>В</div><div><b>Чт</b>скор.</div><div class="rest"><b>Пт</b>отдых</div><div><b>Сб</b>Б</div><div class="car"><b>Вс</b>вело</div>
+    </div>
+    <div class="card">
+      <h3>Утро<span class="sp"></span><span class="k">пишется сразу</span></h3>
+      <div class="field"><span class="lb">Вес, кг</span><span class="step">−</span><span class="val num">76,4<small>вчера 76,6</small></span><span class="step">+</span></div>
+      <div class="field"><span class="lb">Пульс лёжа</span><span class="val plain num" style="font-size:22px;color:var(--text-3)">уд/мин</span></div>
+      <div class="slab">Колено: боль в приседе на одной ноге</div>
+      <div class="scale num"><span>0</span><span>1</span><span class="sel">2</span><span>3</span><span class="y">4</span><span class="y">5</span><span class="r">6</span><span class="r">7</span><span class="r">8</span><span class="r">9</span><span class="r">10</span><span class="blank"></span></div>
+    </div>
+    <div class="card" style="padding:4px 16px">
+      <div class="row"><span class="ck"></span><span class="grow"><span class="nm">Каждый день</span><div class="ds">Колени, пах, стопа · 12 мин</div></span><span class="chev">›</span></div>
+    </div>
+    <div class="card">
+      <h3>Силовая А<span class="sp"></span><span class="k">17:00 · ≈85 мин</span></h3>
+      <div class="sub">Подъезд: старты и торможение, потом сплит-присед, румынская, подтягивания, отжимания</div>
+    </div>
+  </div>
+  <div class="dock"><div class="primary">Начать тренировку <small>в 17:00</small></div>
+    <div class="tabs"><div class="on"><i></i>Сегодня</div><div><i></i>Неделя</div><div><i></i>Еда</div><div><i></i>Прогресс</div></div></div>
+</div><div class="cap">1 · «Сегодня» утром: замер первым, кнопка тренировки у пальца</div></div>
+
+<!-- 2. Тренировка: подход одним тапом -->
+<div class="wrap"><div class="phone" id="m2">
+  <div class="status"><span>17:24</span><span>●●● 82%</span></div>
+  <div class="scroll">
+    <div class="wh"><div class="t"><div class="k">ИДЁТ 24 МИН · 4 ИЗ 9</div><div class="w">Силовая А</div></div><div class="ic">⋯</div></div>
+    <div class="ex"><div class="row"><span class="ck done">✓</span><span class="grow"><span class="nm">Старты в подъезде</span><div class="ds">5 × 3–5 м · из стойки</div></span></div></div>
+    <div class="ex"><div class="row"><span class="ck done">✓</span><span class="grow"><span class="nm">Торможение в стойку</span><div class="ds">3 × 3 · с 1–2 шагов</div></span></div></div>
+    <div class="ex cur">
+      <div class="row"><span class="ck cur"></span><span class="grow"><span class="nm">Болгарский сплит-присед</span><div class="ds"><b>4 × 8–12</b> на ногу · свой вес · отдых 2 мин</div></span><span class="chev">ⓘ</span></div>
+      <div class="note">Сегодня: <b>10 повт.</b> во всех подходах — в прошлый раз 10-10-9-9</div>
+      <div class="sets">
+        <div class="set"><span class="n">1</span><span class="cell ghost"><b>—</b><small>свой вес</small></span><span class="x">×</span><span class="cell"><b class="num">10</b><small>было 10</small></span><span class="sck done">✓</span></div>
+        <div class="set"><span class="n">2</span><span class="cell ghost"><b>—</b><small>свой вес</small></span><span class="x">×</span><span class="cell"><b class="num">10</b><small>было 10</small></span><span class="sck done">✓</span></div>
+        <div class="set active"><span class="n">3</span><span class="cell ghost"><b>—</b><small>свой вес</small></span><span class="x">×</span><span class="cell"><b class="num">10</b><small>было 9</small></span><span class="sck">✓</span></div>
+        <div class="set"><span class="n">4</span><span class="cell ghost"><b>—</b><small>свой вес</small></span><span class="x">×</span><span class="cell"><b class="num" style="color:var(--text-2)">10</b><small>было 9</small></span><span class="sck">✓</span></div>
+      </div>
+    </div>
+    <div class="ex"><div class="row"><span class="ck"></span><span class="grow"><span class="nm">Румынская в разноножке</span><div class="ds">3 × 10 · <b>гантель 6 кг</b></div></span></div></div>
+  </div>
+  <div class="dock"><div class="primary">✓ Подход 3 из 4 <small>· 10 повт.</small></div>
+    <div class="tabs"><div class="on"><i></i>Сегодня</div><div><i></i>Неделя</div><div><i></i>Еда</div><div><i></i>Прогресс</div></div></div>
+</div><div class="cap">2 · Тренировка: подход — один тап внизу, числа уже подставлены</div></div>
+
+<!-- 3. Тренировка: отдых и тяжесть -->
+<div class="wrap"><div class="phone" id="m3">
+  <div class="status"><span>17:31</span><span>●●● 80%</span></div>
+  <div class="scroll">
+    <div class="wh"><div class="t"><div class="k">ИДЁТ 31 МИН · 4 ИЗ 9</div><div class="w">Силовая А</div></div><div class="ic">⋯</div></div>
+    <div class="ex cur">
+      <div class="row"><span class="ck done">✓</span><span class="grow"><span class="nm">Болгарский сплит-присед</span><div class="ds">4 × 10 · свой вес — сделано</div></span></div>
+      <div class="note" style="padding-bottom:4px">Насколько тяжело было в последнем подходе</div>
+      <div class="rpe num"><span>6</span><span>7</span><span>8</span><span class="h">9</span><span class="h">10</span></div>
+      <div class="leg" style="padding-bottom:14px"><span>легко, запас 4</span><span>ещё 1–2</span><span>предел</span></div>
+    </div>
+    <div class="ex cur" style="outline-color:var(--line)">
+      <div class="row"><span class="ck cur"></span><span class="grow"><span class="nm">Румынская в разноножке</span><div class="ds"><b>3 × 10</b> на ногу · 3 сек вниз · отдых 90 сек</div></span><span class="chev">ⓘ</span></div>
+      <div class="note">Подводка: первый подход с гантелями полегче, чтобы поймать стойку</div>
+      <div class="sets">
+        <div class="set active"><span class="n">1</span><span class="cell"><b class="num">6</b><small>кг · было 6</small></span><span class="x">×</span><span class="cell"><b class="num">10</b><small>было 10</small></span><span class="sck">✓</span></div>
+        <div class="set"><span class="n">2</span><span class="cell"><b class="num" style="color:var(--text-2)">6</b><small>кг</small></span><span class="x">×</span><span class="cell"><b class="num" style="color:var(--text-2)">10</b><small>было 10</small></span><span class="sck">✓</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="toast"><span>Подход 4 записан · 10 повт.</span><b>Отменить</b></div>
+  <div class="dock">
+    <div class="timer"><div class="tt"><div class="l">Отдых · Румынская дальше</div><div class="v num">1:12</div><div class="prog"><i></i></div></div><span class="tb">+30</span><span class="tb">✕</span></div>
+    <div class="tabs"><div class="on"><i></i>Сегодня</div><div><i></i>Неделя</div><div><i></i>Еда</div><div><i></i>Прогресс</div></div></div>
+</div><div class="cap">3 · Отдых: таймер стартовал сам, отмена — в тосте</div></div>
+
+<!-- 4. Еда -->
+<div class="wrap"><div class="phone" id="m4">
+  <div class="status"><span>13:05</span><span>●●● 64%</span></div>
+  <div class="scroll">
+    <div class="hdr"><div class="t"><div class="d">Вт, 20 октября</div><div class="w">Еда</div></div><div class="ic">⋯</div></div>
+    <div class="strip"><div class="ok"><b>Пн</b>✓</div><div class="on"><b>Вт</b>сег.</div><div><b>Ср</b></div><div><b>Чт</b></div><div><b>Пт</b></div><div><b>Сб</b></div><div><b>Вс</b></div></div>
+    <div class="card">
+      <div class="k">ОСТАЛОСЬ ДО ЦЕЛИ 2600</div>
+      <div class="kcal"><b class="num">1 455</b><span class="sub" style="margin:0">ккал · съедено 1 145</span></div>
+      <div class="bars num">
+        <div><div class="k">Белки 72/165</div><div class="bar"><i style="width:44%;background:var(--info)"></i></div></div>
+        <div><div class="k">Жиры 41/78</div><div class="bar"><i style="width:53%;background:var(--warn)"></i></div></div>
+        <div><div class="k">Угл. 120/310</div><div class="bar"><i style="width:39%;background:var(--done)"></i></div></div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Быстро добавить<span class="sp"></span><span class="k">как обычно в это время</span></h3>
+      <div class="tiles"><span>Контейнер: бёдра + рис<small>640 ккал</small></span><span>Юрский набор<small>530 ккал</small></span><span>Протеин 30 г<small>120 ккал</small></span><span class="bad">Кола 0,5 л<small>212 ккал · лучше заменить</small></span></div>
+      <div class="tiles" style="grid-template-columns:1fr 1fr 1fr"><span style="text-align:center;padding-top:17px">Блюда</span><span style="text-align:center;padding-top:17px">Фастфуд</span><span style="text-align:center;padding-top:17px">Своё</span></div>
+    </div>
+    <div class="card" style="padding:4px 16px 4px">
+      <div class="row"><span class="k num" style="width:44px">09:02</span><span class="grow"><span class="nm">Утренний шейкер</span><div class="ds">731 ккал · Б48</div></span><span class="chev">›</span></div>
+      <div class="row"><span class="k num" style="width:44px">12:40</span><span class="grow"><span class="nm">Соево-медовые бёдра + рис</span><div class="ds">414 ккал · Б24</div></span><span class="chev">›</span></div>
+    </div>
+  </div>
+  <div class="dock"><div class="tabs"><div><i></i>Сегодня</div><div><i></i>Неделя</div><div class="on"><i></i>Еда</div><div><i></i>Прогресс</div></div></div>
+</div><div class="cap">4 · Еда: сколько осталось, частое — одной плиткой, съеденное по времени</div></div>
+
+<!-- 5. Неделя -->
+<div class="wrap"><div class="phone" id="m5">
+  <div class="status"><span>21:10</span><span>●●● 41%</span></div>
+  <div class="scroll">
+    <div class="hdr"><div class="t"><div class="d">19–25 октября · цикл 1, сушка</div><div class="w">Неделя 3 · <i>рабочая</i></div></div></div>
+    <div class="card" style="padding:4px 16px">
+      <div class="day"><span class="dw">Пн</span><span><span class="nm">Силовая А</span><div class="ds">9 из 9 · 1:12</div></span><span class="st" style="color:var(--done)">✓</span></div>
+      <div class="day"><span class="dw">Вт</span><span><span class="nm">Велосипед + мяч</span><div class="ds">25 мин · мяч ✓</div></span><span class="st" style="color:var(--done)">✓</span></div>
+      <div class="day"><span class="dw">Ср</span><span><span class="nm">Силовая В · верх</span><div class="ds">перенесена на четверг вечером</div></span><span class="pill i">перенос</span></div>
+      <div class="day"><span class="dw">Чт</span><span><span class="nm">Скоростная + верх</span><div class="ds">сегодня</div></span><span class="st" style="color:var(--action)">●</span></div>
+      <div class="day"><span class="dw">Пт</span><span><span class="nm" style="color:var(--text-2)">Отдых</span></span><span></span></div>
+      <div class="day"><span class="dw">Сб</span><span><span class="nm">Силовая Б</span><div class="ds">днём</div></span><span></span></div>
+      <div class="day"><span class="dw">Вс</span><span><span class="nm">Велосипед + мяч</span></span><span></span></div>
+    </div>
+    <div class="card"><h3>Каждый день<span class="sp"></span><span class="k">3 из 4</span></h3>
+      <div class="dots"><i class="d">Пн</i><i class="d">Вт</i><i>Ср</i><i class="d">Чт</i><i>Пт</i><i>Сб</i><i>Вс</i></div></div>
+    <div class="card"><h3>Питание<span class="sp"></span><span class="k">среднее 2 540 / 2 600</span></h3>
+      <div style="margin-top:8px">
+        <div class="wsb"><span>Пн</span><span class="tr"><i style="left:50%;width:6%;background:var(--done)"></i></span><span class="num">+90</span></div>
+        <div class="wsb"><span>Вт</span><span class="tr"><i style="right:50%;width:14%;background:var(--info)"></i></span><span class="num">−310</span></div>
+        <div class="wsb"><span>Ср</span><span class="tr"><i style="left:50%;width:3%;background:var(--done)"></i></span><span class="num">+40</span></div>
+      </div>
+      <div class="sub" style="margin-top:8px">Попадание: отдельные дни гуляют — считается неделя.</div></div>
+  </div>
+  <div class="dock"><div class="primary">Скопировать отчёт за неделю</div>
+    <div class="tabs"><div><i></i>Сегодня</div><div class="on"><i></i>Неделя</div><div><i></i>Еда</div><div><i></i>Прогресс</div></div></div>
+</div><div class="cap">5 · Неделя: что сделано, переносы, еда и сон за неделю, отчёт</div></div>
+
+<!-- 6. Прогресс -->
+<div class="wrap"><div class="phone" id="m6">
+  <div class="status"><span>8:40</span><span>●●● 97%</span></div>
+  <div class="scroll">
+    <div class="hdr"><div class="t"><div class="d">Цель к неделе 12: 72–73 кг</div><div class="w">Прогресс</div></div></div>
+    <div class="card">
+      <div class="k">ТЕМП · СРЕДНЕЕ ЗА 7 ДНЕЙ 76,1 КГ</div>
+      <div class="hero"><b class="num">−0,4</b><span class="sub" style="margin:0">кг в неделю</span></div>
+      <div style="margin-top:6px"><span class="pill g">● Темп сушки в норме — ничего не меняй</span></div>
+      <svg class="chart" viewBox="0 0 330 150" width="100%">
+        <g stroke="#2E3035"><line x1="0" y1="30" x2="330" y2="30"/><line x1="0" y1="75" x2="330" y2="75"/><line x1="0" y1="120" x2="330" y2="120"/></g>
+        <path d="M10 40 L60 48 L110 55 L160 62 L210 70 L260 76" stroke="#D7FF3A" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <path d="M10 40 L330 105" stroke="#90939A" stroke-dasharray="5 5" fill="none"/>
+        <g fill="#90939A"><circle cx="10" cy="34" r="3"/><circle cx="35" cy="50" r="3"/><circle cx="60" cy="44" r="3"/><circle cx="85" cy="58" r="3"/><circle cx="110" cy="52" r="3"/><circle cx="135" cy="66" r="3"/><circle cx="160" cy="60" r="3"/><circle cx="185" cy="72" r="3"/><circle cx="210" cy="66" r="3"/><circle cx="235" cy="80" r="3"/><circle cx="260" cy="74" r="3"/></g>
+        <text x="300" y="100" fill="#90939A" font-size="12">нед. 4</text>
+      </svg>
+    </div>
+    <div class="lights">
+      <div class="light"><div class="k">КОЛЕНО</div><div class="lv" style="color:var(--done)">2 / 10</div></div>
+      <div class="light"><div class="k">ПОЯСНИЦА</div><div class="lv" style="color:var(--done)">1 / 10</div></div>
+      <div class="light"><div class="k">ПУЛЬС</div><div class="lv">56</div></div>
+    </div>
+    <div class="sec">Тесты</div>
+    <div class="tests">
+      <div class="tst"><div class="k">ПРЫЖОК</div><div class="v num">54<small>см</small></div><div class="k">+3 · лучший 55</div></div>
+      <div class="tst"><div class="k">ПОДТЯГИВАНИЯ</div><div class="v num">8<small>раз</small></div><div class="k">20.09</div></div>
+    </div>
+  </div>
+  <div class="dock"><div class="tabs"><div><i></i>Сегодня</div><div><i></i>Неделя</div><div><i></i>Еда</div><div class="on"><i></i>Прогресс</div></div></div>
+</div><div class="cap">6 · Прогресс: темп — главное число, светофоры, тесты</div></div>
+
+<!-- 7. «Не получается?» — второй уровень листом -->
+<div class="wrap"><div class="phone" id="m7">
+  <div class="status"><span>16:50</span><span>●●● 70%</span></div>
+  <div class="scroll">
+    <div class="hdr"><div class="t"><div class="d">Пн, 19 октября</div><div class="w">Неделя 3 · <i>рабочая</i></div></div><div class="ic">?</div><div class="ic">⚙</div></div>
+  </div>
+  <div class="dim"></div>
+  <div class="sheet">
+    <div class="grab"></div>
+    <h2>Силовая А не получается</h2>
+    <div class="sub" style="margin-bottom:8px">Пропуск переносит тренировку, а не стирает её</div>
+    <div class="opt"><span class="grow"><b>Пропустил</b><span>перенести на вторник</span></span><span class="chev">›</span></div>
+    <div class="opt"><span class="grow"><b>Болею</b><span>пауза до конца недели, после — мягкое возвращение</span></span><span class="chev">›</span></div>
+    <div class="opt"><span class="grow"><b>Почему так</b><span>правила переносов в справке</span></span><span class="chev">›</span></div>
+    <div class="secbtn" style="margin-top:10px">Закрыть</div>
+  </div>
+</div><div class="cap">7 · Редкое — листом снизу, не больше двух уровней</div></div>
+
+</body>
+</html>
