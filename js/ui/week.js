@@ -130,7 +130,7 @@ function daySheet(x){
   const di=(dow+6)%7, kn=dailyCount(di), knAll=kn===DAILY.length;
   openSheet(`<div class="kick" style="margin-bottom:6px">${isToday?'Сегодня':DOW_FULL[dow]} · ${shortDate(iso)}</div>${parts.join('<div style="height:22px"></div>')}
     ${dow===6?`<button type="button" class="btn" style="margin-top:14px;width:100%" data-ballsat>${ballSat()?'Баскета в эту субботу не будет':'Утром баскет в вузе'}</button>
-      <div class="small muted" style="margin-top:6px">${ballSat()?'Силовая Б вернётся в 12:00.':'Игра станет скоростной этого дня, Силовая Б уедет на 18:00 — без стартов и прыжков.'}</div>`:''}
+      <div class="small muted" style="margin-top:6px">${ballSat()?'Силовая Б вернётся в 12:00.':'Утром вторая скоростная (прыжки, старты) и 10–15 минут игры, Силовая Б уедет на 18:00 — без стартов и прыжков.'}</div>`:''}
     <div class="card" style="padding:4px 16px;margin-top:18px"><button type="button" class="row" style="width:100%;text-align:left" data-knee>
       <span class="ck${knAll?' on':''}">${IC.check}</span><span class="grow"><div class="nm">Зарядка для колен</div><div class="ds">${knAll?'сделана':kn?`${kn} из ${DAILY.length}`:'не отмечена'} · ≈${dailyMinutes()} мин</div></span><span class="chev">›</span></button></div>
     ${isToday?'':`<button type="button" class="btn big" style="margin-top:12px" data-goday>Открыть этот день на «Сейчас»</button>`}

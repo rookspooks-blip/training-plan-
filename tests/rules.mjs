@@ -349,13 +349,13 @@ const W7 = '2026-11-16';
     toggleBall();
     const sat = buildWeek().filter(e => e.dow === 6), b3 = sat.find(e => e.id === 'd3');
     const r = { off, on: sat.map(e => e.id + ' ' + trainingTime(e)).join(','), speed: b3.day.ex.filter(x => x.badge[0] === 'Скорость').length,
-      wake: wakeAt(state.cycle, state.week, 5).wake, meal: mealTiming(5).title, other: buildWeek().filter(e => e.dow !== 6 && e.type === 'gym').length };
+      wake: wakeAt(state.cycle, state.week, 5).wake, meal: mealTiming(5).title, d7: sat.find(e => e.id === 'd7').day.ex.map(x => x.name), other: buildWeek().filter(e => e.dow !== 6 && e.type === 'gym').length };
     toggleBall();
     r.back = buildWeek().filter(e => e.dow === 6).map(e => e.id).join(',');
     return r;
   });
-  check('баскет в субботу: игра 10:10, Силовая Б 18:00 без стартов, подъём 08:20, еда на два захода',
-    r.off === 'd3 12:00' && r.on === 'd7 10:10,d3 18:00' && r.speed === 0 && r.wake === '08:20' && /Баскет в 10:10, Силовая Б в 18:00/.test(r.meal) && r.back === 'd3', JSON.stringify(r));
+  check('баскет в субботу: скоростная 10:10 (прыжки, старты, игра), Силовая Б 18:00 без стартов, подъём 08:20, еда на два захода',
+    r.off === 'd3 12:00' && r.on === 'd7 10:10,d3 18:00' && r.speed === 0 && r.wake === '08:20' && /Скоростная и баскет в 10:10, Силовая Б в 18:00/.test(r.meal) && r.back === 'd3' && r.d7.length === 4 && /Прыжки/.test(r.d7[1]) && /Старты/.test(r.d7[2]), JSON.stringify(r));
   await ctx.close();
 }
 /* 13. Красное колено держится неделю без новых отметок */

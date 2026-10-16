@@ -4,7 +4,7 @@
    из кэша, а свежую копию докачиваем в фоне к следующему запуску.
    Иконки и картинки: сначала кэш.
    При изменении списка файлов увеличь VERSION. */
-const VERSION = 'v57';
+const VERSION = 'v58';
 const CACHE = 'tri-cikla-' + VERSION;
 const NET_WAIT = 3000;
 const FILES = [
