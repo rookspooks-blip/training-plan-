@@ -341,6 +341,23 @@ const W7 = '2026-11-16';
   check('сон: тяжёлая неделя — перед разгрузкой и тестом', r.join() === 'true,true,true,false', r.join());
   await ctx.close();
 }
+/* 12б. Баскет в субботу утром: игра 10:10 — скоростная дня, Силовая Б в 18:00 без стартов, подъём к игре */
+{
+  const { ctx, p } = await at('2026-10-14');
+  const r = await p.evaluate(() => {
+    const off = buildWeek().filter(e => e.dow === 6).map(e => e.id + ' ' + trainingTime(e)).join(',');
+    toggleBall();
+    const sat = buildWeek().filter(e => e.dow === 6), b3 = sat.find(e => e.id === 'd3');
+    const r = { off, on: sat.map(e => e.id + ' ' + trainingTime(e)).join(','), speed: b3.day.ex.filter(x => x.badge[0] === 'Скорость').length,
+      wake: wakeAt(state.cycle, state.week, 5).wake, meal: mealTiming(5).title, other: buildWeek().filter(e => e.dow !== 6 && e.type === 'gym').length };
+    toggleBall();
+    r.back = buildWeek().filter(e => e.dow === 6).map(e => e.id).join(',');
+    return r;
+  });
+  check('баскет в субботу: игра 10:10, Силовая Б 18:00 без стартов, подъём 08:20, еда на два захода',
+    r.off === 'd3 12:00' && r.on === 'd7 10:10,d3 18:00' && r.speed === 0 && r.wake === '08:20' && /Баскет в 10:10, Силовая Б в 18:00/.test(r.meal) && r.back === 'd3', JSON.stringify(r));
+  await ctx.close();
+}
 /* 13. Красное колено держится неделю без новых отметок */
 {
   const { ctx, p } = await at('2026-11-24', { planBody: { '2026-11-19': { knee: 7 } } });

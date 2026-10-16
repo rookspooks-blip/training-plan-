@@ -35,7 +35,8 @@ function dayExport(iso){
     }
 
     /* --- тренировка дня --- */
-    const e=buildWeek().find(x=>(x.dow===0?6:x.dow-1)===dow);
+    /* баскет в субботу — не основная тренировка дня: в выгрузку идёт Силовая Б с подходами */
+    const ds=buildWeek().filter(x=>(x.dow===0?6:x.dow-1)===dow), e=ds.find(x=>x.id!=='d7')||ds[0];
     let tr={type:'rest', title:'Отдых'};
     if(e && e.type==='gym'){
       const day=e.day, dropped=isDropped(e.id), moved=isMoved(e.id)&&!dropped;

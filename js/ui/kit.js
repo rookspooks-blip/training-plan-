@@ -240,11 +240,11 @@ function typeClass(e){
   if(e.type==='run') return 'c-car';
   if(e.type==='rest') return 'c-rest';
   const id=e.id||(e.day&&e.day.id);
-  if(id==='d2'||id==='d4') return 'c-spd';
+  if(id==='d2'||id==='d4'||id==='d7') return 'c-spd';
   if(id==='d5'||id==='d6') return 'c-up';
   return 'c-str';
 }
-const TYPE_SHORT={d1:'Сил. А', d3:'Сил. Б', d2:'Скор.', d4:'Пт', d5:'Верх', d6:'Верх'};
+const TYPE_SHORT={d1:'Сил. А', d3:'Сил. Б', d2:'Скор.', d4:'Пт', d5:'Верх', d6:'Верх', d7:'Баскет'};
 const kfmt=n=>String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g,' ');
 const plural=(n,a,b,c)=>{ n=Math.abs(n)%100; const m=n%10; return n>10&&n<20?c:m>1&&m<5?b:m===1?a:c; };
 

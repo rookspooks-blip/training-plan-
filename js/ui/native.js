@@ -46,7 +46,9 @@ function applyHealth(o){
       withWeek(pos.cycle,pos.week,()=>{
         const dow=dOf(iso).getDay();
         const es=buildWeek().filter(e=>e.dow===dow && (e.type==='gym'||e.type==='run') && !isDropped(e.id));
-        const e=es.find(x=>x.type==='gym')||es[0];
+        /* две тренировки в день (баскет утром + Силовая Б вечером) — та, что ближе по времени начала */
+        const gyms=es.filter(x=>x.type==='gym'), near=x=>Math.abs((hm2min(trainingTime(x))||0)-(hm2min(wk.ws)||0));
+        const e=(wk.ws && gyms.length>1 ? gyms.slice().sort((a,b)=>near(a)-near(b))[0] : gyms[0])||es[0];
         if(!e) return;
         const k=watchKey(e.id), prev=watch[k]?JSON.stringify(watch[k]):null;
         Object.entries({ws:'s',we:'e',whr:'hr',wmx:'mx',wkc:'kc'}).forEach(([from,to])=>{ if(wk[from]!=null) setWatch(e.id,to,wk[from]); });

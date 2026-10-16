@@ -45,6 +45,9 @@ const isMoved   = id => !!skips[skipKey(id)];
 const isDropped = id => !!skips[dropKey(id)];
 const isSkipped = id => isDropped(id) || (isMoved(id) && (id==='d2'||id==='d4'));  /* скоростные не переносятся */
 const noPE = () => !!skips[peKey()];
+/* Баскет в субботу утром (секция в вузе) — отмечается на конкретную неделю */
+const ballKey  = ()  => `${state.cycle}-${state.week}-ball`;
+const ballSat  = ()  => !!skips[ballKey()];
 
 function toggleSkip(id){
   const k=skipKey(id), d=dropKey(id);
@@ -57,6 +60,30 @@ function togglePE(){
   const k=peKey();
   if(skips[k]) delete skips[k]; else skips[k]=true;
   saveSkips(); renderAll();
+}
+function toggleBall(){
+  const k=ballKey();
+  if(skips[k]) delete skips[k]; else skips[k]=true;
+  saveSkips(); renderAll();
+}
+
+/* Суббота с баскетом — «высокий день», как каникулы: утром скорость (игра), вечером ноги.
+   Игра и есть скоростная этой недели: старты, прыжки, торможения. Отдельную не добавляем —
+   четверг и пятница уже прыжковые, сухожилию колена нужны дни без прыжков */
+function basketDay(cycle, week){
+  const dl=weekKind(cycle,week)==='deload', ks=kneeStatus(), red=ks && ks.lvl==='r', yellow=ks && ks.lvl==='y';
+  return {id:'d7', title:'Баскетбол', when:'Суббота · утром, зал вуза', noWarm:true,
+    note:'Это скоростная этой недели: старты, прыжки и торможения — в игре. Силовая Б — вечером, через 5+ часов. '
+      +(red ? 'Колено красное: только броски, без прыжков и игры в полную силу.'
+        : dl ? 'Разгрузка: не больше одной пары, прыжки не на максимум.'
+        : 'Прыгай в полную силу, пока высота не падает. Стала ниже — дальше играй без прыжков на максимум.'),
+    ex:[
+      {...ACHILLES, warm:'Дома или в зале до командной разминки.'},
+      {id:'k2',name:'Ускорения и прыжки перед игрой',badge:['Скорость','b-speed'],dose:red||yellow?'пропустить':'2 × 10 м на 80 % · 3 прыжка на касание',rest:'60 сек',tech:'reach',
+       warm:'После командной разминки. Это «включить» ноги, а не тренировка: в полную силу — только последний прыжок.'},
+      {id:'k3',name:'Игра',badge:['Мяч','b-ball'],dose:red?'только броски · 20–30 мин':dl?'1 пара':'1–2 пары',rest:'—',tech:'shoot',
+       warm:'Сразу после игры — еда: контейнер или хотя бы банан с йогуртом. В этот день на ~250 ккал больше обычного.'}
+    ]};
 }
 
 /* Сдвиг старта недели. Если на прошлой неделе Силовая Б уехала
@@ -190,6 +217,14 @@ function buildWeekRaw(){
   out.push({dow:L.d3.dow, id:'d3', type:'gym', day:S[2], moveNote:L.d3.note});
   if(S[3] && !isDropped('d4')){ out.push({dow:5, id:'d4', type:'gym', day:S[3], moveNote:''}); taken.add(5); }
   if(S[5]) out.push({dow:L.d6.dow, id:'d6', type:'gym', day:S[5], moveNote:L.d6.note});
+  /* баскет утром — Силовая Б остаётся в субботе, но вечером и без стартов и прыжков: их дала игра */
+  if(ballSat()){
+    out.push({dow:6, id:'d7', type:'gym', day:basketDay(state.cycle,state.week), moveNote:''});
+    taken.add(6);
+    const b=out.find(e=>e.id==='d3');
+    if(b && b.dow===6) b.day={...b.day, ex:b.day.ex.filter(ex=>ex.badge[0]!=='Скорость'),
+      note:'Утром был баскет — Силовая Б вечером, через 5+ часов после игры. Стартов и прыжков нет: их дала игра. '+b.day.note.replace(/Суббота свободна — тренируйся днём, без спешки\.\s*/,'')};
+  }
 
   /* Кардио: вторник и воскресенье, но уступают силовым */
   const dropped=[];
@@ -225,7 +260,9 @@ function buildWeekRaw(){
   }
 
   /* Календарный порядок: понедельник первый, воскресенье последнее */
-  out.sort((a,b)=> ((a.dow===0?7:a.dow) - (b.dow===0?7:b.dow)) );
+  /* в один день — по времени: баскет утром раньше Силовой Б вечером */
+  const tm=e=>hm2min(trainingTime(e)||'23:59')||0;
+  out.sort((a,b)=> ((a.dow===0?7:a.dow) - (b.dow===0?7:b.dow)) || (a.id==='d7'||b.id==='d7' ? tm(a)-tm(b) : 0));
   return out;
 }
 
@@ -316,6 +353,9 @@ function trainingTime(e){
   if(!e || e.type==='rest') return null;
   const sm=summerMode();
   if(e.type==='run') return e.dow===0 ? '12:00' : (sm==='vacation' ? '11:00' : '19:00');
+  /* суббота с баскетом: игра утром в вузе, Силовая Б вечером — в любой период */
+  if(e.id==='d7') return '10:10';
+  if(e.id==='d3' && e.dow===6 && ballSat()) return '18:00';
   if(sm==='practice') return '18:30';
   if(sm==='vacation') return VAC_TIME[e.id] || '11:00';
   if(isSession() || sm==='exam') return e.dow===6 ? '12:00' : '17:00';

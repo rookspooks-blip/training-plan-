@@ -522,14 +522,18 @@ function notWorkingSheet(id){
   }
   const speed=id==='d2'||id==='d4', pe=id==='d2' && !isSession() && !summerMode();
   const run=e.type==='run';
-  const opts=[
+  /* суббота: утром баскет в вузе — включается здесь же, у Силовой Б; у самого баскета — выключается */
+  const ballOpt = (id==='d7' || (id==='d3' && e.dow===6)) ? [{a:'ball', t:ballSat()?'Баскета не будет':'Утром баскет в вузе',
+    s:ballSat()?'Силовая Б снова днём, в 12:00':'игра утром, Силовая Б уедет на вечер, без стартов и прыжков'}] : [];
+  const opts = id==='d7' ? [...ballOpt, {a:'ill', t:'Болею', s:'пауза до конца недели, после — мягкое возвращение'}] : [
     {a:'skip', t:moved?'Снова не сделал':'Пропустил',
      s:run?'кардио не переносится — догонять не надо':moved?'отменить тренировку на этой неделе':(speed?'скоростная не переносится — просто отменится':'перенести на ближайший подходящий день')},
     ...(moved?[{a:'back', t:'Вернуть в свой день', s:'перенос не нужен'}]:[]),
     ...(pe?[{a:'pe', t:noPE()?'Физра всё-таки была':'Физры не было', s:noPE()?'вернуть скоростную после физры':'прыжки дома, выносливость — горкой на дорожке'}]:[]),
+    ...ballOpt,
     {a:'ill', t:'Болею', s:'пауза до конца недели, после — мягкое возвращение'}
   ];
-  openSheet(`<h2>Не получается?</h2><div class="sub">${esc(DOW_FULL[e.dow])} · ${esc(title)}</div>
+  openSheet(`<h2>${id==='d7'||(id==='d3'&&e.dow===6)?'Что меняется?':'Не получается?'}</h2><div class="sub">${esc(DOW_FULL[e.dow])} · ${esc(title)}</div>
     ${opts.map(o=>`<button type="button" class="opt${o.a==='ill'?' danger':''}" data-a="${o.a}"><span class="grow"><b>${o.t}</b><span>${o.s}</span></span></button>`).join('')}
     <button type="button" class="btn" style="margin-top:8px" data-close>Отмена</button>`,
     (el,close)=>el.querySelectorAll('[data-a]').forEach(b=>b.addEventListener('click',async()=>{
@@ -540,6 +544,7 @@ function notWorkingSheet(id){
       }
       else if(a==='back'){ unskip(id); toast('Вернул в свой день', undo); }
       else if(a==='pe'){ togglePE(); toast(noPE()?'Физры не было — прыжки дома':'Скоростная снова после физры', undo); }
+      else if(a==='ball'){ toggleBall(); toast(ballSat()?'Суббота: баскет утром, Силовая Б в 18:00':'Баскета нет — Силовая Б в 12:00', undo); }
       else if(a==='ill'){
         if(await confirmSheet('Пауза до конца недели?','Тренировки этой недели с этого дня отменятся. Вернуть любую можно кнопкой «Вернуть день». После паузы первая тренировка будет легче.','Поставить паузу',true)) pauseWeek(e.dow);
       }
