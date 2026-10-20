@@ -399,6 +399,8 @@ const W7 = '2026-11-16';
   const { ctx, p } = await at('2026-11-09', { planSkips: { '1-6-skip-d1': true } });
   const r = await p.evaluate(() => { const W = buildWeek(); return { tue: W.some(e => e.id === 'c-tue'), sun: (W.find(e => e.id === 'c-sun') || {}).moveNote || '' }; });
   check('А во вторник: велосипед вторника — в воскресенье', !r.tue && /Вторничный велосипед/.test(r.sun), JSON.stringify(r));
+  const u = await p.evaluate(() => { const W = buildWeek(); return { d5: W.find(e => e.id === 'd5').dow, wed: W.filter(e => e.dow === 3).map(e => e.type).join() }; });
+  check('А во вторник: верх — в четверг вечером, среда — отдых перед скоростной', u.d5 === 4 && u.wed === 'rest', JSON.stringify(u));
   await ctx.close();
 }
 {
