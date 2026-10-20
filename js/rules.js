@@ -309,8 +309,9 @@ const SUMMER_NOTE={
 
 /* Летняя сессия (июнь) — как зимняя (шаг 4): две короткие силовые по 40–50 минут
    и 20 минут прыжков. Для поддержания хватает малого объёма, если не снижать вес (Spiering 2021):
-   главные упражнения и базовый верх — подходов вдвое меньше, изоляция и вторые прыжки уходят */
-const EXAM_DROP=['lateral','reardelt','curl','triceps','legext','legcurl','deadbug','pallof'];
+   главные упражнения и базовый верх — подходов вдвое меньше, изоляция и вторые прыжки уходят.
+   Махи в стороны остаются целиком: средней дельте в сессию нужно 2–3 подхода (шаг 2) */
+const EXAM_DROP=['reardelt','curl','triceps','legext','legcurl','deadbug','pallof'];
 function examDay(day){
   if(day.id==='d2'){
     day.title='Прыжки и мяч';
@@ -327,7 +328,7 @@ function examDay(day){
     if(EXAM_DROP.includes(ex.tech)) return false;
     if(ex.badge[0]==='Скорость') return day.id==='d1' && speed++===0;   /* рывки раз в неделю, прыжки — в четверг */
     return true;
-  }).map(ex=> isLogged(ex) ? {...ex, dose:ex.dose.replace(/^(\d+)(\s*(?:×|подход))/, (m,n,r)=>Math.max(1,Math.ceil(+n/2))+r)} : ex);
+  }).map(ex=> isLogged(ex) && ex.tech!=='lateral' ? {...ex, dose:ex.dose.replace(/^(\d+)(\s*(?:×|подход))/, (m,n,r)=>Math.max(1,Math.ceil(+n/2))+r)} : ex);
 }
 
 /* ---------- Всё вместе: план недели с поправками ---------- */

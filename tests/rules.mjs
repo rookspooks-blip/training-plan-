@@ -265,11 +265,11 @@ const W7 = '2026-11-16';
   const r = await p.evaluate(() => {
     const at = (c, w) => withWeek(c, w, () => { const W = buildWeek(); const d1 = W.find(x => x.id === 'd1').day, d2 = W.find(x => x.id === 'd2').day, d4 = W.find(x => x.id === 'd4');
       return { mode: summerMode(), d1: (d1.ex.find(x => x.tech === 'squat') || d1.ex[0]).dose, d2when: d2.when, d4: d4 && d4.day.title, kind: weekKind(c, w), pe: noPE(),
-        d5: !!W.find(x => x.id === 'd5'), d2t: d2.title, iso: d1.ex.some(x => ['lateral','curl','legext'].includes(x.tech)),
+        d5: !!W.find(x => x.id === 'd5'), d2t: d2.title, iso: d1.ex.some(x => ['curl','legext','reardelt'].includes(x.tech)), lat: d1.ex.some(x => x.tech === 'lateral'),
         dow: Object.fromEntries(W.filter(x => x.type === 'gym').map(x => [x.id, x.dow])), runs: W.filter(x => x.type === 'run').map(x => x.dow) }; });
     return { jun: at(3, 7), jul: at(3, 12), aug: at(3, 16), oct: at(1, 1), y: summerDates() };
   });
-  check('июнь — как сессия: подходов вдвое меньше, без изоляции и дня верха, четверг — прыжки и мяч, без «после физры»', r.jun.mode === 'exam' && /^2 ×/.test(r.jun.d1) && !r.jun.d5 && !r.jun.iso && r.jun.d2t === 'Прыжки и мяч' && !/физр/.test(r.jun.d2when) && !r.jun.d4, JSON.stringify(r.jun));
+  check('июнь — как сессия: подходов вдвое меньше, без изоляции (махи остаются) и дня верха, четверг — прыжки и мяч, без «после физры»', r.jun.mode === 'exam' && /^2 ×/.test(r.jun.d1) && !r.jun.d5 && !r.jun.iso && r.jun.lat && r.jun.d2t === 'Прыжки и мяч' && !/физр/.test(r.jun.d2when) && !r.jun.d4, JSON.stringify(r.jun));
   check('август — Пн А, Ср скоростная и Б, Вт верх, Пт данки, велосипед только в воскресенье', r.aug.mode === 'vacation' && r.aug.dow.d1 === 1 && r.aug.dow.d2 === 3 && r.aug.dow.d3 === 3 && r.aug.dow.d5 === 2 && r.aug.dow.d4 === 5 && r.aug.runs.join() === '0', JSON.stringify(r.aug));
   check('июль — практика: вечером, данков нет', r.jul.mode === 'practice' && /вечер/.test(r.jul.d2when) && !r.jul.d4, JSON.stringify(r.jul));
   check('август — каникулы: днём, по пятницам данки, блок силы вместо массы', r.aug.mode === 'vacation' && /днём/.test(r.aug.d2when) && r.aug.d4 === 'Данки' && r.aug.kind !== 'hyper', JSON.stringify(r.aug));
@@ -368,6 +368,62 @@ const W7 = '2026-11-16';
 {
   const { ctx, p } = await at('2026-11-27', { planBody: { '2026-11-19': { knee: 7 } } });
   check('через 8 дней — снято', await p.evaluate(() => kneeStatus() === null));
+  await ctx.close();
+}
+
+/* Аудит переносов и сезонов по ресерчу (шаги 2, 4, 6, 7) */
+{
+  /* каникулы: Силовая А во вторник — скоростная и Б в четверг, данки в субботу, верх в среду */
+  const { ctx, p } = await at('2027-07-26', { planSkips: { '3-15-skip-d1': true } });
+  const r = await p.evaluate(() => { const W = buildWeek(), d = id => W.find(e => e.id === id);
+    return { d1: d('d1').dow, d2: d('d2').dow, d3: d('d3').dow, d4: d('d4').dow, d5: d('d5').dow,
+      speed: d('d1').day.ex.some(x => x.badge[0] === 'Скорость') }; });
+  check('каникулы, А во вторник: высокие дни съезжают на день, 48 часов сохраняются', r.d1 === 2 && r.d2 === 4 && r.d3 === 4 && r.d4 === 6 && r.d5 === 3 && r.speed, JSON.stringify(r));
+  await ctx.close();
+}
+{
+  const { ctx, p } = await at('2027-07-26', { planSkips: { '3-15-skip-d3': true } });
+  const r = await p.evaluate(() => { const W = buildWeek(); return { d3: W.find(e => e.id === 'd3').dow, d4: W.find(e => e.id === 'd4').dow }; });
+  check('каникулы, Б в четверг вечером: данки — в субботу, не на утро после ног', r.d3 === 4 && r.d4 === 6, JSON.stringify(r));
+  await ctx.close();
+}
+{
+  /* баскет в субботу, Силовая Б уехала на воскресенье — прыжков в ней нет: они были утром в субботу */
+  const { ctx, p } = await at('2027-02-22', { planSkips: { '2-5-ball': true, '2-5-skip-d3': true } });
+  const r = await p.evaluate(() => { const b = buildWeek().find(e => e.id === 'd3'); return { dow: b.dow, speed: b.day.ex.some(x => x.badge[0] === 'Скорость') }; });
+  check('баскет + Б в воскресенье: без стартов и прыжков', r.dow === 0 && !r.speed, JSON.stringify(r));
+  await ctx.close();
+}
+{
+  /* А во вторник: вторничный велосипед едет в воскресенье, а не выпадает */
+  const { ctx, p } = await at('2026-11-09', { planSkips: { '1-6-skip-d1': true } });
+  const r = await p.evaluate(() => { const W = buildWeek(); return { tue: W.some(e => e.id === 'c-tue'), sun: (W.find(e => e.id === 'c-sun') || {}).moveNote || '' }; });
+  check('А во вторник: велосипед вторника — в воскресенье', !r.tue && /Вторничный велосипед/.test(r.sun), JSON.stringify(r));
+  await ctx.close();
+}
+{
+  const { ctx, p } = await at('2026-12-28');
+  const r = await p.evaluate(() => { const W = buildWeek(), ex = id => W.find(e => e.id === id).day.ex;
+    return { lat: ex('d1').some(x => x.tech === 'lateral'), start: ex('d2').some(x => x.tech === 'stairstart'), row: ex('d3').some(x => x.tech === 'row'),
+      fri: (W.find(e => e.dow === 5) || {}).why || '' }; });
+  check('зимняя сессия: махи, старты и тяга (средняя дельта 2–3, спринт раз в неделю, спина 5–6)', r.lat && r.start && r.row, JSON.stringify(r));
+  check('в сессию в пятницу нет физры в подписи отдыха', !/Физра/.test(r.fri), r.fri);
+  await ctx.close();
+}
+{
+  /* июнь: вес держим — все недели сессии от одного веса */
+  const { ctx, p } = await at('2027-06-07');
+  const r = await p.evaluate(() => [7, 8, 9, 10, 11].map(w => cycle3(w).sq).join('/'));
+  check('летняя сессия: вес приседа не растёт', new Set(r.split('/')).size === 1, r);
+  await ctx.close();
+}
+{
+  /* контраст — в дни штанги с 5-й недели цикла 2, а не в четверг */
+  const { ctx, p } = await at('2027-02-22');
+  const r = await p.evaluate(() => { const W = buildWeek(), n = id => W.find(e => e.id === id).day.note;
+    return { d1: /Контраст/.test(n('d1')), d3: /Контраст/.test(n('d3')), d2: /онтраст/.test(n('d2')),
+      early: withWeek(2, 3, () => /Контраст/.test(buildWeek().find(e => e.id === 'd1').day.note)) }; });
+  check('контраст: Пн и Сб с 5-й недели, не в четверг и не раньше', r.d1 && r.d3 && !r.d2 && !r.early, JSON.stringify(r));
   await ctx.close();
 }
 
