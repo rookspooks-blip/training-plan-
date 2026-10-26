@@ -429,21 +429,29 @@ const W7 = '2026-11-16';
   await ctx.close();
 }
 
-/* Бросковая тренировка: ритм «мяч и ноги вместе», этап переключается игроком */
+/* Бросковая тренировка: ритм «мяч и ноги вместе» стоит в четверге вместо старого броска, этап переключается игроком */
 {
   const { ctx, p } = await at('2026-11-02');
-  const r = await p.evaluate(() => { const W = buildWeek(); const f = id => W.find(e => e.id === id).day.ex.filter(x => x.tech === 'shootrhythm');
-    return { d1: f('d1').length, d3: f('d3').length, d2: f('d2').length, thu: W.find(e => e.id === 'd2').day.ex.some(x => x.tech === 'shoot'),
-      dose: f('d1')[0].dose, early: withWeek(1, 2, () => buildWeek().some(e => e.day && e.day.ex.some(x => x.tech === 'shootrhythm'))) }; });
-  check('бросковая: в понедельник и субботу, не в четверг; четверговый бросок остался; недели 1–2 как были', r.d1 === 1 && r.d3 === 1 && r.d2 === 0 && r.thu && !r.early && /^Этап 1 · 3 × 10 · без прыжка/.test(r.dose), JSON.stringify(r));
-  const s2 = await p.evaluate(() => { settings.shootStage = 3; saveSettings(); return buildWeek().find(e => e.id === 'd1').day.ex.find(x => x.tech === 'shootrhythm').dose; });
+  const r = await p.evaluate(() => { const W = buildWeek(); const ex = id => W.find(e => e.id === id).day.ex;
+    return { d1: ex('d1').some(x => x.tech === 'shootrhythm'), d3: ex('d3').some(x => x.tech === 'shootrhythm'),
+      thu: ex('d2').filter(x => x.tech === 'shootrhythm').length, old: ex('d2').some(x => x.tech === 'shoot'),
+      dose: (ex('d2').find(x => x.tech === 'shootrhythm') || {}).dose,
+      early: withWeek(1, 2, () => buildWeek().find(e => e.id === 'd2').day.ex.some(x => x.tech === 'shoot')) }; });
+  check('бросковая: в четверг вместо старого броска, в Пн и Сб нет; недели 1–2 как были', r.thu === 1 && !r.old && !r.d1 && !r.d3 && r.early && /^Этап 1 · 3 × 10 · без прыжка/.test(r.dose), JSON.stringify(r));
+  const s2 = await p.evaluate(() => { settings.shootStage = 3; saveSettings(); return buildWeek().find(e => e.id === 'd2').day.ex.find(x => x.tech === 'shootrhythm').dose; });
   check('бросковая: этап 3 — приём с паса, 5 точек', /^Этап 3 · 5 точек × 5/.test(s2), s2);
   await ctx.close();
 }
 {
   const { ctx, p } = await at('2026-11-02', { planSet: { shootStage: 3 }, planBody: { '2026-10-30': { knee: 7 } } });
-  const r = await p.evaluate(() => buildWeek().find(e => e.id === 'd1').day.ex.find(x => x.tech === 'shootrhythm').dose);
-  check('бросковая: красное колено — этап 1, без прыжка', /^Этап 1 .*без прыжка.*колено красное/.test(r), r);
+  const r = await p.evaluate(() => buildWeek().find(e => e.id === 'd2').day.ex.find(x => x.tech === 'shootrhythm'));
+  check('бросковая: красное колено — этап 1, без прыжка', r && /^Этап 1 .*без прыжка.*колено красное/.test(r.dose), JSON.stringify(r));
+  await ctx.close();
+}
+{
+  const { ctx, p } = await at('2027-06-07');
+  const r = await p.evaluate(() => buildWeek().find(e => e.id === 'd2').day.ex.some(x => x.tech === 'shootrhythm'));
+  check('бросковая: и в июньской сессии в четверг', r);
   await ctx.close();
 }
 

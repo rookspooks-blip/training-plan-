@@ -318,7 +318,7 @@ function examDay(day){
     day.note='Летняя сессия: 20 минут прыжков и броска — держим прыжок, а не растём.';
     day.ex=[ACHILLES, {...REACH(false,false), dose:'2 × 4'},
       {id:'b2',name:'Выпрыгивания вверх',badge:['Скорость','b-speed'],dose:'3 × 3 · в полную силу',rest:'90 сек',tech:'jump',warm:'Первый подход вполсилы.'},
-      {...SHOOT, dose:'10 мин · с игровых точек'}];
+      SHOOT_R(false)];
     return;
   }
   if(day.id!=='d1' && day.id!=='d3') return;
