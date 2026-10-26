@@ -385,6 +385,8 @@ function adjustDays(S){
         : {lvl:'y', html:'<b>Лёгкий день</b>Две прошлые тренировки были на пределе (тяжесть 9–10). Сегодня на подход меньше и без прибавки веса — так прогресс не встанет.'};
     }
     if(ks && ks.lvl!=='g' && day.ex.some(ex=>ex.badge[0]==='Скорость')) day.ex=kneeAdjust(day.ex, ks.lvl, day.id);
+    /* колено не зелёное — броски только этапа 1, без прыжка */
+    if(ks && ks.lvl!=='g') day.ex=day.ex.map(ex=> ex.tech==='shootrhythm' && ex.stage>1 ? {...ex, dose:`Этап 1 · 3 × 10 · без прыжка · колено ${ks.lvl==='r'?'красное':'жёлтое'}`} : ex);
     /* после перерыва прыжков и стартов вдвое меньше — первая тренировка с ними */
     else if(rt && day.ex.some(ex=>ex.badge[0]==='Скорость')){
       day.ex=day.ex.map(ex=>{

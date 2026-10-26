@@ -612,7 +612,7 @@ for (const n of [54, 75, 78, 83, 84, 86, 87, 88, 89, 91, 94, 96, 101, 102, 103, 
     };
   });
   for (const [k, v] of Object.entries(r)) if (/^s\d+$/.test(k)) ok(+k.slice(1), v, 'текст раздела Библиотеки');
-  ok(191, r.tech === 73 && r.photos >= 47, `техника: ${r.tech} описаний, ${r.photos} упражнений с фото; в каталоге ${r.cat}, вне каталога: ${r.catMiss.join(', ') || 'нет'}`);
+  ok(191, r.tech === 74 && r.photos >= 47, `техника: ${r.tech} описаний, ${r.photos} упражнений с фото; в каталоге ${r.cat}, вне каталога: ${r.catMiss.join(', ') || 'нет'}`);
   ok(192, r.dishes === 38 && r.pair === 13, 'блюда и пары мясо–гарнир');
   await E(p, () => openLibrary());
   ok(167, await E(p, () => !!document.querySelector('#page [data-q]') && document.querySelectorAll('#page .lb').length === 6), 'Библиотека: поиск и 6 разделов');

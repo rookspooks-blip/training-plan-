@@ -188,6 +188,19 @@ const JUMP_TEST={id:'c0',name:'Тест прыжка',badge:['Тест','b-test'
   warm:'После полной разминки. Две пробные попытки вполсилы.', action:'jump'};
 /* Бросок: 15 минут в четверг, пока зал свободен. На отборе бросок видно не меньше прыжка */
 const SHOOT={id:'b9',name:'Бросок у кольца',badge:['Мяч','b-ball'],dose:'15 мин · 20 попаданий с 1–2 м, потом с игровых точек',rest:'—',tech:'shoot',warm:'Не нужна.'};
+/* Бросковая тренировка: ритм «мяч и бёдра вместе» (26.10). Мяч должен ехать вверх вместе с ногами,
+   чтобы ему негде было ждать. Дистанцию и защитника добавляем только после того, как ритм автоматический.
+   Этап (1–4) переключает сам игрок в карточке упражнения: пока ритм не «поехал», этап не растёт */
+const SHOOT_STAGES=[null,
+  dl=>({name:'Без прыжка, 1,5–2 м от кольца',     dose:`${dl?2:3} × 10 · без прыжка`}),
+  dl=>({name:'Малый прыжок, 2–3 м от кольца',     dose:`${dl?2:3} × 10 · малый прыжок`}),
+  dl=>({name:'Приём с паса, 4–5 точек на 3–4 м',  dose:`${dl?3:5} точек × 5 · с паса`}),
+  dl=>({name:'С защитником и со сменой шага',     dose:`${dl?'1 серия':'2 серии'} · с защитником`})];
+const shootStage=()=>Math.min(4,Math.max(1,(settings.shootStage|0)||1));
+const SHOOT_R=dl=>{ const n=shootStage(), st=SHOOT_STAGES[n](dl);
+  return {id:'sR', name:'Бросок: мяч и ноги вместе', badge:['Мяч','b-ball'], dose:`Этап ${n} · ${st.dose}`, rest:'—', tech:'shootrhythm', action:'shootstage', stage:n,
+    warm:`${st.name}. После основной части, 15–20 минут, хватит 100 бросков. Мяч опять «ждёт» — останавливайся: усталость портит ритм первой.`}; };
+
 /* Ахилл: изометрия в начале прыжкового дня — тот же принцип, что полуприсед у стены для колена */
 const ACHILLES={id:'bA',name:'Изометрия ахилла',badge:['Суставы','b-joint'],dose:'3 × 30 сек на ногу',rest:'30 сек',tech:'achilles',warm:'Не нужна — это и есть подготовка к прыжкам.'};
 const POGO={id:'bP',name:'Мелкие прыжки на носках',badge:['Скорость','b-speed'],dose:'2 × 15',rest:'60 сек',tech:'pogo',warm:'Не нужна — ахилл уже включён изометрией.'};
@@ -320,7 +333,16 @@ function sessionDays(week){
     {id:'c6',name:'Боковая планка',badge:['Кор','b-core'],dose:'2 × 30 сек',rest:'60 сек',tech:'plank',warm:'Не нужна.'}]}];
 }
 
+/* Бросковая тренировка — в понедельник и субботу после основной части. Недели 1–2 цикла 1 остаются как были */
 function buildDays(cycle, week){
+  const S=buildDaysRaw(cycle, week);
+  if(!(cycle===1 && week<=2)){
+    const dl=weekKind(cycle,week)==='deload';
+    S.forEach(d=>{ if(d && (d.id==='d1' || d.id==='d3')) d.ex=[...d.ex, SHOOT_R(dl)]; });
+  }
+  return S;
+}
+function buildDaysRaw(cycle, week){
   if(cycle===1 && week>12) return sessionDays(week);
   /* lw — неделя для весов: после пропусков она может отставать от календарной */
   const lw = (cycle===state.cycle && week===state.week) ? loadWeek() : week;

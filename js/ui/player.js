@@ -315,6 +315,9 @@ function plRender(){
       ${ex.warm && !/^Не нужна/.test(ex.warm)?`<div class="note" style="margin-top:12px"><b>Подводка</b>${ex.warm}</div>`:(ex.warm?`<div class="pl-why">${ex.warm}</div>`:'')}
       ${ex.action==='ready' && isNowWeek()?`<button type="button" class="btn big" style="margin-top:14px" data-ready>${readyLow()?'Метку достал — вернуть обычный день':'Не достал метку 2 из 3 → лёгкий день'}</button>`:''}
       ${ex.action==='jump'?`<button type="button" class="btn big pri" style="margin-top:14px" data-jump>Посчитать прыжок по видео</button>`:''}
+      ${ex.action==='shootstage'?`<div style="margin-top:14px;display:grid;gap:8px">
+        ${ex.stage<4?`<button type="button" class="btn big pri" data-shootnext>Ритм автоматический → этап ${ex.stage+1}</button>`:''}
+        ${ex.stage>1?`<button type="button" class="btn big" data-shootprev>Мяч опять ждёт → этап ${ex.stage-1}</button>`:''}</div>`:''}
       <div class="pl-act">
         <button type="button" class="pill" data-how>Как делать</button>
         ${restSec(ex.rest)?`<button type="button" class="pill" data-timer>Таймер отдыха ${mmss(restSec(ex.rest))}</button>`:''}
@@ -447,6 +450,8 @@ function plBind(e, st){
   if(st.k==='ex'){
     on('[data-exdone]',()=>{ const k=key(PL.id,st.ex.id); if(!marks[k]){ marks[k]=true; saveMarks(); vibe(25); } plAdvance(false); });
     on('[data-timer]',()=>{ plStartRest(restSec(st.ex.rest), st.ex.name); plRender(); });
+    on('[data-shootnext]',()=>{ settings.shootStage=Math.min(4,shootStage()+1); saveSettings(); renderAll(); toast(`Бросок: этап ${shootStage()}`); });
+    on('[data-shootprev]',()=>{ settings.shootStage=Math.max(1,shootStage()-1); saveSettings(); renderAll(); toast(`Бросок: этап ${shootStage()}`); });
     on('[data-ready]',()=>{ setReadyLow(!readyLow()); renderAll(); toast(readyLow()?'Лёгкий день: объём меньше, без отказа':'Обычный день'); });
     on('[data-jump]',()=>{ closePlayer(); goTab('me'); openJumpTool(); });
   }
