@@ -28,7 +28,9 @@ function smoothPath(P){
   return out;
 }
 
-/* ---------- График веса: среднее за 7 дней, точки, ориентиры сушки ---------- */
+/* ---------- График веса: среднее за 7 дней, точки, ориентиры сушки ----------
+   Точка стоит в день взвешивания на самой линии среднего: линия всегда идёт через центры точек.
+   Сам вес за день — в подсказке по нажатию и в списке «Все взвешивания» */
 function weightChartHTML(){
   const pts=weightsSorted();
   if(pts.length<2) return null;
@@ -53,13 +55,13 @@ function weightChartHTML(){
   return {shown, X, Y, W, H, T, B, html:`<div class="chart"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="График веса">${grid}
       ${tgPath?`<path d="${tgPath}" fill="none" stroke="var(--t3)" stroke-width="1.5" stroke-dasharray="4 4"/>`:''}
       ${tg.map(g=>`<path d="M${X(g.d)} ${Y(g.v)-5}l5 5-5 5-5-5z" fill="var(--s1)" stroke="var(--t3)" stroke-width="1.5"/>`).join('')}
-      ${shown.map(p=>`<circle cx="${X(p.d).toFixed(1)}" cy="${Y(p.w).toFixed(1)}" r="2.6" fill="var(--t3)" opacity=".75"/>`).join('')}
+      ${avg.map(p=>`<circle cx="${X(p.d).toFixed(1)}" cy="${Y(p.v).toFixed(1)}" r="2.6" fill="var(--t3)" opacity=".75"/>`).join('')}
       <path class="draw" pathLength="1" d="${line}" fill="none" stroke="var(--acc)" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>
       <line data-cross x1="0" x2="0" y1="${T}" y2="${H-B}" stroke="var(--tx)" stroke-width="1" opacity="0"/>
       <circle data-dot r="4.5" fill="var(--acc)" stroke="var(--s1)" stroke-width="2" opacity="0"/>
       <text x="${L}" y="${H-6}" font-size="10" fill="var(--t3)">${shortDate(x0)}</text><text x="${W-R}" y="${H-6}" font-size="10" fill="var(--t3)" text-anchor="end">${shortDate(x1)}</text></svg>
       <div class="tt"></div></div>
-    <div class="legend"><span><i style="background:var(--acc)"></i>среднее за 7 дней</span><span><i style="background:var(--t3);height:6px;width:6px;border-radius:50%"></i>взвешивания</span>${tg.length?'<span><i style="background:none;border-top:2px dashed var(--t3);height:0"></i>ориентир сушки</span>':''}</div>`};
+    <div class="legend"><span><i style="background:var(--acc)"></i>среднее за 7 дней</span><span><i style="background:var(--t3);height:6px;width:6px;border-radius:50%"></i>дни взвешиваний</span>${tg.length?'<span><i style="background:none;border-top:2px dashed var(--t3);height:0"></i>ориентир сушки</span>':''}</div>`};
 }
 function bindWeightChart(root, C){
   const svg=root.querySelector('.chart svg'); if(!svg) return;

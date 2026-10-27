@@ -455,6 +455,18 @@ const W7 = '2026-11-16';
   await ctx.close();
 }
 
+/* График веса: линия среднего идёт через центры точек */
+{
+  const bd = {}; [['2026-10-12', 78.3], ['2026-10-14', 78.1], ['2026-10-17', 78.4], ['2026-10-20', 77.7], ['2026-10-23', 78.6], ['2026-10-26', 78.9]].forEach(([d, w]) => { bd[d] = { w }; });
+  const { ctx, p } = await at('2026-10-27', { planBody: bd });
+  const r = await p.evaluate(() => { const C = weightChartHTML(); const div = document.createElement('div'); div.innerHTML = C.html;
+    const cs = [...div.querySelectorAll('circle')].filter(c => !c.hasAttribute('data-dot'));
+    const off = C.shown.map((q, i) => { const a = avgWin(q.d, 7).v, c = cs[i]; return Math.max(Math.abs(+c.getAttribute('cx') - C.X(q.d)), Math.abs(+c.getAttribute('cy') - C.Y(a))); });
+    return { n: cs.length, shown: C.shown.length, off: Math.max(...off) }; });
+  check('график веса: каждая точка — на линии среднего', r.n === r.shown && r.n >= 5 && r.off < 0.1, JSON.stringify(r));
+  await ctx.close();
+}
+
 await browser.close();
 server.close();
 console.log(fails ? `\n${fails} проверок не прошли` : '\nВсе проверки прошли');
