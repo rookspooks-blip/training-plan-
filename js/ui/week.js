@@ -189,6 +189,7 @@ function habitRows(){
 }
 
 /* ---------- Полоса года: зажал — выросла, ведёшь пальцем — подпись недели, отпустил — её состав ---------- */
+let yearNoPop=false;   /* после ведения пальцем кольцо выбранной недели уже стоит на месте — без всплеска */
 let yearAbort=null;   /* слушатели окна снимаем при каждой перерисовке «Плана», чтобы они не копились */
 function bindYearScrub(box, yw, nowI, selI){
   if(yearAbort) yearAbort.abort(); yearAbort=new AbortController(); const sig={signal:yearAbort.signal};
@@ -200,7 +201,7 @@ function bindYearScrub(box, yw, nowI, selI){
     const sm=summerModeOf(x.c,x.w), kind = x.k==='session' ? 'зимняя сессия' : sm==='exam' ? 'летняя сессия' : sm==='practice' ? 'практика' : sm==='vacation' ? 'каникулы' : (KIND_RU[x.k]||'');
     return `<b>${weekTitle(x.c,x.w)}</b><span>Цикл ${x.c} · ${cycleGoal(x.c,x.w)} · ${kind}</span>
       <span>${shortDate(dateOfCW(x.c,x.w,0))}–${shortDate(dateOfCW(x.c,x.w,6))} · ${i+1}-я неделя года из ${yw.length}${when?` · ${when}`:''}</span>`; };
-  let on=false, live=false, cur=-1, pid=null, x0=0, lx=0, hold=0, raf=0, amp=0, ampRaf=0;
+  let on=false, live=false, cur=-1, pid=null, x0=0, lx=0, hold=0, raf=0, amp=0, ampRaf=0, fix=-1;   /* fix — неделя, на которой отпустили: пока столбики оседают, колокол стоит на ней, а не плывёт за пальцем */
   /* как Dock на Mac: столбики у пальца плавно расширяются колоколом, соседи раздвигаются, дальние чуть сжимаются.
      Центр колокола φ (в номерах недель) подбираем так, чтобы его середина была ровно под пальцем */
   const n=btns.length, G=2.4, RB=9;
@@ -215,8 +216,8 @@ function bindYearScrub(box, yw, nowI, selI){
     raf=0;
     const r=bar.getBoundingClientRect(), W=r.width, gap=parseFloat(getComputedStyle(bar).columnGap)||0, x=lx-r.left;
     let lo=0, hi=n-1;
-    for(let it=0; it<22; it++){ const mid=(lo+hi)/2; if(posOf(mid,grows(mid),W,gap)<x) lo=mid; else hi=mid; }
-    const phi=(lo+hi)/2, g=grows(phi);
+    if(fix<0) for(let it=0; it<22; it++){ const mid=(lo+hi)/2; if(posOf(mid,grows(mid),W,gap)<x) lo=mid; else hi=mid; }
+    const phi=fix>=0 ? fix : (lo+hi)/2, g=grows(phi);
     btns.forEach((b,j)=>{
       const f=amp*bell(Math.abs(j-phi)/RB), q=b.firstElementChild;
       b.style.flexGrow=g[j].toFixed(3);
@@ -224,7 +225,7 @@ function bindYearScrub(box, yw, nowI, selI){
       q.style.opacity=(j===Math.round(phi) ? 1 : .5+.5*f).toFixed(2);
     });
     const i=Math.max(0, Math.min(n-1, Math.round(phi)));
-    if(i!==cur){
+    if(i!==cur && fix<0){
       if(cur>=0) haptic();
       if(cur>=0) btns[cur].classList.remove('hot'); btns[i].classList.add('hot'); cur=i;
       tip.innerHTML=tipHTML(i); tip.hidden=false;
@@ -254,7 +255,7 @@ function bindYearScrub(box, yw, nowI, selI){
   };
   const clean=()=>{
     cancelAnimationFrame(ampRaf); if(raf){ cancelAnimationFrame(raf); raf=0; }
-    amp=0; cur=-1; bar.classList.remove('scrub'); tip.hidden=true;
+    amp=0; cur=-1; fix=-1; bar.classList.remove('scrub'); tip.hidden=true;
     btns.forEach((b,j)=>{ b.style.flexGrow=''; b.style.removeProperty('--f'); b.classList.remove('hot');
       const q=b.firstElementChild; q.style.height=yw[j].h+'%'; q.style.opacity=''; });
     void bar.offsetWidth;   /* принудительная перерисовка: Safari иногда оставляет старый кадр */
@@ -279,11 +280,15 @@ function bindYearScrub(box, yw, nowI, selI){
      а «хвостовой» click гасим — иначе он нажмёт то, что окажется под пальцем после перерисовки */
   bar.addEventListener('pointerup',e=>{
     if(!on||e.pointerId!==pid) return;
-    const was=live, i=cur; stop(false);
-    if(!was || i<0) return;
+    const was=live, i=cur;
+    if(!was || i<0){ stop(false); return; }
     const kill=ev=>{ ev.stopPropagation(); ev.preventDefault(); };
     document.addEventListener('click',kill,true); setTimeout(()=>document.removeEventListener('click',kill,true),400);
-    const x=yw[i]; pickYearWeek(x.c,x.w);
+    /* как в системных анимациях: столбики сначала плавно оседают, кольцо остаётся на выбранной неделе,
+       и только потом неделя открывается — кольцо не пропадает и не появляется заново */
+    clearTimeout(hold); on=false; tip.hidden=true;
+    const x=yw[i];
+    fix=i; ease(0, 220, ()=>{ fix=-1; live=false; clean(); yearNoPop=true; pickYearWeek(x.c,x.w); });
   });
   /* iPhone иногда теряет pointerup у полосы (захват, перерисовка) — тогда жест заканчиваем по окну и по потере захвата */
   window.addEventListener('pointerup',e=>{ if(on && live && e.pointerId===pid) bar.dispatchEvent(new PointerEvent('pointerup',{pointerId:pid, clientX:e.clientX, clientY:e.clientY})); }, sig);
@@ -391,7 +396,7 @@ function renderWeekTab(){
       <button type="button" class="icbtn" data-set aria-label="Неделя и даты">${IC.gear}</button></div>
     ${statusNotes().map(n=>`<div class="note ${n.lvl}">${n.html}</div>`).join('')}
     <div class="card">
-      <div class="ywrap"><div class="ytip" aria-hidden="true" hidden></div><div class="year" role="list">${yw.map((x,i)=>`<button type="button" class="${i<nowI?'past':''}${i===nowI?' now':''}${i===selI?' sel':''}" data-yi="${i}" aria-label="Цикл ${x.c}, ${weekTitle(x.c,x.w)}, ${KIND_RU[x.k]||''}${i===selI?', открыта':''}${i===nowI?', сейчас':''}" style="--c:${x.col}"><i style="height:${x.h}%"></i></button>`).join('')}</div></div>
+      <div class="ywrap"><div class="ytip" aria-hidden="true" hidden></div><div class="year${yearNoPop?' nopop':''}" role="list">${yw.map((x,i)=>`<button type="button" class="${i<nowI?'past':''}${i===nowI?' now':''}${i===selI?' sel':''}" data-yi="${i}" aria-label="Цикл ${x.c}, ${weekTitle(x.c,x.w)}, ${KIND_RU[x.k]||''}${i===selI?', открыта':''}${i===nowI?', сейчас':''}" style="--c:${x.col}"><i style="height:${x.h}%"></i></button>`).join('')}</div></div>
     </div>
     <div class="sec">Неделя · ${KIND_RU[info.kind]||''}<span class="aux">${toDl}</span></div>
     <div class="wk">${tiles}</div>
@@ -412,6 +417,7 @@ function renderWeekTab(){
 
   box.querySelector('[data-set]').addEventListener('click',()=>openSettings('week'));
   bindYearScrub(box, yw, nowI, selI);
+  yearNoPop=false;
   bindDayTiles(box);
   const adv=box.querySelector('[data-adv]');
   if(adv) adv.addEventListener('click',()=>openSheet(`<h2>Как не улетать в перебор</h2><div class="doc">${OVER_ADVICE.map(([b,t])=>`<p><b>${b}</b> ${t}</p>`).join('')}</div><button type="button" class="btn big" data-close>Понятно</button>`));
