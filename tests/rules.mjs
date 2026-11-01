@@ -467,27 +467,35 @@ const W7 = '2026-11-16';
   await ctx.close();
 }
 
-/* Привязка данных к числу: старт плана и длина сессии двигают записи вместе с датой */
+/* Привязка данных к числу: записи лежат под датой понедельника недели, старт и сессия их не двигают */
 {
   const { ctx, p } = await at('2026-11-02', { planMarks: { '1-4-d1-a1': true, '1-1-d1-a1': true, '1-13-d1-a1': true }, planSkips: { '1-4-skip-d3': true },
     planFood: { '1-4-2': { dishOn: { chicken: true }, grams: {}, custom: [], times: {} } }, planLog: { '1-4-d1-a1': { n: 'Болгарский', d: '2026-10-26', sets: [{ w: '', r: '10' }], rpe: 8 } } });
   const r = await p.evaluate(() => {
-    const a = remapPlanData({ start: '2026-10-05', session: 4 }, { start: '2026-10-19', session: 4 });
-    const s1 = { m: marks['1-2-d1-a1'], oldKey: '1-4-d1-a1' in marks, skip: skips['1-2-skip-d3'], food: !!foodLog['1-2-2'], log: !!logs['1-2-d1-a1'], w1: '1-1-d1-a1' in marks, arch: Object.keys(store.get('planArchive', {})).length, R: a };
-    const b = remapPlanData({ start: '2026-10-19', session: 4 }, { start: '2026-10-05', session: 4 });
-    const s2 = { back: marks['1-4-d1-a1'], w1: marks['1-1-d1-a1'], food: !!foodLog['1-4-2'], arch: Object.keys(store.get('planArchive', {})).length, R: b };
-    return { s1, s2 }; });
-  check('старт на 2 недели позже: записи остаются на своих числах (26.10 была неделя 4 — стала 2)', r.s1.m === true && !r.s1.oldKey && r.s1.skip === true && r.s1.food && r.s1.log, JSON.stringify(r.s1));
-  check('записи до нового старта не пропадают, а уходят в архив', !r.s1.w1 && r.s1.arch >= 1 && r.s1.R.archived >= 1, JSON.stringify(r.s1));
-  check('старт обратно: записи возвращаются на места', r.s2.back === true && r.s2.w1 === true && r.s2.food && r.s2.arch === 0, JSON.stringify(r.s2));
+    const before = { marks: marks['2026-10-26-d1-a1'], first: marks['2026-10-05-d1-a1'], ses: marks['2026-12-28-d1-a1'], skip: skips['2026-10-26-skip-d3'], food: !!foodLog['2026-10-26-2'], log: !!logs['2026-10-26-d1-a1'], legacy: Object.keys(marks).some(k => /^[123]-/.test(k)) };
+    settings.start = '2026-10-19'; saveSettings();
+    const after = { m: marks['2026-10-26-d1-a1'], food: !!foodLog['2026-10-26-2'], first: marks['2026-10-05-d1-a1'], pos: posForDate('2026-10-26'), tag: weekTag(1, 2), exp: dayExport('2026-10-28').date, early: posForDate('2026-10-12').pre };
+    settings.session = 0; saveSettings();
+    const ses = { m: marks['2026-10-26-d1-a1'], keys: Object.keys(marks).length };
+    return { before, after, ses }; });
+  check('привязка: старые ключи «цикл-неделя» стали датами понедельника недели', r.before.marks === true && r.before.first === true && r.before.ses === true && r.before.skip === true && r.before.food && r.before.log && !r.before.legacy, JSON.stringify(r.before));
+  check('привязка: старт на 2 недели позже — записи остались на своих числах, ничего не пропало, неделя 26.10 теперь 2-я', r.after.m === true && r.after.food && r.after.first === true && r.after.pos.week === 2 && r.after.tag === '2026-10-26' && r.after.early, JSON.stringify(r.after));
+  check('привязка: смена длины сессии не трогает записи', r.ses.m === true && r.ses.keys === 3, JSON.stringify(r.ses));
   await ctx.close();
 }
 {
-  /* длина сессии двигает циклы 2 и 3, но не содержание: отметки не перепрыгивают из одного вида недели в другой */
-  const { ctx, p } = await at('2026-11-02', { planMarks: { '2-1-d1-a2': true, '1-13-d1-a1': true }, planFood: { '2-1-0': { dishOn: { chicken: true }, grams: {}, custom: [], times: {} } } });
-  const r = await p.evaluate(() => { const R = remapPlanData({ start: '2026-10-05', session: 4 }, { start: '2026-10-05', session: 0 });
-    return { m2: marks['2-1-d1-a2'], gone: '2-1-d1-a1' in marks, food: !!foodLog['1-13-0'] || !!foodLog['2-1-0'], R }; });
-  check('сессия 4 → 0: отметка цикла 2 осталась на своём числе (неделя 1 → 1, 4 недели раньше), отметка сессии ушла в архив', r.R.archived >= 1 && !r.gone, JSON.stringify(r));
+  /* уже сдвинутый старт: записи сидят на числах от нового старта, кнопка «Привязать» возвращает их на прежние */
+  const { ctx, p } = await at('2026-11-02', { planSet: { start: '2026-10-19' }, planMarks: { '1-2-d1-a1': true }, planFood: { '1-2-2': { dishOn: { chicken: true }, grams: {}, custom: [], times: {} } } });
+  const r = await p.evaluate(() => { const was = !!marks['2026-10-26-d1-a1'];
+    const n = shiftDataDates('2026-10-05'); return { was, n, moved: !!marks['2026-10-12-d1-a1'], food: !!foodLog['2026-10-12-2'], gone: !marks['2026-10-26-d1-a1'] }; });
+  check('привязка: «Привязать записи к числам» возвращает записи на дату по старому старту', r.was && r.moved && r.food && r.gone && r.n >= 2, JSON.stringify(r));
+  await ctx.close();
+}
+{
+  /* еда до старта плана видна в выгрузке дня */
+  const { ctx, p } = await at('2026-11-02', { planSet: { start: '2026-10-19' }, planFood: { '1-0-0': { dishOn: {}, grams: {}, custom: [{ name: 'Тест', k: 300, p: 20, f: 10, c: 30 }], times: {} } } });
+  const r = await p.evaluate(() => { foodLog['2026-10-12-0'] = { dishOn: {}, grams: {}, custom: [{ name: 'Тест', k: 300, p: 20, f: 10, c: 30 }], times: {} }; return dayExport('2026-10-12').food.total.kcal; });
+  check('еда до старта плана остаётся на своей дате и видна в выгрузке дня', r === 300, String(r));
   await ctx.close();
 }
 

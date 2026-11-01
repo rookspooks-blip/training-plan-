@@ -172,9 +172,9 @@ function setWeekManual(c, w){
 /* ---------- Привычки недели: три считаются сами, две — кружками в итоге дня ---------- */
 function habitRows(){
   const c=state.cycle, w=state.week, days=[0,1,2,3,4,5,6];
-  const dk=(id,i)=>`${c}-${w}-hab-${id}-${i}`, old=id=>!!marks[`${c}-${w}-hab-${id}`];
+  const dk=(id,i)=>`${weekTag(c,w)}-hab-${id}-${i}`, old=id=>!!marks[`${weekTag(c,w)}-hab-${id}`];
   const n=id=>days.filter(i=>marks[dk(id,i)]).length;
-  const dailyN=days.filter(i=>marks[`${c}-${w}-daily-${i}`]).length;
+  const dailyN=days.filter(i=>marks[`${weekTag(c,w)}-daily-${i}`]).length;
   const dates=days.map(i=>dateOfCW(c,w,i));
   const weighN=dates.filter(d=>body[d] && num(body[d].w)!=null).length;
   const gyms=buildWeek().filter(e=>e.type==='gym' && !isDropped(e.id) && dateOfCW(c,w,(e.dow+6)%7)<=isoDay());

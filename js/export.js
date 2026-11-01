@@ -16,6 +16,33 @@ function withWeek(c,w,fn){
   try{ return fn(); } finally{ state.cycle=sv.c; state.week=sv.w; loadFoodDay(); }
 }
 
+/* Еда одной записи дня: блюда по граммовкам и своя еда */
+function foodExport(fe){
+  const meals=[]; let k=0,p=0,f=0,c=0;
+  if(fe){
+    DISHES.forEach(dish=>{
+      if(!fe.dishOn || !fe.dishOn[dish.id]) return;
+      let dk=0,dp=0,df=0,dc=0; const ing=[];
+      dish.ing.forEach(([fid,base])=>{
+        const kk=`${dish.id}-${fid}`;
+        const g=(fe.grams && fe.grams[kk]!=null) ? fe.grams[kk] : Math.round(base*portionFactor()/5)*5;
+        const F=FOOD[fid];
+        dk+=F.k*g/100; dp+=F.p*g/100; df+=F.f*g/100; dc+=F.c*g/100;
+        ing.push({food:F.n, g});
+      });
+      meals.push({time:(fe.times||{})[dish.id]||null, name:dish.name, kcal:Math.round(dk), p:Math.round(dp), f:Math.round(df), c:Math.round(dc), ing});
+      k+=dk; p+=dp; f+=df; c+=dc;
+    });
+    (fe.custom||[]).forEach(x=>{
+      meals.push({time:x.t||null, name:x.name, custom:true, kcal:x.k, p:x.p, f:x.f, c:x.c, ing:[]});
+      k+=x.k; p+=x.p; f+=x.f; c+=x.c;
+    });
+  }
+  meals.sort((a,b)=> (a.time||'99:99')<(b.time||'99:99') ? -1 : ((a.time||'99:99')>(b.time||'99:99') ? 1 : 0));
+  return {meals, total:{kcal:Math.round(k), p:Math.round(p), f:Math.round(f), c:Math.round(c)}};
+
+}
+
 function dayExport(iso){
   const dow=(dOf(iso).getDay()+6)%7;
   const pos=posForDate(iso);
@@ -27,7 +54,7 @@ function dayExport(iso){
     /* до старта плана недели ещё нет: тренировки и еда по расписанию не считаются */
     if(pos.pre){
       D.training={type:'rest', title:'до старта плана'}; D.dailyBlock=null;
-      D.food={meals:[], total:{kcal:0,p:0,f:0,c:0}};
+      D.food=foodExport(foodLog[`${addDays(iso,-dow)}-${dow}`]);   /* еда до старта плана записана под датой её недели */
       D.body=body[iso]?{...body[iso]}:null;
       D.circ=circ.filter(x=>x.d===iso).map(x=>({waistNarrow:x.a, waistNavel:x.b, thigh:x.h}));
       D.tests=tests.filter(x=>x.d===iso).map(x=>({test:TESTS[x.t]?TESTS[x.t].n:x.t, value:x.v, unit:TESTS[x.t]?TESTS[x.t].u:''}));
@@ -46,44 +73,22 @@ function dayExport(iso){
         const sets=L?L.sets.filter(s=>num(s.r)!=null).map(s=>({kg:num(s.w)||0, reps:num(s.r)})):[];
         return {name:x.name, plan:x.dose, rest:x.rest, done:!!marks[key(day.id,x.id)], sets, rpe:L&&L.rpe||null};
       });
-      const wd=watch[`${state.cycle}-${state.week}-${day.id}`]||null;
+      const wd=watch[`${weekTag()}-${day.id}`]||null;
       tr={type:'gym', title:day.title, status:dropped?'отменена':(moved?'перенесена':'по плану'), watch:wd?{start:wd.s||null, end:wd.e||null, minutes:watchMinutes(wd), avgHr:num(wd.hr), maxHr:num(wd.mx), kcal:num(wd.kc)}:null,
           noPE: day.swap?true:false,
           warmupDone:day.noWarm?0:warm.list.filter(s=>marks[key(day.id,s.id)]).length, warmupTotal:day.noWarm?0:warm.list.length,
           exercises:exs, done:exs.filter(x=>x.done).length, total:exs.length,
           volumeKg:Math.round(exs.reduce((a,x)=>a+x.sets.reduce((b,s)=>b+s.kg*s.reps,0),0))};
     } else if(e && e.type==='run'){
-      const wd=watch[`${state.cycle}-${state.week}-${e.id}`]||null;
+      const wd=watch[`${weekTag()}-${e.id}`]||null;
       tr={type:'cardio', title:e.title, dur:e.dur, note:e.note, done:!!marks[key(e.id,e.ex)], ball:!!marks[key(e.id,'ball')], skipped:isSkipped(e.id),
           watch:wd?{start:wd.s||null, end:wd.e||null, minutes:watchMinutes(wd), avgHr:num(wd.hr), maxHr:num(wd.mx), kcal:num(wd.kc)}:null};
     } else if(e){ tr={type:'rest', title:e.title}; }
     D.training=tr;
-    D.dailyBlock = !!marks[`${state.cycle}-${state.week}-daily-${dow}`];
+    D.dailyBlock = !!marks[`${weekTag()}-daily-${dow}`];
 
     /* --- еда --- */
-    const fe=foodLog[`${state.cycle}-${state.week}-${dow}`];
-    const meals=[]; let k=0,p=0,f=0,c=0;
-    if(fe){
-      DISHES.forEach(dish=>{
-        if(!fe.dishOn || !fe.dishOn[dish.id]) return;
-        let dk=0,dp=0,df=0,dc=0; const ing=[];
-        dish.ing.forEach(([fid,base])=>{
-          const kk=`${dish.id}-${fid}`;
-          const g=(fe.grams && fe.grams[kk]!=null) ? fe.grams[kk] : Math.round(base*portionFactor()/5)*5;
-          const F=FOOD[fid];
-          dk+=F.k*g/100; dp+=F.p*g/100; df+=F.f*g/100; dc+=F.c*g/100;
-          ing.push({food:F.n, g});
-        });
-        meals.push({time:(fe.times||{})[dish.id]||null, name:dish.name, kcal:Math.round(dk), p:Math.round(dp), f:Math.round(df), c:Math.round(dc), ing});
-        k+=dk; p+=dp; f+=df; c+=dc;
-      });
-      (fe.custom||[]).forEach(x=>{
-        meals.push({time:x.t||null, name:x.name, custom:true, kcal:x.k, p:x.p, f:x.f, c:x.c, ing:[]});
-        k+=x.k; p+=x.p; f+=x.f; c+=x.c;
-      });
-    }
-    meals.sort((a,b)=> (a.time||'99:99')<(b.time||'99:99') ? -1 : ((a.time||'99:99')>(b.time||'99:99') ? 1 : 0));
-    D.food={meals, total:{kcal:Math.round(k), p:Math.round(p), f:Math.round(f), c:Math.round(c)}};
+    D.food=foodExport(foodLog[`${weekTag()}-${dow}`]);
 
     /* --- утренние замеры, обхваты, тесты --- */
     D.body=body[iso]?{...body[iso]}:null;
@@ -168,9 +173,9 @@ function dayRow(D){
 /* Все даты, по которым что-то записано */
 function datesWithData(){
   const set=new Set();
-  const addWeek=(c,w)=>{ for(let i=0;i<7;i++) set.add(dateOfCW(c,w,i)); };
-  Object.keys(foodLog).forEach(k=>{ const [c,w,d]=k.split('-').map(Number); if(foodLog[k] && (Object.values(foodLog[k].dishOn||{}).some(Boolean)||(foodLog[k].custom||[]).length)) set.add(dateOfCW(c,w,d)); });
-  [marks,logs,watch].forEach(src=>Object.keys(src).forEach(k=>{ const [c,w]=k.split('-').map(Number); if(c&&w&&src[k]&&(src!==logs||hasData(src[k]))) addWeek(c,w); }));
+  const addWeek=tag=>{ for(let i=0;i<7;i++) set.add(addDays(tag,i)); };
+  Object.keys(foodLog).forEach(k=>{ const m=/^(\d{4}-\d\d-\d\d)-(\d)$/.exec(k); if(m && foodLog[k] && (Object.values(foodLog[k].dishOn||{}).some(Boolean)||(foodLog[k].custom||[]).length)) set.add(addDays(m[1],+m[2])); });
+  [marks,logs,watch].forEach(src=>Object.keys(src).forEach(k=>{ const m=TAG_RE.exec(k); if(m&&src[k]&&(src!==logs||hasData(src[k]))) addWeek(m[1]); }));
   Object.keys(body).forEach(d=>set.add(d)); circ.forEach(x=>set.add(x.d)); tests.forEach(x=>set.add(x.d));
   return [...set].filter(Boolean).sort();
 }

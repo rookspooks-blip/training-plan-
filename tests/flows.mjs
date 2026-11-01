@@ -68,7 +68,7 @@ const sheetOpt = async (p, a) => { await p.click(`.sheet [data-a="${a}"]`); awai
   check('пустых подсказок колена/поясницы нет', !(await p.evaluate(() => /Утром оцени, как она/.test(document.body.innerText))));
   check('«Зарядка для колен» в ленте и в день тренировки', await p.evaluate(() => [...document.querySelectorAll('#scr-now .it .nm')].some(e => e.textContent === 'Зарядка для колен')));
   await p.click('#scr-now [data-start]');
-  check('плеер открыт, время начала записано', (await visible(p, '#player .pl-dock')) && await p.evaluate(() => watch['1-2-d1'].s === '17:00'));
+  check('плеер открыт, время начала записано', (await visible(p, '#player .pl-dock')) && await p.evaluate(() => watch['2026-10-12-d1'].s === '17:00'));
   /* пары: подход A → подход B → отдых */
   const pair = await p.evaluate(() => {
     /* день с парами «в паре с …» — ищем по году */
@@ -93,7 +93,7 @@ const sheetOpt = async (p, a) => { await p.click(`.sheet [data-a="${a}"]`); awai
   await p.clock.runFor(41 * 60 * 1000);
   await p.evaluate(() => { marks[key('d1', 'a1')] = true; saveMarks(); });
   await p.click('#player [data-menu]'); await sheetOpt(p, 'fin');
-  const r = await p.evaluate(() => ({ w: watch['1-2-d1'], txt: document.querySelector('#player').innerText }));
+  const r = await p.evaluate(() => ({ w: watch['2026-10-12-d1'], txt: document.querySelector('#player').innerText }));
   check('итог: время и счёт упражнений', r.w && r.w.s === '17:00' && r.w.e === '17:45' && /0:45/.test(r.txt) && /Тренировка сделана/.test(r.txt), JSON.stringify(r.w));
   await p.click('#player [data-feel="7"]');
   check('самочувствие сохранено в день', await p.evaluate(() => body['2026-10-12'].feel === 7));
@@ -164,7 +164,7 @@ const hold = async (p, sel) => { const bb = await (await p.$(sel)).boundingBox()
   await p.click('.sheet [data-ok]');
   await p.waitForTimeout(1200);
   const r = await p.evaluate(() => ({ m: localStorage.getItem('planMarks'), auto: JSON.parse(localStorage.getItem('planAutoBackup') || 'null') }));
-  check('данные удалены, автокопия есть', r.m === null && r.auto && r.auto.data.planMarks['1-2-d1-a1'] === true, JSON.stringify(r).slice(0, 120));
+  check('данные удалены, автокопия есть', r.m === null && r.auto && r.auto.data.planMarks['2026-10-12-d1-a1'] === true, JSON.stringify(r).slice(0, 120));
   check('ошибок нет', p.errs.length === 0, p.errs.join(' | '));
   await ctx.close();
 }

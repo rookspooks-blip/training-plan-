@@ -146,11 +146,11 @@ const MEAL_NOTES=[
 /* ---------- Контейнеры недели ----------
    Готовишь раз в неделю: что приготовил и сколько порций. Съеденная порция —
    это блюдо, отмеченное в дне, поэтому отдельный счётчик не нужен */
-const cookKey=()=>`${state.cycle}-${state.week}`;
+const cookKey=()=>weekTag();
 const cookList=()=>asArr(cook[cookKey()],[]);
 function portionsEaten(dishId){
   let n=0;
-  for(let d=0; d<7; d++){ const e=foodLog[`${state.cycle}-${state.week}-${d}`]; if(e && e.dishOn && e.dishOn[dishId]) n++; }
+  for(let d=0; d<7; d++){ const e=foodLog[`${weekTag()}-${d}`]; if(e && e.dishOn && e.dishOn[dishId]) n++; }
   return n;
 }
 const cookLeft=item=>Math.max(0, (item.n|0)-portionsEaten(item.m));
@@ -177,8 +177,8 @@ function usualNow(limit){
   const now=hm2min(nowHM()), today=isoDay(), cnt={};
   const add=(key, item)=>{ cnt[key]=cnt[key]||{n:0, item}; cnt[key].n++; };
   for(const k in foodLog){
-    const [c,w,d]=k.split('-').map(Number); if(!c||!w) continue;
-    const date=dateOfCW(c,w,d); if(date>=today || daysBetween(date,today)>14) continue;
+    const m=/^(\d{4}-\d\d-\d\d)-(\d)$/.exec(k); if(!m) continue;
+    const date=addDays(m[1],+m[2]); if(date>=today || daysBetween(date,today)>14) continue;
     const e=foodLog[k];
     Object.entries(e.times||{}).forEach(([id,t])=>{
       if(e.dishOn && e.dishOn[id] && dishById(id) && Math.abs(hm2min(t)-now)<=120) add('d:'+id, {kind:'dish', id});
@@ -311,7 +311,7 @@ function assembleDay(){
 
 /* Итоги дня по записи в дневнике — нужно для недельной сводки */
 function totalsOfDay(d){
-  const e=foodLog[`${state.cycle}-${state.week}-${d}`];
+  const e=foodLog[`${weekTag()}-${d}`];
   if(!e) return null;
   let k=0,p=0,f=0,c=0;
   DISHES.forEach(dish=>{
@@ -406,7 +406,7 @@ function buildReport(){
   /* --- ЧТО ЕЛ ВРУЧНУЮ --- */
   const extras=[];
   for(let d=0; d<7; d++){
-    const e=foodLog[`${state.cycle}-${state.week}-${d}`];
+    const e=foodLog[`${weekTag()}-${d}`];
     if(e && e.custom) e.custom.forEach(x=>extras.push(`${DOW_IDX[d]} ${x.name} — ${x.k} ккал, Б${x.p} Ж${x.f} У${x.c}`));
   }
   if(extras.length){
@@ -438,7 +438,7 @@ function buildReport(){
   const need=[], got=[];
   for(let i=0;i<7;i++){
     need.push(DOW_IDX[i]);
-    if(marks[`${state.cycle}-${state.week}-daily-${i}`]) got.push(DOW_IDX[i]);
+    if(marks[`${weekTag()}-daily-${i}`]) got.push(DOW_IDX[i]);
   }
   L.push('');
   L.push(`ЕЖЕДНЕВНЫЙ БЛОК: ${got.length} из ${need.length}${got.length?' ('+got.join(', ')+')':''}`);
@@ -448,7 +448,7 @@ function buildReport(){
   }
 
   /* --- РАБОЧИЕ ВЕСА --- */
-  const lw=Object.keys(logs).filter(k=>k.startsWith(`${state.cycle}-${state.week}-`) && hasData(logs[k]));
+  const lw=Object.keys(logs).filter(k=>k.startsWith(`${weekTag()}-`) && hasData(logs[k]));
   if(lw.length){
     L.push('');
     L.push('РАБОЧИЕ ВЕСА');

@@ -95,8 +95,8 @@ function morningLine(iso){
    Каждое из четырёх упражнений отмечается отдельно. Все четыре — день засчитан
    (общая отметка дня, её читают неделя, привычки и выгрузка). Старые отметки дня без
    упражнений считаются как «все четыре сделаны» */
-const dailyKey=i=>`${state.cycle}-${state.week}-daily-${i}`;
-const dailyItemKey=(i,n)=>`${state.cycle}-${state.week}-dailyx-${i}-${n}`;
+const dailyKey=i=>`${weekTag()}-daily-${i}`;
+const dailyItemKey=(i,n)=>`${weekTag()}-dailyx-${i}-${n}`;
 const dailyItemOn=(i,n)=>!!marks[dailyKey(i)] || !!marks[dailyItemKey(i,n)];
 const dailyCount=i=>DAILY.filter((_,n)=>dailyItemOn(i,n)).length;
 /* снимок отметок дня — для «Отменить» */
@@ -238,7 +238,7 @@ function morningHero(){
 function eveningHero(es){
   const td=vIdx(), iso=vIso();
   const T=nutritionTarget(), t=totalsOfDay(td)||{k:0};
-  const hk=id=>`${state.cycle}-${state.week}-hab-${id}-${td}`;
+  const hk=id=>`${weekTag()}-hab-${id}-${td}`;
   const S=sleepInfo(), N=sleepTonight(td), sh=SHOWER[todayKind(td)];
   const lines=[];
   es.filter(e=>e.type==='gym').forEach(e=>lines.push([isGymDone(e)||isDropped(e.id), e.day.title+(isDropped(e.id)?' — отменена':''), 'g:'+e.id]));
@@ -276,7 +276,7 @@ let nowPick=null;      /* {d, id}: куда пользователь проли�
 let nowAnim=0;         /* откуда въезжает новая карточка: 1 — справа, -1 — слева */
 /* Какие приёмы пищи уже записаны: время блюда или своей еды в пределах ±90 минут */
 function mealLogged(td, at){
-  const log=foodLog[`${state.cycle}-${state.week}-${td}`]||{};
+  const log=foodLog[`${weekTag()}-${td}`]||{};
   const times=[...Object.entries(log.times||{}).filter(([id])=>log.dishOn&&log.dishOn[id]).map(([,t])=>t), ...(log.custom||[]).map(x=>x.t).filter(Boolean)];
   return times.some(t=>Math.abs(hm2min(t)-hm2min(at))<=90);
 }

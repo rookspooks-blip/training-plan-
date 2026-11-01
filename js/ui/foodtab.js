@@ -10,7 +10,7 @@ const FOOD_MSG={add:x=>`${x} — записано${isFoodToday()?', '+nowHM():''
 
 /* Снимок дня — для «Отменить» после массовых действий */
 function snapDay(d){
-  const k=`${state.cycle}-${state.week}-${d==null?foodDay:d}`, s=JSON.stringify(foodLog[k]||null);
+  const k=`${weekTag()}-${d==null?foodDay:d}`, s=JSON.stringify(foodLog[k]||null);
   return ()=>{ const v=JSON.parse(s); if(v) foodLog[k]=v; else delete foodLog[k]; loadFoodDay(); saveFood(); renderAll(); };
 }
 /* Записи с «Сейчас» и из ленты идут в сегодняшний день */

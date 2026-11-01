@@ -75,10 +75,10 @@ const close = async p => { ok('_errors', p.errs.length === 0, p.errs.join(' | ')
   await p.click('#sheets .sheet [data-knee]');
   ok(26, await E(p, () => /Понедельник/.test(document.querySelector('#sheets .sheet .kick').textContent) && document.querySelectorAll('#sheets .sheet [data-dx]').length === 4), 'зарядка этого дня по упражнениям');
   await p.click('#sheets .sheet [data-t]');
-  ok(26, await E(p, () => !!marks['1-3-daily-0']), 'прошлый день отмечается');
+  ok(26, await E(p, () => !!marks['2026-10-19-daily-0']), 'прошлый день отмечается');
   ok(20, await E(p, () => !document.querySelector('#toast button').hidden), 'тост с «Отменить»');
   await p.click('#toast button');
-  ok(20, await E(p, () => !marks['1-3-daily-0']), '«Отменить» вернула');
+  ok(20, await E(p, () => !marks['2026-10-19-daily-0']), '«Отменить» вернула');
   await p.click('#tabbar [data-go="now"]');
   t = await T(p);
   ok(2, await E(p, () => document.querySelectorAll('#scr-now .rings .ring').length === 2), 'кольца дня: тренировки и еда');
@@ -143,7 +143,7 @@ const close = async p => { ok('_errors', p.errs.length === 0, p.errs.join(' | ')
   /* хранение */
   ok(12, await E(p, () => DATA_KEYS.length === 14 && DATA_KEYS.includes('planCook') && DATA_KEYS.includes('planArchive')), '14 ключей (12 + готовка + архив записей по датам)');
   ok(12, await E(p, () => { const o = Storage.prototype.setItem; Storage.prototype.setItem = () => { throw new Error('q'); }; storeWarned = false; store.set('planMarks', marks); Storage.prototype.setItem = o; return /Не получилось сохранить/.test(document.querySelector('#toast').textContent); }), 'ошибка записи — тост');
-  ok(13, await E(p, () => SCHEMA === 3 && typeof migrate === 'function' && typeof snapshot === 'function'), 'миграция по шагам со снимком (формат 3)');
+  ok(13, await E(p, () => SCHEMA === 4 && typeof migrate === 'function' && typeof snapshot === 'function'), 'миграция по шагам со снимком (формат 4: ключи — даты)');
   /* новый день при возврате */
   await p.clock.setFixedTime(new Date('2026-10-22T09:00:00'));
   await E(p, () => { Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true }); document.dispatchEvent(new Event('visibilitychange')); });
@@ -228,7 +228,7 @@ for (const [time, re, n] of [['2026-10-26T10:00:00', /Разгрузка/, 3], [
   ok(30, /10–15 мин после велосипеда/.test(t), 'мяч: 10–15 мин после велосипеда');
   ok(100, /обороты|об\/мин|оборот/.test(t) || /пульс/.test(t), 'заметка кардио: обороты и пульс');
   await p.click('#scr-now .hero.c-car [data-ck="ball"]');
-  ok(30, await E(p, () => !!marks['1-3-c-tue-ball']), 'мяч отмечается отдельно');
+  ok(30, await E(p, () => !!marks['2026-10-19-c-tue-ball']), 'мяч отмечается отдельно');
   await p.click('#scr-now .hero.c-car [data-how]');
   ok(29, /седл|Седл|обороты|Оборот/.test(await T(p)), 'настройка велосипеда');
   await E(p, () => closeSheets());
@@ -249,7 +249,7 @@ for (const [time, re, n] of [['2026-10-26T10:00:00', /Разгрузка/, 3], [
   ok(32, /скоростная не переносится — просто отменится/.test(t) && /Физры не было/.test(t), 'скоростная не переносится; «Физры не было» в Чт');
   await E(p, () => closeSheets());
   await p.click('#scr-now [data-start]');
-  ok(38, await E(p, () => watch['1-3-d1'] && watch['1-3-d1'].s === '17:00' && !document.querySelector('#player').hidden), 'начало записано, открыт плеер');
+  ok(38, await E(p, () => watch['2026-10-19-d1'] && watch['2026-10-19-d1'].s === '17:00' && !document.querySelector('#player').hidden), 'начало записано, открыт плеер');
   t = await E(p, () => document.querySelector('#player').textContent);
   ok(41, /Разминка/.test(t) && /\d:\d\d ·/.test(t) && /Вся сделана/.test(t), 'разминка: пункты с таймерами, «Вся сделана»');
   ok(79, await E(p, () => warmupOf(buildWeek().find(e => e.id === 'd1').day, 3).list.map(s => s.name).join('|').includes('Скакалка или велосипед')), 'разминка А');
@@ -274,7 +274,7 @@ for (const [time, re, n] of [['2026-10-26T10:00:00', /Разгрузка/, 3], [
   ok(83, await E(p, () => typeof warmupOf === 'function'), '');
   ok(42, await E(p, () => !!document.querySelector('#player .pl-photo, #player .pl-fig') && /Подход 1 из 4/.test(document.querySelector('#player').textContent)), 'фото/схема, подход n из N');
   await p.click('#player [data-done]');
-  const L = await E(p, () => logs['1-3-d1-a1']);
+  const L = await E(p, () => logs['2026-10-19-d1-a1']);
   ok(45, L && L.sets[0].r !== '' && L.d === '2026-10-19', '«Готово» записывает подход как показан (В4)');
   ok(46, L && L.tr && L.th && L.ns && L.wk === 'build', 'с записью сохраняется план');
   t = await E(p, () => document.querySelector('#player').textContent);
@@ -284,16 +284,16 @@ for (const [time, re, n] of [['2026-10-26T10:00:00', /Разгрузка/, 3], [
   await p.clock.runFor(160000);
   ok(47, await E(p, () => !PL.rest), 'отдых кончился, считает от времени окончания');
   for (let i = 1; i < 4; i++) { if (await p.$('#player [data-rskip]')) await p.click('#player [data-rskip]'); await p.click('#player [data-done]'); }
-  ok(46, await E(p, () => !!marks['1-3-d1-a1']), 'все подходы → упражнение отмечено');
+  ok(46, await E(p, () => !!marks['2026-10-19-d1-a1']), 'все подходы → упражнение отмечено');
   if (await p.$('#player [data-rskip]')) await p.click('#player [data-rskip]');
-  if (!(await p.$('#player [data-rpe]'))) console.log('шаг перед тяжестью:', await E(p, () => JSON.stringify({ k: PL.steps[PL.i].k, ex: PL.steps[PL.i].ex && PL.steps[PL.i].ex.id, si: PL.steps[PL.i].si, rest: !!PL.rest, sets: logs['1-3-d1-a1'].sets })));
+  if (!(await p.$('#player [data-rpe]'))) console.log('шаг перед тяжестью:', await E(p, () => JSON.stringify({ k: PL.steps[PL.i].k, ex: PL.steps[PL.i].ex && PL.steps[PL.i].ex.id, si: PL.steps[PL.i].si, rest: !!PL.rest, sets: logs['2026-10-19-d1-a1'].sets })));
   t = await E(p, () => document.querySelector('#player').textContent);
   ok(44, /Как тяжело было в последнем подходе/.test(t) && await E(p, () => document.querySelectorAll('#player [data-rpe]').length === 5) && /Легко, запас 4/.test(t) && /Предел/.test(t), '5 строк 6–10 с подписями');
   await p.click('#player [data-rpe="8"]');
-  ok(44, await E(p, () => logs['1-3-d1-a1'].rpe === 8), 'тяжесть записана');
+  ok(44, await E(p, () => logs['2026-10-19-d1-a1'].rpe === 8), 'тяжесть записана');
   await E(p, () => plGo(PL.steps.findIndex(s => s.k === 'rpe' && s.ex.id === 'a1')));
   await p.click('#player [data-rpe="8"]');
-  ok(44, await E(p, () => logs['1-3-d1-a1'].rpe === null), 'повторный тап снимает');
+  ok(44, await E(p, () => logs['2026-10-19-d1-a1'].rpe === null), 'повторный тап снимает');
   ok(45, await E(p, () => { plGo(PL.steps.findIndex(s => s.k === 'set' && s.ex.id === 'a2' && s.si === s.n - 1)); return !!document.querySelector('#player [data-addset]'); }), '«+ подход»');
   /* пары */
   ok(59, await E(p, () => { const i = PL.steps.findIndex(s => s.k === 'set' && s.mate); return i >= 0 && PL.steps[i + 1].ex.id === PL.steps[i].mate.id; }), 'пары чередуются');

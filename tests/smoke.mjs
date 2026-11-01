@@ -45,7 +45,7 @@ async function page(opts = {}) {
   await p.evaluate(() => { openLibrary(); openLibGroup('tech'); closePage(true); openSettings(); closePage(true);
     const e = buildWeek().find(x => x.type === 'gym'); openPlayer(e.id); closePlayer(); openJumpTool(); closePage(true); });
   check('загрузка, вкладки, плеер, страницы без ошибок', p.errs.length === 0, p.errs.join(' | '));
-  check('формат данных записан', await p.evaluate(() => localStorage.getItem('planSchema')) === '3');
+  check('формат данных записан', await p.evaluate(() => localStorage.getItem('planSchema')) === '4');
   await ctx.close();
 }
 
@@ -63,14 +63,14 @@ async function page(opts = {}) {
     schema: localStorage.getItem('planSchema'),
     grams: localStorage.getItem('planGrams'),
     auto: JSON.parse(localStorage.getItem('planAutoBackup') || 'null'),
-    marks: marks['1-1-d1-a1'],
+    marks: marks['2026-10-05-d1-a1'], legacy: Object.keys(marks).some(k => /^[123]-/.test(k)),
   }));
-  check('миграция 1→3', r.schema === '3' && r.grams === null && r.marks === true);
+  check('миграция 1→4', r.schema === '4' && r.grams === null && r.marks === true && !r.legacy);
   check('автокопия перед миграцией', !!(r.auto && r.auto.data.planGrams && r.auto.data.planMarks));
   await ctx.close();
 }
 
-/* 2б. Формат 2 → 3: данные не трогаются */
+/* 2б. Формат 2 → 4: ключи «цикл-неделя» становятся датами понедельника, значения не меняются */
 {
   const data = { planMarks: { '1-1-d1-a1': true }, planLog: { '1-1-d1-a4': { n: 'X', d: '2026-10-05', sets: [{ w: '6', r: '10' }], rpe: 8 } },
     planBody: { '2026-10-05': { w: 76.2, knee: 2 } }, planFood: { '1-1-0': { dishOn: { shake: true }, grams: {}, custom: [], times: { shake: '09:00' } } } };
@@ -80,8 +80,10 @@ async function page(opts = {}) {
     localStorage.clear(); localStorage.setItem('planSchema', '2');
     for (const k in d) localStorage.setItem(k, JSON.stringify(d[k]));
   }, arg: data });
-  const r = await p.evaluate(keys => ({ schema: localStorage.getItem('planSchema'), same: keys.map(k => localStorage.getItem(k)) }), Object.keys(data));
-  check('миграция 2→3 без изменений данных', r.schema === '3' && r.same.every((v, i) => v === JSON.stringify(Object.values(data)[i])), JSON.stringify(r).slice(0, 160));
+  const r = await p.evaluate(keys => ({ schema: localStorage.getItem('planSchema'), vals: keys.map(k => JSON.parse(localStorage.getItem(k))) }), Object.keys(data));
+  const dated = o => Object.keys(o).every(k => /^\d{4}-\d\d-\d\d(-|$)/.test(k));
+  const same = Object.values(data).every((d, i) => JSON.stringify(Object.values(d)) === JSON.stringify(Object.values(r.vals[i])));
+  check('миграция 2→4: ключи стали датами, значения те же', r.schema === '4' && same && r.vals.slice(0, 2).every(dated) && dated(r.vals[3]) && Object.keys(r.vals[2]).join() === '2026-10-05', JSON.stringify(r).slice(0, 200));
   await ctx.close();
 }
 

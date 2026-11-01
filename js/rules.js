@@ -30,27 +30,27 @@ function memo(name, fn){
   const v=fn(); MEMO[name]={k,v}; return v;
 }
 
-/* Дни, в которых что-то сделано: "цикл-неделя-день" */
+/* Дни, в которых что-то сделано: "дата понедельника-день" */
 function activeDays(){
   return memo('active', ()=>{
-    const set=new Set(), re=/^([123]-\d+-d[1-7])(?:-|$)/;
+    const set=new Set(), re=/^(\d{4}-\d\d-\d\d-d[1-7])(?:-|$)/;
     for(const k in watch){ const m=k.match(re); if(m) set.add(m[1]); }
     for(const k in marks){ const m=marks[k] && k.match(re); if(m) set.add(m[1]); }
     for(const k in logs){ const m=k.match(re); if(m && hasData(logs[k])) set.add(m[1]); }
     return set;
   });
 }
-const dayActive=(c,w,id)=>activeDays().has(`${c}-${w}-${id}`);
+const dayActive=(c,w,id)=>activeDays().has(`${weekTag(c,w)}-${id}`);
 
 /* Даты тренировок до сегодняшнего дня, по возрастанию */
 function activityDates(){ return memo('dates', activityDatesRaw); }
 function activityDatesRaw(){
   const set=new Set(), today=isoDay();
-  const add=(c,w,id)=>{ if(DAY_DOW[id]!=null) set.add(dateOfCW(c,w,DAY_DOW[id])); };
-  const parse=k=>k.match(/^([123])-(\d+)-(d[1-7])(?:-|$)/);
-  for(const k in logs){ const L=logs[k]; if(L && hasData(L)){ if(L.d) set.add(L.d); else { const m=parse(k); if(m) add(+m[1],+m[2],m[3]); } } }
-  for(const k in marks){ const m=marks[k] && parse(k); if(m) add(+m[1],+m[2],m[3]); }
-  for(const k in watch){ const m=parse(k); if(m) add(+m[1],+m[2],m[3]); }
+  const add=(tag,id)=>{ if(DAY_DOW[id]!=null) set.add(addDays(tag, DAY_DOW[id])); };
+  const parse=k=>k.match(/^(\d{4}-\d\d-\d\d)-(d[1-7])(?:-|$)/);
+  for(const k in logs){ const L=logs[k]; if(L && hasData(L)){ if(L.d) set.add(L.d); else { const m=parse(k); if(m) add(m[1],m[2]); } } }
+  for(const k in marks){ const m=marks[k] && parse(k); if(m) add(m[1],m[2]); }
+  for(const k in watch){ const m=parse(k); if(m) add(m[1],m[2]); }
   return [...set].filter(d=>d<today).sort();
 }
 
@@ -149,7 +149,7 @@ function applySub(ex){
    Три прыжка в метку в начале Силовой А. Не достал обычную метку 2 из 3 —
    нервная система не восстановилась: день лёгкий. Средняя высота прыжка
    ловит усталость раньше ощущений (Claudino 2017) */
-const readyKey=()=>`${state.cycle}-${state.week}-ready`;
+const readyKey=()=>`${weekTag()}-ready`;
 const readyLow=()=>!!marks[readyKey()];
 function setReadyLow(on){ if(on) marks[readyKey()]=true; else delete marks[readyKey()]; saveMarks(); }
 
@@ -157,7 +157,7 @@ function setReadyLow(on){ if(on) marks[readyKey()]=true; else delete marks[ready
    Разгрузки по расписанию плюс досрочно по сигналам: две недели подряд прыжок
    не дотягивает до метки (или неделю не дотягивает и две тренировки подряд на пределе).
    Приложение только предлагает — включаешь кнопкой, отменить можно так же */
-const earlyKey=()=>`${state.cycle}-${state.week}`;
+const earlyKey=()=>weekTag();
 const earlyDlOn=()=>!!(settings.earlyDl && settings.earlyDl[earlyKey()]);
 function setEarlyDl(on){
   settings.earlyDl=settings.earlyDl||{};
@@ -170,7 +170,7 @@ function earlyDlSignal(){
   if(k!=='build' && k!=='hyper') return null;
   const nk=weekKind(c,w+1);
   if(nk==='deload' || nk==='test') return null;          /* разгрузка и так через неделю */
-  const low=x=> x>=1 && !!marks[`${c}-${x}-ready`];
+  const low=x=> x>=1 && !!marks[`${weekTag(c,x)}-ready`];
   if(low(w-1) && low(w-2)) return {why:'две недели подряд прыжок не дотягивает до метки'};
   if(low(w-1) && fatigueInfo()) return {why:'прыжок не дотянул до метки, и две тренировки подряд были на пределе'};
   return null;

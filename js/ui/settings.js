@@ -122,34 +122,27 @@ function openSettings(focus){
     on('[data-rebind]','click',()=>{
       const old=(el.querySelector('[data-oldstart]')||{}).value;
       if(!old || old===settings.start) return toast('Старый старт совпадает с нынешним — менять нечего');
-      const snap=planDataSnapshot(), cur={start:settings.start, session:settings.session|0};
-      const R=remapPlanData({start:old, session:cur.session}, cur);
+      const delta=daysBetween(settings.start, old), n=shiftDataBy(delta);
       renderAll(); redraw();
-      toast('Записи привязаны к числам.'+remapNote(R), ()=>{ planDataRestore(snap); renderAll(); redraw(); });
+      toast(`Записи (${n}) встали на свои числа: сдвиг на ${Math.abs(delta)} дн.`, ()=>{ shiftDataBy(-delta); renderAll(); redraw(); });
     });
     on('[data-start]','change',b=>{
       if(!b.value || b.value===settings.start) return;
-      const snap=planDataSnapshot(), was={start:settings.start, session:settings.session|0}, wasPos={cycle:state.cycle, week:state.week};
-      settings.start=b.value; saveSettings();
-      const R=remapPlanData(was, {start:settings.start, session:settings.session|0});
-      if(settings.auto) applyAuto();
-      setCycle=state.cycle; renderAll(); redraw();
-      toast('Старт плана сохранён.'+remapNote(R), ()=>{ settings.start=was.start; saveSettings(); planDataRestore(snap); state.cycle=wasPos.cycle; state.week=wasPos.week; savePos(); if(settings.auto) applyAuto(); setCycle=state.cycle; renderAll(); redraw(); });
+      const was=settings.start, wasPos={cycle:state.cycle, week:state.week};
+      settings.start=b.value; saveSettings(); if(settings.auto) applyAuto(); setCycle=state.cycle; renderAll(); redraw();
+      toast('Старт плана сохранён. Записи остались на своих числах', ()=>{ settings.start=was; saveSettings(); state.cycle=wasPos.cycle; state.week=wasPos.week; savePos(); if(settings.auto) applyAuto(); setCycle=state.cycle; renderAll(); redraw(); });
     });
-    /* периоды: сессии и практика. Любое изменение — с «Отменить». Записи и отметки едут вместе со своим
-       числом (длина сессии двигает даты циклов 2 и 3), а что не помещается, уходит в архив по дате */
+    /* периоды: сессии и практика. Любое изменение — с «Отменить». Записи лежат под датой, поэтому
+       меняется только то, какая дата к какой неделе плана относится */
     const KEYS=['session','sesFrom','exFrom','exTo','prFrom','prTo','practiceEnd'];
     const change=(fn, msg)=>{
       const before={}; KEYS.forEach(k=>{ before[k]=settings[k]; });
-      const snap=planDataSnapshot(), was={start:settings.start, session:settings.session|0};
       fn(); saveSettings();
-      const R=remapPlanData(was, {start:settings.start, session:settings.session|0});   /* длина сессии двигает даты циклов 2 и 3 */
-      if(R.moved||R.archived||R.restored) msg+='.'+remapNote(R);
       if(state.cycle===1 && state.week>maxWeek(1)){ state.week=maxWeek(1); savePos(); }
       if(settings.auto) applyAuto();
       renderAll(); redraw();
       toast(msg, ()=>{ KEYS.forEach(k=>{ if(before[k]===undefined) delete settings[k]; else settings[k]=before[k]; });
-        saveSettings(); planDataRestore(snap); if(settings.auto) applyAuto(); renderAll(); redraw(); });
+        saveSettings(); if(settings.auto) applyAuto(); renderAll(); redraw(); });
     };
     const bad=msg=>{ toast(msg); redraw(); };
     on('[data-wf]','change',b=>{

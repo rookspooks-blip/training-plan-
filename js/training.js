@@ -38,15 +38,15 @@ function cardioFor(){
    ############################################################ */
 
 /* Пропуск = перенос. Второй пропуск = отмена на этой неделе. */
-const skipKey  = id => `${state.cycle}-${state.week}-skip-${id}`;
-const dropKey  = id => `${state.cycle}-${state.week}-drop-${id}`;
-const peKey    = ()  => `${state.cycle}-${state.week}-nope`;
+const skipKey  = id => `${weekTag()}-skip-${id}`;
+const dropKey  = id => `${weekTag()}-drop-${id}`;
+const peKey    = ()  => `${weekTag()}-nope`;
 const isMoved   = id => !!skips[skipKey(id)];
 const isDropped = id => !!skips[dropKey(id)];
 const isSkipped = id => isDropped(id) || (isMoved(id) && (id==='d2'||id==='d4'));  /* скоростные не переносятся */
 const noPE = () => !!skips[peKey()];
 /* Баскет в субботу утром (секция в вузе) — отмечается на конкретную неделю */
-const ballKey  = ()  => `${state.cycle}-${state.week}-ball`;
+const ballKey  = ()  => `${weekTag()}-ball`;
 const ballSat  = ()  => !!skips[ballKey()];
 
 function toggleSkip(id){
@@ -327,8 +327,8 @@ function progressShiftRaw(){
   for(let x=start; x<w; x++){
     ['d1','d3'].forEach(id=>{
       /* перенесённая тренировка сделана, просто в другой день — она не считается */
-      if(skips[`${c}-${x}-drop-${id}`]){ missed++; return; }
-      const date=dateOfCW(c,x,DAY_DOW[id]+(skips[`${c}-${x}-skip-${id}`]?1:0));
+      if(skips[`${weekTag(c,x)}-drop-${id}`]){ missed++; return; }
+      const date=dateOfCW(c,x,DAY_DOW[id]+(skips[`${weekTag(c,x)}-skip-${id}`]?1:0));
       if(first && date>=first && date<today && !dayActive(c,x,id)) missed++;
     });
   }
@@ -434,19 +434,18 @@ const num = v => { const x=parseFloat(String(v).replace(',','.')); return isFini
 const fmtW = w => (Math.round(w*10)/10).toString().replace('.',',');
 const isoDay = (d=new Date()) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 const shortDate = iso => { if(!iso) return ''; const [y,m,d]=iso.split('-'); return `${+d}.${m}`; };
-const logKey = (dayId, exId) => `${state.cycle}-${state.week}-${dayId}-${exId}`;
+const logKey = (dayId, exId) => `${weekTag()}-${dayId}-${exId}`;
 const hasData = L => L && L.sets && L.sets.some(x=>num(x.r)!=null);
 
-/* Положение недели в году: прошлый раз всегда раньше текущего */
-const posOf = (c,w) => (c===1?0:(c===2?100:200)) + w;
-/* Все записи этого упражнения (по названию), от свежих к старым */
+/* Все записи этого упражнения (по названию), от свежих к старым. Метка недели — дата её понедельника,
+   поэтому «раньше» — это просто меньшая дата */
 function logsOf(name, exceptKey){
-  const cur=posOf(state.cycle,state.week);
+  const cur=weekTag();
   return Object.keys(logs)
     .filter(k=>k!==exceptKey && logs[k] && logs[k].n===name && hasData(logs[k]))
-    .map(k=>{ const [c,w]=k.split('-').map(Number); return {k, pos:posOf(c,w), L:logs[k]}; })
-    .filter(x=>x.pos<=cur)
-    .sort((a,b)=> b.pos-a.pos || ((b.L.d||'')>(a.L.d||'') ? 1 : -1));
+    .map(k=>{ const m=TAG_RE.exec(k); return {k, pos:m?m[1]:'', L:logs[k]}; })
+    .filter(x=>x.pos && x.pos<=cur)
+    .sort((a,b)=> (b.pos>a.pos?1:(b.pos<a.pos?-1:0)) || ((b.L.d||'')>(a.L.d||'') ? 1 : -1));
 }
 function lastLog(name, exceptKey){ const a=logsOf(name, exceptKey); return a.length ? a[0].L : null; }
 
@@ -689,7 +688,7 @@ function weightKind(ex, P){
 /* ---------- Данные с часов ----------
    Начало и конец тренировки, средний и максимальный пульс, калории.
    Калории с часов идут в отчёт и выгрузку; к цели еды не прибавляются (С7). */
-const watchKey = id => `${state.cycle}-${state.week}-${id}`;
+const watchKey = id => `${weekTag()}-${id}`;
 const hm2min = t => { if(!t) return null; const [h,m]=t.split(':').map(Number); return h*60+m; };
 function watchMinutes(w){
   const a=hm2min(w&&w.s), b=hm2min(w&&w.e);
@@ -709,7 +708,7 @@ function sessionState(id){
 }
 const dayDate = e => dateOfCW(state.cycle, state.week, (e.dow+6)%7);
 function daySummary(day){
-  const pre=`${state.cycle}-${state.week}-${day.id}-`;
+  const pre=`${weekTag()}-${day.id}-`;
   const done=day.ex.filter(x=>marks[key(day.id,x.id)]).length;
   let vol=0;
   for(const k in logs) if(k.startsWith(pre)) (logs[k].sets||[]).forEach(s=>{ const w=num(s.w), r=num(s.r); if(w&&r) vol+=w*r; });

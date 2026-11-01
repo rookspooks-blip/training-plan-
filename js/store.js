@@ -8,20 +8,20 @@ const SETTINGS_DEFAULT={auto:true, start:'2026-10-05', session:4, theme:'auto'};
 let settings={...SETTINGS_DEFAULT, kcalAdj:{}};
 /* Цикл 1: недели 1–12 сушка, дальше — сессионный блок (зима, экзамены) */
 const isSession=(c,w)=>{ c=c??state.cycle; w=w??state.week; return c===1 && w>12; };
-let marks={};    // галочки: "цикл-неделя-день-упражнение"
+let marks={};    // галочки: "дата понедельника-день-упражнение"
 let grams={};    // граммовки выбранного дня (ссылка внутрь foodLog): "блюдо-продукт"
 let dishOn={};   // включено ли блюдо в выбранный день (ссылка внутрь foodLog)
 let skips={};    // пропущенные дни и отсутствие физры
 let custom=[];   // еда вручную — ссылка на массив выбранного дня
-let foodLog={};  // дневник: "цикл-неделя-день" → {dishOn, grams, custom}
-let logs={};     // журнал подходов: "цикл-неделя-день-упражнение" → {n, d, sets:[{w,r}], rpe}
+let foodLog={};  // дневник: "дата понедельника-день" → {dishOn, grams, custom}
+let logs={};     // журнал подходов: "дата понедельника-день-упражнение" → {n, d, sets:[{w,r}], rpe}
 let selDow=new Date().getDay();   // какой день показан на «Сегодня» (0 = воскресенье)
 let foodDay=0;   // выбранный день, 0 = понедельник
 
 /* Понедельник считаем нулевым днём: неделя в плане начинается с него */
 const DOW_IDX=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
 const todayIdx = () => (new Date().getDay()+6)%7;
-const foodKey = () => `${state.cycle}-${state.week}-${foodDay}`;
+const foodKey = () => `${weekTag()}-${foodDay}`;
 
 /* Переключает активный день: dishOn, grams и custom начинают
    указывать на запись этого дня, поэтому весь остальной код не меняется */
@@ -49,7 +49,7 @@ function dayFilled(d){
 
 /* Полная очистка дня */
 function clearDay(d){
-  const k=`${state.cycle}-${state.week}-${(d==null?foodDay:d)}`;
+  const k=`${weekTag()}-${(d==null?foodDay:d)}`;
   foodLog[k]=emptyDay();
   if(d==null || d===foodDay) loadFoodDay();
 }
@@ -81,7 +81,7 @@ const asArr=(v,fb)=>Array.isArray(v) ? v : fb;
 /* Все ключи данных приложения. planSchema — версия формата */
 const DATA_KEYS=['planMarks','planSkips','planFood','planPos','planTodo','planLog','planSet',
                  'planBody','planCirc','planTests','planFav','planWatch','planCook','planArchive'];
-const SCHEMA=3;
+const SCHEMA=4;
 const LEGACY_KEYS=['planGrams','planCustom'];   /* формат 1: еда лежала вне дней */
 
 /* Снимок всех данных в отдельный ключ: перед миграцией и перед восстановлением */
@@ -109,6 +109,11 @@ function migrate(){
     /* формат 3 — новый дизайн: старые ключи читаются как есть, добавляется
        planCook (контейнеры недели) и пах в утреннем замере. Ничего не переписывается */
     v=3;
+  }
+  if(v<4){
+    /* формат 4 — записи привязаны к числу: «цикл-неделя-…» → «дата понедельника недели-…» */
+    convertLegacyKeys();
+    v=4;
   }
   store.set('planSchema',v);
 }
@@ -176,86 +181,74 @@ const saveFood=()=>store.set('planFood',foodLog);   // все данные дн�
 const saveSkips=()=>store.set('planSkips',skips);
 const savePos=()=>store.set('planPos',state);
 const saveLogs=()=>store.set('planLog',logs);
-let watch={};   /* данные часов по тренировке: "цикл-неделя-id дня" → {s,e,hr,mx,kc} */
+let watch={};   /* данные часов по тренировке: "дата понедельника-id дня" → {s,e,hr,mx,kc} */
 const saveWatch=()=>store.set('planWatch',watch);
 const saveSettings=()=>store.set('planSet',settings);
-let cook={};    /* контейнеры недели: "цикл-неделя" → [{m, g, n}] — блюдо, гарнир, порций */
+let cook={};    /* контейнеры недели: "дата понедельника" → [{m, g, n}] — блюдо, гарнир, порций */
 const saveCook=()=>store.set('planCook',cook);
 
 const maxWeek=c=>(c===3?24:(c===1?12+(settings.session|0):12));
 
 /* ############################################################
    ПРИВЯЗКА ДАННЫХ К ЧИСЛУ
-   Записи лежат под ключами «цикл-неделя-…», а какая дата к какой неделе относится, зависит от
-   старта плана и длины сессии. Поэтому при их смене записи переезжают вместе со своей датой:
-   еда, отметки, журнал подходов, переносы, часы и контейнеры остаются на тех же числах.
-   Что не попало в новый план (до старта) или относится к другому содержанию недели,
-   не пропадает, а уходит в planArchive по дате и возвращается, когда дата снова попадёт в план.
+   Запись лежит под ключом «дата понедельника недели-…» (например 2026-10-26-d1-a1), а не «цикл-неделя-…».
+   Сдвиг старта плана и длина сессии меняют только то, какая неделя плана на какой даты, а сами записи
+   (еда, отметки, журнал подходов, переносы, часы, контейнеры) остаются на своих числах.
    ############################################################ */
 const planWeekDate=(start, session, c, w)=>{
   const ses=session|0, g = c===1 ? w-1 : (c===2 ? 12+ses+w-1 : 24+ses+w-1);
   return addDays(start, g*7);
 };
-function planWeekAt(start, session, iso){
-  const n=Math.floor(daysBetween(start, iso)/7);
-  if(n<0) return null;
-  const c1=12+(session|0);
-  if(n<c1) return [1, n+1];
-  if(n<c1+12) return [2, n-c1+1];
-  return [3, n-c1-12+1];
-}
-/* Что за содержание у недели: у отметок и журнала упражнения свои в каждом виде недели */
-const planKind=(c,w)=> c===1 ? (w>12 ? 'ses' : 'c1') : 'c'+c;
-const PLAN_KEY_RE=/^([123])-(\d+)(-.+)?$/;
-const KIND_BOUND=new Set(['marks','logs']);
-function planDataSnapshot(){
-  return JSON.stringify({marks, skips, foodLog, logs, watch, cook, arch:store.get('planArchive',{}), pos:{cycle:state.cycle, week:state.week}});
-}
-function planDataRestore(snap){
-  const o=JSON.parse(snap);
-  marks=o.marks; skips=o.skips; foodLog=o.foodLog; logs=o.logs; watch=o.watch; cook=o.cook;
-  saveMarks(); saveSkips(); saveFood(); saveLogs(); saveWatch(); saveCook(); store.set('planArchive', o.arch||{});
-  loadFoodDay();
-}
-/* Переносит данные со старой привязки дат на новую. Возвращает сколько записей переехало, ушло в архив и вернулось */
-function remapPlanData(oldCfg, newCfg){
-  const oS=oldCfg.start, oN=oldCfg.session|0, nS=newCfg.start, nN=newCfg.session|0;
-  if(oS===nS && oN===nN) return {moved:0, archived:0, restored:0};
+let weekTagForce=null;   /* неделя до старта плана: у неё нет цикла и номера, но записи за её даты есть */
+const weekTag=(c, w)=> weekTagForce && c==null ? weekTagForce : planWeekDate(settings.start, settings.session, c==null?state.cycle:c, w==null?state.week:w);
+function withTag(tag, fn){ const sv=weekTagForce; weekTagForce=tag; try{ return fn(); } finally{ weekTagForce=sv; } }
+const TAG_RE=/^(\d{4}-\d\d-\d\d)(-.+)?$/;
+const LEGACY_RE=/^([123])-(\d+)(-.+)?$/;
+/* Старые ключи «цикл-неделя-…» → дата понедельника недели по нынешнему старту. Повторный запуск ничего не меняет */
+function convertLegacyKeys(){
+  const S=Object.assign({}, SETTINGS_DEFAULT, asObj(store.get('planSet',{}),{}));
+  const conv=obj=>{
+    const out={}; let n=0;
+    Object.keys(obj).forEach(k=>{
+      const m=LEGACY_RE.exec(k);
+      if(!m){ if(!(k in out)) out[k]=obj[k]; return; }
+      const nk=planWeekDate(S.start, S.session, +m[1], +m[2])+(m[3]||'');
+      if(!(nk in out)) out[nk]=obj[k]; n++;
+    });
+    return n ? out : null;
+  };
+  const sets=[['planMarks'],['planSkips'],['planFood'],['planLog'],['planWatch'],['planCook']];
+  sets.forEach(([key])=>{ const o=asObj(store.get(key,{}),{}); const c=conv(o); if(c) store.set(key,c); });
+  /* досрочные разгрузки лежат в настройках под тем же видом ключа */
+  const ps=asObj(store.get('planSet',{}),{});
+  if(ps.earlyDl){ const c=conv(ps.earlyDl); if(c){ ps.earlyDl=c; store.set('planSet',ps); } }
+  /* архив прошлой версии: записи возвращаются на свои числа */
   const arch=asObj(store.get('planArchive',{}),{});
-  const R={moved:0, archived:0, restored:0};
-  const stores={marks, skips, foodLog, logs, watch, cook};
-  const next={marks:{}, skips:{}, foodLog:{}, logs:{}, watch:{}, cook:{}};
-  Object.keys(stores).forEach(name=>{
-    Object.keys(stores[name]).forEach(k=>{
-      const m=PLAN_KEY_RE.exec(k), v=stores[name][k];
-      if(!m){ next[name][k]=v; return; }
-      const c=+m[1], w=+m[2], rest=m[3]||'', iso=planWeekDate(oS,oN,c,w), pos=planWeekAt(nS,nN,iso);
-      const here = pos && (!KIND_BOUND.has(name) || planKind(pos[0],pos[1])===planKind(c,w));
-      if(here){ const nk=`${pos[0]}-${pos[1]}${rest}`; if(!(nk in next[name])) next[name][nk]=v; if(nk!==k) R.moved++; }
-      else { const a=arch[iso] || (arch[iso]={kind:planKind(c,w)}); (a[name] || (a[name]={}))[rest]=v; R.archived++; }
-    });
-  });
-  /* вернуть из архива то, что снова попало в план своего вида */
-  Object.keys(arch).forEach(iso=>{
-    const a=arch[iso], pos=planWeekAt(nS,nN,iso); if(!pos) return;
-    Object.keys(next).forEach(name=>{
-      if(!a[name]) return;
-      if(KIND_BOUND.has(name) && planKind(pos[0],pos[1])!==a.kind) return;
-      Object.keys(a[name]).forEach(rest=>{
-        const nk=`${pos[0]}-${pos[1]}${rest}`;
-        if(!(nk in next[name])){ next[name][nk]=a[name][rest]; delete a[name][rest]; R.restored++; }
-      });
-      if(!Object.keys(a[name]).length) delete a[name];
-    });
-    if(!Object.keys(a).some(k=>k!=='kind')) delete arch[iso];
-  });
-  marks=next.marks; skips=next.skips; foodLog=next.foodLog; logs=next.logs; watch=next.watch; cook=next.cook;
-  saveMarks(); saveSkips(); saveFood(); saveLogs(); saveWatch(); saveCook(); store.set('planArchive', arch);
-  loadFoodDay();
-  return R;
+  if(Object.keys(arch).length){
+    const into={marks:'planMarks', skips:'planSkips', foodLog:'planFood', logs:'planLog', watch:'planWatch', cook:'planCook'};
+    Object.keys(arch).forEach(iso=>Object.keys(into).forEach(name=>{
+      const part=arch[iso] && arch[iso][name]; if(!part) return;
+      const o=asObj(store.get(into[name],{}),{});
+      Object.keys(part).forEach(rest=>{ const nk=iso+rest; if(!(nk in o)) o[nk]=part[rest]; });
+      store.set(into[name], o);
+    }));
+    store.set('planArchive', {});
+  }
 }
-const remapNote=R=> R.moved||R.archived||R.restored ? ` Записи остались на своих числах: переехало ${R.moved}${R.archived?`, в архиве ${R.archived} (до старта или другого вида недели)`:''}${R.restored?`, вернулось из архива ${R.restored}`:''}.` : '';
-const key=(d,e)=>`${state.cycle}-${state.week}-${d}-${e}`;
+/* Старт плана уже менялся до привязки к числам: записи сидят на датах, посчитанных от нового старта.
+   Сдвигаем все метки недель на разницу между старым и нынешним стартом */
+function shiftDataDates(oldStart){ return shiftDataBy(daysBetween(settings.start, oldStart)); }
+function shiftDataBy(delta){
+  if(!delta) return 0;
+  let n=0;
+  const mv=obj=>{ const out={}; Object.keys(obj).forEach(k=>{ const m=TAG_RE.exec(k); if(m){ out[addDays(m[1],delta)+(m[2]||'')]=obj[k]; n++; } else out[k]=obj[k]; }); return out; };
+  marks=mv(marks); skips=mv(skips); foodLog=mv(foodLog); logs=mv(logs); watch=mv(watch); cook=mv(cook);
+  if(settings.earlyDl) settings.earlyDl=mv(settings.earlyDl);
+  saveMarks(); saveSkips(); saveFood(); saveLogs(); saveWatch(); saveCook(); saveSettings();
+  loadFoodDay();
+  return n;
+}
+const key=(d,e)=>`${weekTag()}-${d}-${e}`;
 function gramOf(dishId,foodId,base){
   const k=`${dishId}-${foodId}`;
   return grams[k]!=null ? grams[k] : Math.round(base*portionFactor()/5)*5;
