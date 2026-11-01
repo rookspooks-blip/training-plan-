@@ -467,6 +467,30 @@ const W7 = '2026-11-16';
   await ctx.close();
 }
 
+/* Привязка данных к числу: старт плана и длина сессии двигают записи вместе с датой */
+{
+  const { ctx, p } = await at('2026-11-02', { planMarks: { '1-4-d1-a1': true, '1-1-d1-a1': true, '1-13-d1-a1': true }, planSkips: { '1-4-skip-d3': true },
+    planFood: { '1-4-2': { dishOn: { chicken: true }, grams: {}, custom: [], times: {} } }, planLog: { '1-4-d1-a1': { n: 'Болгарский', d: '2026-10-26', sets: [{ w: '', r: '10' }], rpe: 8 } } });
+  const r = await p.evaluate(() => {
+    const a = remapPlanData({ start: '2026-10-05', session: 4 }, { start: '2026-10-19', session: 4 });
+    const s1 = { m: marks['1-2-d1-a1'], oldKey: '1-4-d1-a1' in marks, skip: skips['1-2-skip-d3'], food: !!foodLog['1-2-2'], log: !!logs['1-2-d1-a1'], w1: '1-1-d1-a1' in marks, arch: Object.keys(store.get('planArchive', {})).length, R: a };
+    const b = remapPlanData({ start: '2026-10-19', session: 4 }, { start: '2026-10-05', session: 4 });
+    const s2 = { back: marks['1-4-d1-a1'], w1: marks['1-1-d1-a1'], food: !!foodLog['1-4-2'], arch: Object.keys(store.get('planArchive', {})).length, R: b };
+    return { s1, s2 }; });
+  check('старт на 2 недели позже: записи остаются на своих числах (26.10 была неделя 4 — стала 2)', r.s1.m === true && !r.s1.oldKey && r.s1.skip === true && r.s1.food && r.s1.log, JSON.stringify(r.s1));
+  check('записи до нового старта не пропадают, а уходят в архив', !r.s1.w1 && r.s1.arch >= 1 && r.s1.R.archived >= 1, JSON.stringify(r.s1));
+  check('старт обратно: записи возвращаются на места', r.s2.back === true && r.s2.w1 === true && r.s2.food && r.s2.arch === 0, JSON.stringify(r.s2));
+  await ctx.close();
+}
+{
+  /* длина сессии двигает циклы 2 и 3, но не содержание: отметки не перепрыгивают из одного вида недели в другой */
+  const { ctx, p } = await at('2026-11-02', { planMarks: { '2-1-d1-a2': true, '1-13-d1-a1': true }, planFood: { '2-1-0': { dishOn: { chicken: true }, grams: {}, custom: [], times: {} } } });
+  const r = await p.evaluate(() => { const R = remapPlanData({ start: '2026-10-05', session: 4 }, { start: '2026-10-05', session: 0 });
+    return { m2: marks['2-1-d1-a2'], gone: '2-1-d1-a1' in marks, food: !!foodLog['1-13-0'] || !!foodLog['2-1-0'], R }; });
+  check('сессия 4 → 0: отметка цикла 2 осталась на своём числе (неделя 1 → 1, 4 недели раньше), отметка сессии ушла в архив', r.R.archived >= 1 && !r.gone, JSON.stringify(r));
+  await ctx.close();
+}
+
 await browser.close();
 server.close();
 console.log(fails ? `\n${fails} проверок не прошли` : '\nВсе проверки прошли');

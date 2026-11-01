@@ -80,7 +80,7 @@ const asArr=(v,fb)=>Array.isArray(v) ? v : fb;
 
 /* Все ключи данных приложения. planSchema — версия формата */
 const DATA_KEYS=['planMarks','planSkips','planFood','planPos','planTodo','planLog','planSet',
-                 'planBody','planCirc','planTests','planFav','planWatch','planCook'];
+                 'planBody','planCirc','planTests','planFav','planWatch','planCook','planArchive'];
 const SCHEMA=3;
 const LEGACY_KEYS=['planGrams','planCustom'];   /* формат 1: еда лежала вне дней */
 
@@ -183,6 +183,78 @@ let cook={};    /* контейнеры недели: "цикл-неделя" �
 const saveCook=()=>store.set('planCook',cook);
 
 const maxWeek=c=>(c===3?24:(c===1?12+(settings.session|0):12));
+
+/* ############################################################
+   ПРИВЯЗКА ДАННЫХ К ЧИСЛУ
+   Записи лежат под ключами «цикл-неделя-…», а какая дата к какой неделе относится, зависит от
+   старта плана и длины сессии. Поэтому при их смене записи переезжают вместе со своей датой:
+   еда, отметки, журнал подходов, переносы, часы и контейнеры остаются на тех же числах.
+   Что не попало в новый план (до старта) или относится к другому содержанию недели,
+   не пропадает, а уходит в planArchive по дате и возвращается, когда дата снова попадёт в план.
+   ############################################################ */
+const planWeekDate=(start, session, c, w)=>{
+  const ses=session|0, g = c===1 ? w-1 : (c===2 ? 12+ses+w-1 : 24+ses+w-1);
+  return addDays(start, g*7);
+};
+function planWeekAt(start, session, iso){
+  const n=Math.floor(daysBetween(start, iso)/7);
+  if(n<0) return null;
+  const c1=12+(session|0);
+  if(n<c1) return [1, n+1];
+  if(n<c1+12) return [2, n-c1+1];
+  return [3, n-c1-12+1];
+}
+/* Что за содержание у недели: у отметок и журнала упражнения свои в каждом виде недели */
+const planKind=(c,w)=> c===1 ? (w>12 ? 'ses' : 'c1') : 'c'+c;
+const PLAN_KEY_RE=/^([123])-(\d+)(-.+)?$/;
+const KIND_BOUND=new Set(['marks','logs']);
+function planDataSnapshot(){
+  return JSON.stringify({marks, skips, foodLog, logs, watch, cook, arch:store.get('planArchive',{}), pos:{cycle:state.cycle, week:state.week}});
+}
+function planDataRestore(snap){
+  const o=JSON.parse(snap);
+  marks=o.marks; skips=o.skips; foodLog=o.foodLog; logs=o.logs; watch=o.watch; cook=o.cook;
+  saveMarks(); saveSkips(); saveFood(); saveLogs(); saveWatch(); saveCook(); store.set('planArchive', o.arch||{});
+  loadFoodDay();
+}
+/* Переносит данные со старой привязки дат на новую. Возвращает сколько записей переехало, ушло в архив и вернулось */
+function remapPlanData(oldCfg, newCfg){
+  const oS=oldCfg.start, oN=oldCfg.session|0, nS=newCfg.start, nN=newCfg.session|0;
+  if(oS===nS && oN===nN) return {moved:0, archived:0, restored:0};
+  const arch=asObj(store.get('planArchive',{}),{});
+  const R={moved:0, archived:0, restored:0};
+  const stores={marks, skips, foodLog, logs, watch, cook};
+  const next={marks:{}, skips:{}, foodLog:{}, logs:{}, watch:{}, cook:{}};
+  Object.keys(stores).forEach(name=>{
+    Object.keys(stores[name]).forEach(k=>{
+      const m=PLAN_KEY_RE.exec(k), v=stores[name][k];
+      if(!m){ next[name][k]=v; return; }
+      const c=+m[1], w=+m[2], rest=m[3]||'', iso=planWeekDate(oS,oN,c,w), pos=planWeekAt(nS,nN,iso);
+      const here = pos && (!KIND_BOUND.has(name) || planKind(pos[0],pos[1])===planKind(c,w));
+      if(here){ const nk=`${pos[0]}-${pos[1]}${rest}`; if(!(nk in next[name])) next[name][nk]=v; if(nk!==k) R.moved++; }
+      else { const a=arch[iso] || (arch[iso]={kind:planKind(c,w)}); (a[name] || (a[name]={}))[rest]=v; R.archived++; }
+    });
+  });
+  /* вернуть из архива то, что снова попало в план своего вида */
+  Object.keys(arch).forEach(iso=>{
+    const a=arch[iso], pos=planWeekAt(nS,nN,iso); if(!pos) return;
+    Object.keys(next).forEach(name=>{
+      if(!a[name]) return;
+      if(KIND_BOUND.has(name) && planKind(pos[0],pos[1])!==a.kind) return;
+      Object.keys(a[name]).forEach(rest=>{
+        const nk=`${pos[0]}-${pos[1]}${rest}`;
+        if(!(nk in next[name])){ next[name][nk]=a[name][rest]; delete a[name][rest]; R.restored++; }
+      });
+      if(!Object.keys(a[name]).length) delete a[name];
+    });
+    if(!Object.keys(a).some(k=>k!=='kind')) delete arch[iso];
+  });
+  marks=next.marks; skips=next.skips; foodLog=next.foodLog; logs=next.logs; watch=next.watch; cook=next.cook;
+  saveMarks(); saveSkips(); saveFood(); saveLogs(); saveWatch(); saveCook(); store.set('planArchive', arch);
+  loadFoodDay();
+  return R;
+}
+const remapNote=R=> R.moved||R.archived||R.restored ? ` Записи остались на своих числах: переехало ${R.moved}${R.archived?`, в архиве ${R.archived} (до старта или другого вида недели)`:''}${R.restored?`, вернулось из архива ${R.restored}`:''}.` : '';
 const key=(d,e)=>`${state.cycle}-${state.week}-${d}-${e}`;
 function gramOf(dishId,foodId,base){
   const k=`${dishId}-${foodId}`;

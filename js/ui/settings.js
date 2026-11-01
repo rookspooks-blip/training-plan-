@@ -41,7 +41,9 @@ function settingsHTML(){
         <div class="small t2" style="margin-top:8px">${c===1?'Сушка, свой вес, связки · 12 недель + сессия':c===2?'Абсолютная сила, штанга · 12 недель':'Гипертрофия и реконверсия · 24 недели'}</div>
         <div class="wpick">${weeks}</div>
         <div class="small muted" style="margin-top:6px">Жёлтая рамка — разгрузка или тест, синяя — сессия.</div></div>
-      <div class="set-row"><span class="grow"><b>Старт плана</b><span>понедельник недели 1</span></span><input type="date" data-start value="${esc(settings.start)}" aria-label="Старт плана"></div>
+      <div class="set-row"><span class="grow"><b>Старт плана</b><span>понедельник недели 1. Записи остаются на своих числах</span></span><input type="date" data-start value="${esc(settings.start)}" aria-label="Старт плана"></div>
+      ${settings.start!==SETTINGS_DEFAULT.start ? `<div class="set-row"><span class="grow"><b>Записи сдвинулись с чисел?</b><span>Если старт менял до этого обновления: укажи старый старт, и еда, отметки и решения встанут на те числа, когда ты их делал</span></span><input type="date" data-oldstart value="${SETTINGS_DEFAULT.start}" aria-label="Старый старт"></div>
+      <div class="set-row"><button type="button" class="btn" data-rebind>Привязать записи к числам</button></div>` : ''}
       ${periodRow('Зимняя сессия', 'wf', 'wt', WS.from, WS.to, WS.weeks
           ? `${WS.weeks} ${plural(WS.weeks,'неделя','недели','недель')} после сушки · цикл 2 начнётся ${fmtDay(addDays(WS.base, WS.weeks*7))}. Раньше ${fmtDay(WS.base)} начать нельзя: сушка идёт 12 недель. Недели между её концом и «с» — те же поддерживающие тренировки.`
           : `Сессии нет — после сушки сразу цикл 2 (${fmtDay(WS.base)}). Выбери «по», чтобы добавить сессию.`, WS.base)}
@@ -117,18 +119,37 @@ function openSettings(focus){
     });
     on('[data-cyc] [data-c]','click',b=>{ setCycle=+b.dataset.c; redraw(); });
     on('.wpick [data-w]','click',b=>{ const w=+b.dataset.w, c=setCycle, wasAuto=settings.auto; setWeekManual(c,w); if(!wasAuto || settings.auto) toast(`Открыта ${weekTitle(c,w).toLowerCase()}, цикл ${c}`); redraw(); });
-    on('[data-start]','change',b=>{ if(!b.value) return; settings.start=b.value; saveSettings(); if(settings.auto) applyAuto(); setCycle=state.cycle; renderAll(); redraw(); });
-    /* периоды: сессии и практика. Любое изменение — с «Отменить»; записи и отметки не трогаются,
-       меняется только то, какая дата к какой неделе относится */
+    on('[data-rebind]','click',()=>{
+      const old=(el.querySelector('[data-oldstart]')||{}).value;
+      if(!old || old===settings.start) return toast('Старый старт совпадает с нынешним — менять нечего');
+      const snap=planDataSnapshot(), cur={start:settings.start, session:settings.session|0};
+      const R=remapPlanData({start:old, session:cur.session}, cur);
+      renderAll(); redraw();
+      toast('Записи привязаны к числам.'+remapNote(R), ()=>{ planDataRestore(snap); renderAll(); redraw(); });
+    });
+    on('[data-start]','change',b=>{
+      if(!b.value || b.value===settings.start) return;
+      const snap=planDataSnapshot(), was={start:settings.start, session:settings.session|0}, wasPos={cycle:state.cycle, week:state.week};
+      settings.start=b.value; saveSettings();
+      const R=remapPlanData(was, {start:settings.start, session:settings.session|0});
+      if(settings.auto) applyAuto();
+      setCycle=state.cycle; renderAll(); redraw();
+      toast('Старт плана сохранён.'+remapNote(R), ()=>{ settings.start=was.start; saveSettings(); planDataRestore(snap); state.cycle=wasPos.cycle; state.week=wasPos.week; savePos(); if(settings.auto) applyAuto(); setCycle=state.cycle; renderAll(); redraw(); });
+    });
+    /* периоды: сессии и практика. Любое изменение — с «Отменить». Записи и отметки едут вместе со своим
+       числом (длина сессии двигает даты циклов 2 и 3), а что не помещается, уходит в архив по дате */
     const KEYS=['session','sesFrom','exFrom','exTo','prFrom','prTo','practiceEnd'];
     const change=(fn, msg)=>{
       const before={}; KEYS.forEach(k=>{ before[k]=settings[k]; });
+      const snap=planDataSnapshot(), was={start:settings.start, session:settings.session|0};
       fn(); saveSettings();
+      const R=remapPlanData(was, {start:settings.start, session:settings.session|0});   /* длина сессии двигает даты циклов 2 и 3 */
+      if(R.moved||R.archived||R.restored) msg+='.'+remapNote(R);
       if(state.cycle===1 && state.week>maxWeek(1)){ state.week=maxWeek(1); savePos(); }
       if(settings.auto) applyAuto();
       renderAll(); redraw();
       toast(msg, ()=>{ KEYS.forEach(k=>{ if(before[k]===undefined) delete settings[k]; else settings[k]=before[k]; });
-        saveSettings(); if(settings.auto) applyAuto(); renderAll(); redraw(); });
+        saveSettings(); planDataRestore(snap); if(settings.auto) applyAuto(); renderAll(); redraw(); });
     };
     const bad=msg=>{ toast(msg); redraw(); };
     on('[data-wf]','change',b=>{

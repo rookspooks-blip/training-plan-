@@ -141,7 +141,7 @@ const close = async p => { ok('_errors', p.errs.length === 0, p.errs.join(' | ')
   await E(p, () => window.scrollTo(0, 800)); await p.click('#tabbar [data-go="food"]'); await p.waitForTimeout(700);
   ok(21, await E(p, () => window.scrollY < 50), 'повторный тап по вкладке — наверх');
   /* хранение */
-  ok(12, await E(p, () => DATA_KEYS.length === 13 && DATA_KEYS.includes('planCook')), '13 ключей (12 + готовка)');
+  ok(12, await E(p, () => DATA_KEYS.length === 14 && DATA_KEYS.includes('planCook') && DATA_KEYS.includes('planArchive')), '14 ключей (12 + готовка + архив записей по датам)');
   ok(12, await E(p, () => { const o = Storage.prototype.setItem; Storage.prototype.setItem = () => { throw new Error('q'); }; storeWarned = false; store.set('planMarks', marks); Storage.prototype.setItem = o; return /Не получилось сохранить/.test(document.querySelector('#toast').textContent); }), 'ошибка записи — тост');
   ok(13, await E(p, () => SCHEMA === 3 && typeof migrate === 'function' && typeof snapshot === 'function'), 'миграция по шагам со снимком (формат 3)');
   /* новый день при возврате */
