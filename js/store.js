@@ -172,6 +172,12 @@ function loadAll(){
   const p=asObj(store.get('planPos',null),null);
   if(p){ state.cycle=[1,2,3].includes(p.cycle)?p.cycle:1; state.week=Math.max(1,p.week|0); }
   if(state.week>maxWeek(state.cycle) && state.cycle!==3) state.week=maxWeek(state.cycle);   /* в цикле 3 после 24-й — повтор блока */
+  /* один раз: если журнал показывает, что записи сидят не на своих числах (старт менялся до привязки к числам), сдвигаем */
+  if(!store.get('planShiftChecked',false)){
+    store.set('planShiftChecked', true);
+    const d=detectDateShift();
+    if(d){ shiftDataBy(d.delta); store.set('planShiftFix', {delta:d.delta, n:d.n, total:d.total, at:isoDay()}); }
+  }
   applyAuto();
   foodDay=todayIdx();
   loadFoodDay();
@@ -237,6 +243,20 @@ function convertLegacyKeys(){
 }
 /* Старт плана уже менялся до привязки к числам: записи сидят на датах, посчитанных от нового старта.
    Сдвигаем все метки недель на разницу между старым и нынешним стартом */
+/* Журнал подходов помнит, в какой день его вели (поле d). Если ключи «уехали» на целое число недель
+   (старт плана меняли до привязки к числам), это видно по расхождению: считаем самое частое */
+function detectDateShift(){
+  const cnt={}; let n=0;
+  Object.keys(logs).forEach(k=>{
+    const m=/^(\d{4}-\d\d-\d\d)-(d[1-7])-/.exec(k), L=logs[k];
+    if(!m || !L || !L.d || !hasData(L) || DAY_DOW[m[2]]==null) return;
+    const delta=daysBetween(addDays(m[1], DAY_DOW[m[2]]), L.d);
+    if(Math.abs(delta)>=7 && delta%7===0) cnt[delta]=(cnt[delta]||0)+1;
+    n++;
+  });
+  let best=null; Object.keys(cnt).forEach(d=>{ if(!best || cnt[d]>cnt[best]) best=d; });
+  return best!=null && cnt[best]>=2 && cnt[best]/n>=0.6 ? {delta:+best, n:cnt[best], total:n} : null;
+}
 function shiftDataDates(oldStart){ return shiftDataBy(daysBetween(settings.start, oldStart)); }
 function shiftDataBy(delta){
   if(!delta) return 0;

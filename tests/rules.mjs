@@ -499,6 +499,24 @@ const W7 = '2026-11-16';
   await ctx.close();
 }
 
+{
+  /* старт менялся до привязки к числам: журнал помнит свои даты, записи сами встают на них */
+  const lg = (d, n) => ({ n, d, sets: [{ w: '', r: '10' }], rpe: 8 });
+  const { ctx, p } = await at('2026-11-02', { planSet: { start: '2026-10-19' }, planMarks: { '1-2-d1-a1': true },
+    planLog: { '1-2-d1-a1': lg('2026-10-12', 'Болгарский'), '1-2-d3-c1': lg('2026-10-17', 'Присед на одной ноге') },
+    planFood: { '1-2-1': { dishOn: { chicken: true }, grams: {}, custom: [], times: {} } } });
+  const r = await p.evaluate(() => ({ m: marks['2026-10-12-d1-a1'], oldm: marks['2026-10-26-d1-a1'], food: !!foodLog['2026-10-12-1'], fix: store.get('planShiftFix', null) }));
+  check('сдвиг по журналу: записи встали на даты, когда их вели', r.m === true && !r.oldm && r.food && r.fix && r.fix.delta === -14, JSON.stringify(r));
+  await ctx.close();
+}
+{
+  /* журнал совпадает с датами — ничего не двигается */
+  const { ctx, p } = await at('2026-11-02', { planMarks: { '1-2-d1-a1': true }, planLog: { '1-2-d1-a1': { n: 'Б', d: '2026-10-12', sets: [{ w: '', r: '10' }], rpe: 8 } } });
+  const r = await p.evaluate(() => ({ m: marks['2026-10-12-d1-a1'], fix: store.get('planShiftFix', null) }));
+  check('сдвиг по журналу: если даты совпадают, записи на месте', r.m === true && !r.fix, JSON.stringify(r));
+  await ctx.close();
+}
+
 await browser.close();
 server.close();
 console.log(fails ? `\n${fails} проверок не прошли` : '\nВсе проверки прошли');
