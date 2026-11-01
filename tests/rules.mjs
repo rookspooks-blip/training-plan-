@@ -517,6 +517,25 @@ const W7 = '2026-11-16';
   await ctx.close();
 }
 
+{
+  /* еда и отметки на будущих числах: сдвиг на разницу со стартом по умолчанию их убирает — предлагаем */
+  const food = { dishOn: { chicken: true }, grams: {}, custom: [], times: {} };
+  const { ctx, p } = await at('2026-11-02', { planSet: { start: '2026-11-02' }, planFood: { '1-1-0': food, '1-1-1': food, '1-1-2': food, '1-1-3': food, '1-1-5': food }, planMarks: { '1-1-d1-a1': true } });
+  const r = await p.evaluate(() => { const c = misalignCandidate(); return { c, sheet: !!document.querySelector('#sheets .sheet') }; });
+  check('записи на будущих числах: предложен сдвиг на 28 дней назад', r.c && r.c.delta === -28 && r.c.fut >= 3, JSON.stringify(r.c));
+  await p.waitForTimeout(900);
+  check('вопрос о сдвиге показан листом', await p.evaluate(() => !!document.querySelector('#sheets .sheet h2') && /не тех числах/.test(document.querySelector('#sheets .sheet h2').textContent)));
+  await p.evaluate(() => { document.querySelector('#sheets [data-yes]').click(); });
+  const a = await p.evaluate(() => ({ food: !!foodLog['2026-10-05-0'], gone: !(foodLog['2026-11-02-0'] && foodLog['2026-11-02-0'].dishOn.chicken), cand: misalignCandidate() }));
+  check('«Да»: еда встала на 5.10, будущие даты пусты', a.food && a.gone && !a.cand, JSON.stringify(a));
+  await ctx.close();
+}
+{
+  const { ctx, p } = await at('2026-11-02', { planSet: { start: '2026-10-19' }, planFood: { '1-1-0': { dishOn: { chicken: true }, grams: {}, custom: [], times: {} } } });
+  check('нет записей в будущем — ничего не предлагаем', await p.evaluate(() => misalignCandidate() === null));
+  await ctx.close();
+}
+
 await browser.close();
 server.close();
 console.log(fails ? `\n${fails} проверок не прошли` : '\nВсе проверки прошли');

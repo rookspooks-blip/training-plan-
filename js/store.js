@@ -257,6 +257,22 @@ function detectDateShift(){
   let best=null; Object.keys(cnt).forEach(d=>{ if(!best || cnt[d]>cnt[best]) best=d; });
   return best!=null && cnt[best]>=2 && cnt[best]/n>=0.6 ? {delta:+best, n:cnt[best], total:n} : null;
 }
+/* Записи за даты, которых ещё не было, — верный признак сдвинутого старта. Если сдвиг на разницу со стартом по умолчанию
+   (до которого их вели) убирает все такие записи, предлагаем его. Сами ничего не двигаем: решает пользователь */
+function misalignCandidate(){
+  const def=SETTINGS_DEFAULT.start;
+  if(settings.start===def) return null;
+  const delta=daysBetween(settings.start, def);
+  if(!delta || delta%7) return null;
+  const lim=addDays(isoDay(),1), dates=[];
+  Object.keys(foodLog).forEach(k=>{ const m=/^(\d{4}-\d\d-\d\d)-(\d)$/.exec(k), e=foodLog[k];
+    if(m && e && (Object.values(e.dishOn||{}).some(Boolean) || (e.custom||[]).length)) dates.push(addDays(m[1],+m[2])); });
+  const part=/^(\d{4}-\d\d-\d\d)-(d[1-7])-/;
+  Object.keys(marks).forEach(k=>{ const m=marks[k] && part.exec(k); if(m && DAY_DOW[m[2]]!=null) dates.push(addDays(m[1],DAY_DOW[m[2]])); });
+  Object.keys(logs).forEach(k=>{ const m=part.exec(k); if(m && hasData(logs[k]) && DAY_DOW[m[2]]!=null) dates.push(addDays(m[1],DAY_DOW[m[2]])); });
+  const fut=dates.filter(d=>d>lim).length;
+  return fut>=3 && !dates.some(d=>addDays(d,delta)>lim) ? {delta, fut, total:dates.length, from:def} : null;
+}
 function shiftDataDates(oldStart){ return shiftDataBy(daysBetween(settings.start, oldStart)); }
 function shiftDataBy(delta){
   if(!delta) return 0;

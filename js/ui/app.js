@@ -124,3 +124,20 @@ updateMini();
 persistStorage();
 importFromLocation();
 updateBadge();
+
+/* Записи за будущие даты: старт плана двигали раньше, чем записи привязали к числу. Спрашиваем один раз */
+function maybeAskShift(){
+  if(store.get('planShiftAsked',false)) return;
+  const c=misalignCandidate(); if(!c) return;
+  openSheet(`<h2>Записи на не тех числах</h2>
+    <div class="sub">Старт плана стоит на ${fmtDay(settings.start)}, а ${c.fut} записей (еда, отметки, тренировки) лежат на днях, которых ещё не было. Похоже, их вели от старта ${fmtDay(c.from)}. Сдвинуть всё на ${Math.abs(c.delta)} дн. назад, чтобы они встали на свои числа?</div>
+    <button type="button" class="btn big pri" data-yes>Да, сдвинуть на ${Math.abs(c.delta)} дн.</button>
+    <button type="button" class="btn" data-no>Нет, оставить как есть</button>`, el=>{
+    el.querySelector('[data-yes]').addEventListener('click',()=>{
+      store.set('planShiftAsked',true); const n=shiftDataBy(c.delta); closeSheets(); renderAll();
+      toast(`Записи (${n}) встали на свои числа`, ()=>{ shiftDataBy(-c.delta); renderAll(); });
+    });
+    el.querySelector('[data-no]').addEventListener('click',()=>{ store.set('planShiftAsked',true); closeSheets(); });
+  });
+}
+setTimeout(maybeAskShift, 600);
