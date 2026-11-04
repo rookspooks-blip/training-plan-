@@ -73,7 +73,7 @@ const close = async p => { ok('_errors', p.errs.length === 0, p.errs.join(' | ')
   { const bb = await (await p.$('#scr-plan .wk [data-dow="1"]')).boundingBox(); await p.mouse.move(bb.x + bb.width / 2, bb.y + bb.height / 2); await p.mouse.down(); await p.waitForTimeout(500); await p.mouse.up(); await p.waitForTimeout(100); }
   ok(26, await E(p, () => !!document.querySelector('#sheets .sheet [data-knee]')), 'удержание дня — карточка дня, в ней зарядка для колен');
   await p.click('#sheets .sheet [data-knee]');
-  ok(26, await E(p, () => /Понедельник/.test(document.querySelector('#sheets .sheet .kick').textContent) && document.querySelectorAll('#sheets .sheet [data-dx]').length === 4), 'зарядка этого дня по упражнениям');
+  ok(26, await E(p, () => /Понедельник/.test(document.querySelector('#sheets .sheet .kick').textContent) && document.querySelectorAll('#sheets .sheet [data-dx]').length === 7), 'зарядка этого дня по упражнениям');
   await p.click('#sheets .sheet [data-t]');
   ok(26, await E(p, () => !!marks['2026-10-19-daily-0']), 'прошлый день отмечается');
   ok(20, await E(p, () => !document.querySelector('#toast button').hidden), 'тост с «Отменить»');
@@ -196,7 +196,7 @@ for (const [time, re, n] of [['2026-10-26T10:00:00', /Разгрузка/, 3], [
 /* ===== 2. «Сейчас», карточки дня, плеер ===== */
 {
   const p = await at('2026-10-21T13:00:00', BASE);   /* среда недели 3: отдых? в 3-й неделе — Силовая В */
-  ok(25, await E(p, () => DAILY.map(x => x.dose).join('|') === '3 × 30 сек|5 × 30 сек|10 × 10 сек на ногу|30 сек, потом с закрытыми глазами' && dailyMinutes() === 12), 'ежедневный блок: дозы и ≈12 мин');
+  ok(25, await E(p, () => DAILY.map(x => x.dose).join('|') === '3 × 30 сек|5 × 30 сек|10 × 10 сек на ногу|30 сек, потом с закрытыми глазами|45 сек|10 на ногу|10 на ногу' && dailyMinutes() === 14), 'ежедневный блок: дозы и ≈14 мин');
   await E(p, () => dailySheet(2));
   let t = await T(p);
   ok(25, /каждый день, даже в разгрузку/.test(t) && /в дни тренировок/.test(t) && /отдельно от разминки/.test(t), 'лист «Каждый день»');
@@ -612,7 +612,7 @@ for (const n of [54, 75, 78, 83, 84, 86, 87, 88, 89, 91, 94, 96, 101, 102, 103, 
     };
   });
   for (const [k, v] of Object.entries(r)) if (/^s\d+$/.test(k)) ok(+k.slice(1), v, 'текст раздела Библиотеки');
-  ok(191, r.tech === 74 && r.photos >= 47, `техника: ${r.tech} описаний, ${r.photos} упражнений с фото; в каталоге ${r.cat}, вне каталога: ${r.catMiss.join(', ') || 'нет'}`);
+  ok(191, r.tech === 77 && r.photos >= 47, `техника: ${r.tech} описаний, ${r.photos} упражнений с фото; в каталоге ${r.cat}, вне каталога: ${r.catMiss.join(', ') || 'нет'}`);
   ok(192, r.dishes === 38 && r.pair === 13, 'блюда и пары мясо–гарнир');
   await E(p, () => openLibrary());
   ok(167, await E(p, () => !!document.querySelector('#page [data-q]') && document.querySelectorAll('#page .lb').length === 6), 'Библиотека: поиск и 6 разделов');

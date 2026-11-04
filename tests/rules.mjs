@@ -201,7 +201,7 @@ const W7 = '2026-11-16';
              dur: [1, 2, 3, 4].map(w => warmupFor(w).dur), daily: DAILY.map(x => x.id).join(), mins: dailyMinutes() };
   });
   check('ежедневный блок на все 7 дней, в том числе тренировочный', r.cells === 7 && r.box, JSON.stringify(r.cells));
-  check('в разминке нет пунктов ежедневного блока', r.noDaily && r.daily === 'ww,wg,wf,wn', JSON.stringify(r));
+  check('в разминке нет пунктов ежедневного блока', r.noDaily && r.daily === 'ww,wg,wf,wn,wk,wq,wo', JSON.stringify(r));
   check('разминка не длиннее 22 минут на любом уровне', r.dur.every(d => +d.match(/(\d+)\D+(\d+)/)[2] <= 22), r.dur.join(' | '));
   await ctx.close();
 }

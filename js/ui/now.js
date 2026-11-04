@@ -354,7 +354,7 @@ function timelineItems(es){
   const iso=vIso(), td=vIdx(), items=[], future=iso>isoDay();
   if(!future) items.push({t:wakeAt(state.cycle,state.week,td).wake, c:'c-kc', nm:'Утренний замер', ds: morningDone(iso)?morningLine(iso):'вес, пульс, колено, поясница, пах', done:morningDone(iso), act:'morning'});
   const dn=dailyCount(td);
-  items.push({t:'любое время', sort:'08:31', c:'c-car', nm:'Зарядка для колен', ds:dn&&dn<DAILY.length?`${dn} из ${DAILY.length} · колени, пах, стопа`:`колени, пах, стопа · ${dailyMinutes()} мин`, done:!!marks[dailyKey(td)], act:'daily', ck:true});
+  items.push({t:'любое время', sort:'08:31', c:'c-car', nm:'Зарядка для колен', ds:dn&&dn<DAILY.length?`${dn} из ${DAILY.length} · колени, пах, стопа, голеностоп`:`колени, пах, стопа, голеностоп · ${dailyMinutes()} мин`, done:!!marks[dailyKey(td)], act:'daily', ck:true});
   es.forEach(e=>{
     if(e.type==='gym') items.push({t:trainingTime(e)||'—', c:typeClass(e), nm:e.day.title+(isDropped(e.id)?' · отменена':''), ds:`≈${dayMinutes(e.day,state.week)} мин`, done:isGymDone(e)||isDropped(e.id), act:'gym', id:e.id, ck:true});
     if(e.type==='run') items.push({t:trainingTime(e), c:'c-car', nm:'Велосипед + мяч', ds:e.dur, done:isRunDone(e)||isDropped(e.id), act:'run', id:e.id, ck:true});

@@ -404,7 +404,7 @@ const DOW_FULL=['Воскресенье','Понедельник','Вторни�
    в тренировочные: отдельно от разминки, в любое удобное время
    (утром, в перерыве, вечером). Разминка перед тренировкой — другое.
    ############################################################ */
-const DAILY=[WP.wallsit, WP.groin, WP.shortfoot, WP.balance];
+const DAILY=[WP.wallsit, WP.groin, WP.shortfoot, WP.balance, WP.toetuck, WP.kneewall, WP.waddle];
 const dailyMinutes=()=>Math.round(DAILY.reduce((a,x)=>a+x.sec,0)*1.15/60);
 
 const BALL={id:'ball',name:'Мяч · дриблинг',badge:['Мяч','b-ball'],dose:'10–15 мин после велосипеда',rest:'—',tech:'dribble',
