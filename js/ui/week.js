@@ -173,19 +173,77 @@ function setWeekManual(c, w){
 function habitRows(){
   const c=state.cycle, w=state.week, days=[0,1,2,3,4,5,6];
   const dk=(id,i)=>`${weekTag(c,w)}-hab-${id}-${i}`, old=id=>!!marks[`${weekTag(c,w)}-hab-${id}`];
-  const n=id=>days.filter(i=>marks[dk(id,i)]).length;
+  /* отбой записан утром следующего дня: 00:30–01:30 считается «в одно и то же время» */
+  const bedOk=i=>{ const b=(body[dateOfCW(c,w,i+1>6?6:i+1)]||{}).bed; if(i===6 || !b) return false; const m=(hm2min(b)+720)%1440; return m>=750 && m<=810; };
+  const n=id=>days.filter(i=>marks[dk(id,i)] || (id==='sl1' && bedOk(i))).length;
   const dailyN=days.filter(i=>marks[`${weekTag(c,w)}-daily-${i}`]).length;
   const dates=days.map(i=>dateOfCW(c,w,i));
   const weighN=dates.filter(d=>body[d] && num(body[d].w)!=null).length;
   const gyms=buildWeek().filter(e=>e.type==='gym' && !isDropped(e.id) && dateOfCW(c,w,(e.dow+6)%7)<=isoDay());
   const loggedN=gyms.filter(e=>e.day.ex.some(x=>{ const L=logs[logKey(e.id,x.id)]; return L && hasData(L); })).length;
   return [
-    {t:'Лёг в одно и то же время', v:old('sl1')?'✓ за неделю':`${n('sl1')} из 7`, s:'отмечается вечером в «Итогах дня»'},
+    {t:'Лёг в одно и то же время', v:old('sl1')?'✓ за неделю':`${n('sl1')} из 7`, s:'галочка в «Итогах дня» или отбой 00:30–01:30 в утреннем замере'},
     {t:'Не пропустил ни одного приёма пищи', v:old('sl2')?'✓ за неделю':`${n('sl2')} из 7`, s:'отмечается вечером в «Итогах дня»'},
-    {t:'Сделал зарядку для колен', v:`${dailyN} из 7`, s:'день засчитан, когда отмечены все четыре упражнения'},
+    {t:'Сделал зарядку для колен', v:`${dailyN} из 7`, s:`день засчитан, когда отмечены все ${DAILY.length} упражнений`},
     {t:'Взвесился утром натощак', v:`${weighN} из 7`, s:'по утренним взвешиваниям, нужно минимум 3'},
     {t:'Записал рабочие веса', v:gyms.length?`${loggedN} из ${gyms.length}`:'—', s:'по записанным подходам'}
   ];
+}
+
+
+/* ---------- Неделя в цифрах: еда, сон, привычки, отчёт — показывается в «Я» → «Неделя» ---------- */
+function weekSummaryHTML(){
+  const c=state.cycle, w=state.week;
+  /* каждый день */
+  /* еда за неделю */
+  const F=weekFoodStats();
+  const scale=F.T.k*0.6;
+  const bars=F.rows.map(r=>{
+    if(!r.on) return `<div class="bars7"><span>${DOW_IDX[r.d]}</span><span class="trk"></span><span class="muted">—</span></div>`;
+    const wdt=Math.min(50, Math.abs(r.diff)/scale*100);
+    const col=r.cls==='ok'?'var(--ok)':r.cls==='over'?'var(--wn)':'var(--spd)';
+    const st=r.diff>=0?`left:50%;width:${wdt}%;background:${col}`:`right:50%;width:${wdt}%;background:${col}`;
+    return `<div class="bars7"><span>${DOW_IDX[r.d]}</span><span class="trk"><i style="${st}"></i></span><span class="n" style="text-align:right">${r.diff>0?'+':''}${r.diff}</span></div>`;
+  }).join('');
+  const filledN=F.rows.filter(r=>r.on).length;
+  const foodCard = F.enough
+    ? `${bars}<div class="note ${F.verdict.lvl==='ok'?'g':'y'}" style="margin-top:12px"><b>${F.verdict.b}</b>${F.verdict.x}</div>${F.notes.map(n=>`<p class="small t2" style="margin:0 0 6px">${n}</p>`).join('')}
+       ${F.advice?`<button type="button" class="btn" data-adv>Как не улетать в перебор</button>`:''}`
+    : `<div class="t2">Заполнено ${filledN} из 7. Сводка появится со второго дня.</div>`;
+  const foodFoot='<div class="small muted" style="margin-top:8px">Пустые дни в недельную статистику не попадают.</div>';
+
+  const SL=sleepInfo();
+  const H=habitRows();
+
+  /* фактический сон по утренним записям этой недели */
+  const slept=[0,1,2,3,4,5,6].map(i=>{ const d=dateOfCW(c,w,i), h=num((body[d]||{}).sleep); return {i, h}; });
+  const sh=slept.filter(x=>x.h!=null), shAvg=sh.length?sh.reduce((a,x)=>a+x.h,0)/sh.length:null;
+  const factRow=sh.length?`<div class="small" style="margin-top:8px"><b>По факту:</b> ${slept.map(x=>`${DOW_IDX[x.i]} ${x.h!=null?fmtHours(x.h,true):'—'}`).join(' · ')}${shAvg!=null?` · в среднем ${fmtHours(shAvg,true)}`:''}</div>`:'<div class="small muted" style="margin-top:8px">По факту: пиши утром, во сколько лёг и встал — появится здесь.</div>';
+  return `
+    <div class="sec">Еда за неделю · цель ${kfmt(F.T.k)} ккал</div>
+    <div class="card">${foodCard}${foodFoot}</div>
+    <div class="sec">Сон</div>
+    <div class="card tap" data-sleep><div class="small muted" style="margin-bottom:4px">Отбой 01:00 каждый день · подъём по расписанию</div><div class="h2 n">${SL.target}</div>
+      <div class="slw">${SL.days.map(x=>`<span class="${x.h<SHORT_NIGHT?'sh':x.h>=8.5?'lg':''}" title="${esc(x.why)}"><b>${DOW_IDX[x.d]}</b>${x.wake}<small>${fmtHours(x.h,true)}</small></span>`).join('')}</div>
+      <div class="t2" style="margin-top:8px">${SL.why}</div>${factRow}<div class="link">Почему так</div></div>
+    <div class="sec">Привычки недели</div>
+    <div class="card">${H.map(h=>`<div class="hab"><span><b>${h.t}</b><small>${h.s}</small></span><span class="v">${h.v}</span></div>`).join('')}</div>
+    <div class="sec">Отчёт за неделю</div>
+    <div class="card"><div class="t2">Питание, тренировки, рабочие веса и замеры одним текстом. Скопируй и пришли — по нему видно, что подправить.${filledN<3?` Питание пока заполнено за ${filledN} ${plural(filledN,'день','дня','дней')} — эта часть будет неполной.`:''}</div>
+      <div class="btnrow"><button type="button" class="btn pri" data-rcopy>Скопировать</button><button type="button" class="btn" data-rshare>Поделиться</button></div>
+      <button type="button" class="btn" style="margin-top:10px" data-rshow>Показать текст</button></div>
+`;
+}
+function bindWeekSummary(box){
+  const c=state.cycle, w=state.week;
+  const adv=box.querySelector('[data-adv]');
+  if(adv) adv.addEventListener('click',()=>openSheet(`<h2>Как не улетать в перебор</h2><div class="doc">${OVER_ADVICE.map(([b,t])=>`<p><b>${b}</b> ${t}</p>`).join('')}</div><button type="button" class="btn big" data-close>Понятно</button>`));
+  box.querySelector('[data-sleep]').addEventListener('click',()=>openLibrarySection('Сон: норма недели'));
+  box.querySelector('[data-rcopy]').addEventListener('click',async()=>{ const ok=await copyText(buildReport()); toast(ok?'Отчёт скопирован':'Не вышло скопировать — нажми «Показать текст»'); });
+  box.querySelector('[data-rshare]').addEventListener('click',()=>{ const t=buildReport(); if(navigator.share) navigator.share({text:t}).catch(()=>{}); else shareFile(`отчёт-неделя-${c}-${w}.txt`, t, 'text/plain', 'Отчёт за неделю'); });
+  box.querySelector('[data-rshow]').addEventListener('click',()=>openSheet(`<h2>Отчёт за неделю</h2><div class="expre" style="max-height:60vh">${esc(buildReport())}</div>
+    <div class="btnrow"><button type="button" class="btn pri" data-c>Скопировать</button><button type="button" class="btn" data-close>Закрыть</button></div>`,
+    (el)=>el.querySelector('[data-c]').addEventListener('click',async()=>{ const ok=await copyText(buildReport()); toast(ok?'Отчёт скопирован':'Выдели текст и скопируй вручную'); })));
 }
 
 /* ---------- Полоса года: зажал — выросла, ведёшь пальцем — подпись недели, отпустил — её состав ---------- */
@@ -370,27 +428,6 @@ function renderWeekTab(){
       <span class="dn">${DOW_IDX[(d+6)%7]}</span><span class="dt">${lab}</span><span class="st${cls}">${mk}</span></button>`;
   }).join('');
 
-  /* каждый день */
-  /* еда за неделю */
-  const F=weekFoodStats();
-  const scale=F.T.k*0.6;
-  const bars=F.rows.map(r=>{
-    if(!r.on) return `<div class="bars7"><span>${DOW_IDX[r.d]}</span><span class="trk"></span><span class="muted">—</span></div>`;
-    const wdt=Math.min(50, Math.abs(r.diff)/scale*100);
-    const col=r.cls==='ok'?'var(--ok)':r.cls==='over'?'var(--wn)':'var(--spd)';
-    const st=r.diff>=0?`left:50%;width:${wdt}%;background:${col}`:`right:50%;width:${wdt}%;background:${col}`;
-    return `<div class="bars7"><span>${DOW_IDX[r.d]}</span><span class="trk"><i style="${st}"></i></span><span class="n" style="text-align:right">${r.diff>0?'+':''}${r.diff}</span></div>`;
-  }).join('');
-  const filledN=F.rows.filter(r=>r.on).length;
-  const foodCard = F.enough
-    ? `${bars}<div class="note ${F.verdict.lvl==='ok'?'g':'y'}" style="margin-top:12px"><b>${F.verdict.b}</b>${F.verdict.x}</div>${F.notes.map(n=>`<p class="small t2" style="margin:0 0 6px">${n}</p>`).join('')}
-       ${F.advice?`<button type="button" class="btn" data-adv>Как не улетать в перебор</button>`:''}`
-    : `<div class="t2">Заполнено ${filledN} из 7. Сводка появится со второго дня.</div>`;
-  const foodFoot='<div class="small muted" style="margin-top:8px">Пустые дни в недельную статистику не попадают.</div>';
-
-  const SL=sleepInfo();
-  const H=habitRows();
-
   box.innerHTML=`
     <div class="hd"><div class="tt"><div class="kick">Цикл ${c} · ${cycleGoal(c,w)}</div><div class="h1">${weekTitle(c,w)}</div></div>
       <button type="button" class="icbtn" data-set aria-label="Неделя и даты">${IC.gear}</button></div>
@@ -401,30 +438,12 @@ function renderWeekTab(){
     <div class="sec">Неделя · ${KIND_RU[info.kind]||''}<span class="aux">${toDl}</span></div>
     <div class="wk">${tiles}</div>
     ${/^(Рабочая|Разгрузочная|Тестовая) неделя$/.test(info.label)?'':`<div class="small t2" style="margin-top:8px">${esc(info.label)}</div>`}
-    <div class="sec">Еда за неделю · цель ${kfmt(F.T.k)} ккал</div>
-    <div class="card">${foodCard}${foodFoot}</div>
-    <div class="sec">Сон</div>
-    <div class="card tap" data-sleep><div class="small muted" style="margin-bottom:4px">Отбой 01:00 каждый день · подъём по расписанию</div><div class="h2 n">${SL.target}</div>
-      <div class="slw">${SL.days.map(x=>`<span class="${x.h<SHORT_NIGHT?'sh':x.h>=8.5?'lg':''}" title="${esc(x.why)}"><b>${DOW_IDX[x.d]}</b>${x.wake}<small>${fmtHours(x.h,true)}</small></span>`).join('')}</div>
-      <div class="t2" style="margin-top:8px">${SL.why}</div><div class="link">Почему так</div></div>
-    <div class="sec">Привычки недели</div>
-    <div class="card">${H.map(h=>`<div class="hab"><span><b>${h.t}</b><small>${h.s}</small></span><span class="v">${h.v}</span></div>`).join('')}</div>
-    <div class="sec">Отчёт за неделю</div>
-    <div class="card"><div class="t2">Питание, тренировки, рабочие веса и замеры одним текстом. Скопируй и пришли — по нему видно, что подправить.${filledN<3?` Питание пока заполнено за ${filledN} ${plural(filledN,'день','дня','дней')} — эта часть будет неполной.`:''}</div>
-      <div class="btnrow"><button type="button" class="btn pri" data-rcopy>Скопировать</button><button type="button" class="btn" data-rshare>Поделиться</button></div>
-      <button type="button" class="btn" style="margin-top:10px" data-rshow>Показать текст</button></div>
+    <button type="button" class="card tap" style="width:100%;text-align:left;margin-top:18px" data-tome><div class="nm" style="font-weight:800">Еда, сон, привычки и отчёт недели</div><div class="small muted" style="margin-top:4px">Теперь в «Я» → «Неделя»</div><div class="link">Открыть</div></button>
   `;
 
   box.querySelector('[data-set]').addEventListener('click',()=>openSettings('week'));
   bindYearScrub(box, yw, nowI, selI);
   yearNoPop=false;
   bindDayTiles(box);
-  const adv=box.querySelector('[data-adv]');
-  if(adv) adv.addEventListener('click',()=>openSheet(`<h2>Как не улетать в перебор</h2><div class="doc">${OVER_ADVICE.map(([b,t])=>`<p><b>${b}</b> ${t}</p>`).join('')}</div><button type="button" class="btn big" data-close>Понятно</button>`));
-  box.querySelector('[data-sleep]').addEventListener('click',()=>openLibrarySection('Сон: норма недели'));
-  box.querySelector('[data-rcopy]').addEventListener('click',async()=>{ const ok=await copyText(buildReport()); toast(ok?'Отчёт скопирован':'Не вышло скопировать — нажми «Показать текст»'); });
-  box.querySelector('[data-rshare]').addEventListener('click',()=>{ const t=buildReport(); if(navigator.share) navigator.share({text:t}).catch(()=>{}); else shareFile(`отчёт-неделя-${c}-${w}.txt`, t, 'text/plain', 'Отчёт за неделю'); });
-  box.querySelector('[data-rshow]').addEventListener('click',()=>openSheet(`<h2>Отчёт за неделю</h2><div class="expre" style="max-height:60vh">${esc(buildReport())}</div>
-    <div class="btnrow"><button type="button" class="btn pri" data-c>Скопировать</button><button type="button" class="btn" data-close>Закрыть</button></div>`,
-    (el)=>el.querySelector('[data-c]').addEventListener('click',async()=>{ const ok=await copyText(buildReport()); toast(ok?'Отчёт скопирован':'Выдели текст и скопируй вручную'); })));
+  box.querySelector('[data-tome]').addEventListener('click',()=>{ settings.meSeg='week'; saveSettings(); goTab('me'); });
 }

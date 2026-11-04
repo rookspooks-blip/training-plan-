@@ -4,7 +4,7 @@
    из кэша, а свежую копию докачиваем в фоне к следующему запуску.
    Иконки и картинки: сначала кэш.
    При изменении списка файлов увеличь VERSION. */
-const VERSION = 'v71';
+const VERSION = 'v72';
 const CACHE = 'tri-cikla-' + VERSION;
 const NET_WAIT = 3000;
 const FILES = [
@@ -21,6 +21,7 @@ const FILES = [
   './js/plan-extra.js',
   './js/plan.js',
   './js/progress.js',
+  './js/load.js',
   './js/rules.js',
   './js/store.js',
   './js/tech.js',

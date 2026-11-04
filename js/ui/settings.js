@@ -42,9 +42,6 @@ function settingsHTML(){
         <div class="wpick">${weeks}</div>
         <div class="small muted" style="margin-top:6px">Жёлтая рамка — разгрузка или тест, синяя — сессия.</div></div>
       <div class="set-row"><span class="grow"><b>Старт плана</b><span>понедельник недели 1. Записи остаются на своих числах</span></span><input type="date" data-start value="${esc(settings.start)}" aria-label="Старт плана"></div>
-      ${store.get('planShiftFix',null) ? `<div class="set-row"><span class="grow"><b>Записи сдвинуты по журналу</b><span>Старт плана менялся раньше, и записи сидели не на своих числах. По журналу подходов я сдвинул всё на ${Math.abs(store.get('planShiftFix').delta)} дн. (${store.get('planShiftFix').n} из ${store.get('planShiftFix').total} записей совпали). Если не так, верни</span></span><button type="button" class="btn" data-unshift>Вернуть как было</button></div>` : ''}
-      ${settings.start!==SETTINGS_DEFAULT.start ? `<div class="set-row"><span class="grow"><b>Записи сдвинулись с чисел?</b><span>Если старт менял до этого обновления: укажи старый старт, и еда, отметки и решения встанут на те числа, когда ты их делал</span></span><input type="date" data-oldstart value="${SETTINGS_DEFAULT.start}" aria-label="Старый старт"></div>
-      <div class="set-row"><button type="button" class="btn" data-rebind>Привязать записи к числам</button></div>` : ''}
       ${periodRow('Зимняя сессия', 'wf', 'wt', WS.from, WS.to, WS.weeks
           ? `${WS.weeks} ${plural(WS.weeks,'неделя','недели','недель')} после сушки · цикл 2 начнётся ${fmtDay(addDays(WS.base, WS.weeks*7))}. Раньше ${fmtDay(WS.base)} начать нельзя: сушка идёт 12 недель. Недели между её концом и «с» — те же поддерживающие тренировки.`
           : `Сессии нет — после сушки сразу цикл 2 (${fmtDay(WS.base)}). Выбери «по», чтобы добавить сессию.`, WS.base)}
@@ -78,6 +75,19 @@ function settingsHTML(){
         <p class="small muted">Пропущенные поля можно не писать. <b>d=2026-10-22</b> — другая дата. Пульс «в покое» из «Здоровья» близок к пульсу лёжа, но не тот же: сравнивай только со своими же числами. Названия действий в «Командах» зависят от версии iOS.</p>
         <button type="button" class="btn" data-sample>Скопировать пример строки</button>
       </details></div>
+
+    <div class="sec">Лента «Сейчас»</div>
+    <div class="card"><div class="set-row" style="display:block;padding:10px 0"><b>Зарядка для колен в ленте</b>
+      <div class="seg" data-dailyat style="margin-top:8px">${[['morning','После замера'],['day','Днём'],['evening','Вечером']].map(([v,t])=>`<button type="button" class="${(settings.dailyAt||'morning')===v?'on':''}" data-v="${v}">${t}</button>`).join('')}</div>
+      <div class="small muted" style="margin-top:6px">Где зарядка стоит среди дел дня. Делать её можно в любое время.</div></div></div>
+
+    <div class="sec">Данные: привязка к числам</div>
+    <div class="card"><details class="lx"><summary><b>Записи сдвинулись с дат?</b><span>нужно редко, только после смены старта</span></summary>
+      ${store.get('planShiftFix',null) ? `<div class="set-row"><span class="grow"><b>Записи сдвинуты по журналу</b><span>Старт плана менялся раньше, и записи сидели не на своих числах. По журналу подходов я сдвинул всё на ${Math.abs(store.get('planShiftFix').delta)} дн. (${store.get('planShiftFix').n} из ${store.get('planShiftFix').total} записей совпали). Если не так, верни</span></span><button type="button" class="btn" data-unshift>Вернуть как было</button></div>` : ''}
+      ${settings.start!==SETTINGS_DEFAULT.start ? `<div class="set-row"><span class="grow"><b>Записи сдвинулись с чисел?</b><span>Если старт менял до этого обновления: укажи старый старт, и еда, отметки и решения встанут на те числа, когда ты их делал</span></span><input type="date" data-oldstart value="${SETTINGS_DEFAULT.start}" aria-label="Старый старт"></div>
+      <div class="set-row"><button type="button" class="btn" data-rebind>Привязать записи к числам</button></div>` : ''}
+      ${!store.get('planShiftFix',null) && settings.start===SETTINGS_DEFAULT.start ? '<div class="small muted" style="padding:8px 0">Всё на своих числах — делать ничего не нужно.</div>' : ''}
+    </details></div>
 
     <div class="sec">Резервная копия</div>
     <div class="card">
@@ -120,6 +130,8 @@ function openSettings(focus){
     });
     on('[data-cyc] [data-c]','click',b=>{ setCycle=+b.dataset.c; redraw(); });
     on('.wpick [data-w]','click',b=>{ const w=+b.dataset.w, c=setCycle, wasAuto=settings.auto; setWeekManual(c,w); if(!wasAuto || settings.auto) toast(`Открыта ${weekTitle(c,w).toLowerCase()}, цикл ${c}`); redraw(); });
+    el.querySelectorAll('[data-dailyat] [data-v]').forEach(b=>b.addEventListener('click',()=>{ settings.dailyAt=b.dataset.v; saveSettings();
+      el.querySelectorAll('[data-dailyat] [data-v]').forEach(x=>x.classList.toggle('on',x===b)); renderAll(); toast('Место зарядки в ленте изменено'); }));
     on('[data-unshift]','click',()=>{
       const f=store.get('planShiftFix',null); if(!f) return;
       shiftDataBy(-f.delta); store.set('planShiftFix', null); renderAll(); redraw();

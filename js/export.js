@@ -57,7 +57,8 @@ function dayExport(iso){
       D.food=foodExport(foodLog[`${addDays(iso,-dow)}-${dow}`]);   /* еда до старта плана записана под датой её недели */
       D.body=body[iso]?{...body[iso]}:null;
       D.circ=circ.filter(x=>x.d===iso).map(x=>({waistNarrow:x.a, waistNavel:x.b, thigh:x.h}));
-      D.tests=tests.filter(x=>x.d===iso).map(x=>({test:TESTS[x.t]?TESTS[x.t].n:x.t, value:x.v, unit:TESTS[x.t]?TESTS[x.t].u:''}));
+      D.load=(loadLog[iso]||[]).map(r=>({kind:LOAD_KINDS[r.k]?LOAD_KINDS[r.k].n:r.k, minutes:r.min, rpe:r.rpe, au:loadAU(r)}));
+    D.tests=tests.filter(x=>x.d===iso).map(x=>({test:TESTS[x.t]?TESTS[x.t].n:x.t, value:x.v, unit:TESTS[x.t]?TESTS[x.t].u:''}));
       return D;
     }
 
@@ -120,6 +121,7 @@ function dayText(D){
   } else L.push('  ничего не записано');
   D.circ.forEach(c=>L.push(`  Обхваты: талия узкая ${c.waistNarrow??'—'}, по пупку ${c.waistNavel??'—'}, бедро ${c.thigh??'—'}`));
   D.tests.forEach(t=>L.push(`  Тест: ${t.test} — ${R1(t.value)} ${t.unit}`));
+  (D.load||[]).forEach(x=>L.push(`  Нагрузка: ${x.kind} — ${x.minutes} мин × ${x.rpe} = ${x.au}`));
   if(D.preStart) return L.join('\n');
   L.push('');
   const T=D.training;

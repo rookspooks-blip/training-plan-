@@ -8,6 +8,7 @@ const SETTINGS_DEFAULT={auto:true, start:'2026-10-05', session:4, theme:'auto'};
 let settings={...SETTINGS_DEFAULT, kcalAdj:{}};
 /* Цикл 1: недели 1–12 сушка, дальше — сессионный блок (зима, экзамены) */
 const isSession=(c,w)=>{ c=c??state.cycle; w=w??state.week; return c===1 && w>12; };
+let loadLog={}; // нагрузка: "YYYY-MM-DD" → [{k, min, rpe, id?}], см. load.js
 let marks={};    // галочки: "дата понедельника-день-упражнение"
 let grams={};    // граммовки выбранного дня (ссылка внутрь foodLog): "блюдо-продукт"
 let dishOn={};   // включено ли блюдо в выбранный день (ссылка внутрь foodLog)
@@ -80,7 +81,7 @@ const asArr=(v,fb)=>Array.isArray(v) ? v : fb;
 
 /* Все ключи данных приложения. planSchema — версия формата */
 const DATA_KEYS=['planMarks','planSkips','planFood','planPos','planTodo','planLog','planSet',
-                 'planBody','planCirc','planTests','planFav','planWatch','planCook','planArchive'];
+                 'planBody','planCirc','planTests','planFav','planWatch','planCook','planArchive','planLoad'];
 const SCHEMA=4;
 const LEGACY_KEYS=['planGrams','planCustom'];   /* формат 1: еда лежала вне дней */
 
@@ -167,6 +168,7 @@ function loadAll(){
   circ   =asArr(store.get('planCirc',[]),[]);
   tests  =asArr(store.get('planTests',null),null) || SEED_TESTS.slice();
   cook   =asObj(store.get('planCook',{}),{});
+  loadLog=asObj(store.get('planLoad',{}),{});
   settings=Object.assign(settings, asObj(store.get('planSet',{}),{}));
   if(!asObj(settings.kcalAdj)) settings.kcalAdj={};
   const p=asObj(store.get('planPos',null),null);

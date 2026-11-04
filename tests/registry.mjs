@@ -141,7 +141,7 @@ const close = async p => { ok('_errors', p.errs.length === 0, p.errs.join(' | ')
   await E(p, () => window.scrollTo(0, 800)); await p.click('#tabbar [data-go="food"]'); await p.waitForTimeout(700);
   ok(21, await E(p, () => window.scrollY < 50), 'повторный тап по вкладке — наверх');
   /* хранение */
-  ok(12, await E(p, () => DATA_KEYS.length === 14 && DATA_KEYS.includes('planCook') && DATA_KEYS.includes('planArchive')), '14 ключей (12 + готовка + архив записей по датам)');
+  ok(12, await E(p, () => DATA_KEYS.length === 15 && DATA_KEYS.includes('planLoad') && DATA_KEYS.includes('planCook') && DATA_KEYS.includes('planArchive')), '14 ключей (12 + готовка + архив записей по датам)');
   ok(12, await E(p, () => { const o = Storage.prototype.setItem; Storage.prototype.setItem = () => { throw new Error('q'); }; storeWarned = false; store.set('planMarks', marks); Storage.prototype.setItem = o; return /Не получилось сохранить/.test(document.querySelector('#toast').textContent); }), 'ошибка записи — тост');
   ok(13, await E(p, () => SCHEMA === 4 && typeof migrate === 'function' && typeof snapshot === 'function'), 'миграция по шагам со снимком (формат 4: ключи — даты)');
   /* новый день при возврате */
@@ -475,15 +475,15 @@ for (const n of [54, 75, 78, 83, 84, 86, 87, 88, 89, 91, 94, 96, 101, 102, 103, 
 {
   const p = await at('2026-10-19T13:05:00', BASE);
   ok(113, await E(p, () => { const a = adjustKcal(150), b = adjustKcal(150), c = adjustKcal(150); resetKcal(); return a === 2750 && b === 2900 && c === 2900; }), '±150, предел ±300, сброс');
-  await p.click('#tabbar [data-go="plan"]');
+  await p.click('#tabbar [data-go="me"]');
   const t = await T(p);
-  ok(129, /Еда за неделю/.test(t) && /Пустые дни в недельную статистику не попадают/.test(t), 'еда за неделю в «Плане»');
+  ok(129, /Еда за неделю/.test(t) && /Пустые дни в недельную статистику не попадают/.test(t), 'еда за неделю в «Я» → «Неделя»');
   ok(129, await E(p, () => { const F = weekFoodStats(); return F.enough && F.verdict && OVER_ADVICE.length === 6; }), 'вердикт и 6 советов');
-  ok(130, /Отчёт за неделю/.test(t) && /эта часть будет неполной/.test(t) && await E(p, () => !!document.querySelector('#scr-plan [data-rcopy]') && !!document.querySelector('#scr-plan [data-rshare]')), 'отчёт: «Скопировать», «Поделиться», предупреждение');
+  ok(130, /Отчёт за неделю/.test(t) && /эта часть будет неполной/.test(t) && await E(p, () => !!document.querySelector('#scr-me [data-rcopy]') && !!document.querySelector('#scr-me [data-rshare]')), 'отчёт: «Скопировать», «Поделиться», предупреждение');
   ok(130, await E(p, () => /ОТЧЁТ ЗА НЕДЕЛЮ/.test(buildReport()) && /ПИТАНИЕ/.test(buildReport())), 'текст отчёта');
   ok(157, /Лёг в одно и то же время/.test(t) && /Сделал зарядку для колен/.test(t) && /Взвесился утром натощак/.test(t) && /Записал рабочие веса/.test(t) && /Не пропустил ни одного приёма пищи/.test(t), '5 привычек: 3 по данным, 2 кружками (В2)');
   ok(158, /Отбой 01:00 каждый день · подъём по расписанию/.test(t), 'подпись сна: отбой постоянный, подъём по расписанию');
-  ok(153, /≈\d(,5)? ч в среднем/.test(t) && await E(p, () => document.querySelectorAll('#scr-plan .slw span').length === 7 && /^\d\d:\d\d$/.test(document.querySelector('#scr-plan .slw span').childNodes[1].textContent)), 'норма сна недели и подъём по дням');
+  ok(153, /≈\d(,5)? ч в среднем/.test(t) && await E(p, () => document.querySelectorAll('#scr-me .slw span').length === 7 && /^\d\d:\d\d$/.test(document.querySelector('#scr-me .slw span').childNodes[1].textContent)), 'норма сна недели и подъём по дням');
   await close(p);
 }
 
@@ -502,7 +502,7 @@ for (const n of [54, 75, 78, 83, 84, 86, 87, 88, 89, 91, 94, 96, 101, 102, 103, 
   ok(169, /120–135 × 5/.test(t) && /\+10–15 %/.test(t), 'цели года');
   ok(170, /8 чистых \(было 5\)/.test(t) && /28 мин, ср\. пульс 143/.test(t), 'последние результаты');
   ok(171, await E(p, () => document.querySelectorAll('#scr-me [data-todo]').length === 8) && /осталось \d из 8/.test(t), '8 задач с галочками');
-  ok(148, await E(p, () => document.querySelectorAll('#scr-me .tst').length === 5) && /Подтягивания/.test(t) && /60 м/.test(t), 'карточки тестов');
+  ok(148, await E(p, () => document.querySelectorAll('#scr-me .tst').length === 8) && /Подтягивания/.test(t) && /60 м/.test(t), 'карточки тестов');
   ok(178, /Прыжок с места/.test(t) && /52/.test(t), 'прыжок — первым блоком «Я»');
   ok(182, /хорошо 57–60/.test(t) && /отлично 62/.test(t), 'шкала прыжка +10–15 % / +20 %');
   ok(144, await E(p, () => document.querySelectorAll('#scr-me .zone').length === 4), 'светофоры — на карте тела');
@@ -515,7 +515,7 @@ for (const n of [54, 75, 78, 83, 84, 86, 87, 88, 89, 91, 94, 96, 101, 102, 103, 
   ok(146, await E(p, () => body['2026-10-20'].w === 76.1), 'вернул');
   await E(p, () => closeSheets());
   await E(p, () => testRecordSheet('pull'));
-  ok(149, await E(p, () => document.querySelector('.sheet [data-d]').value === '2026-10-22' && document.querySelectorAll('.sheet [data-t]').length === 5), 'ввод: тест, результат, дата сегодня');
+  ok(149, await E(p, () => document.querySelector('.sheet [data-d]').value === '2026-10-22' && document.querySelectorAll('.sheet [data-t]').length === 6), 'ввод: тест, результат, дата сегодня');
   await p.fill('.sheet [data-v]', 'abc'); await p.click('.sheet [data-ok]');
   ok(149, await E(p, () => !document.querySelector('.sheet .errtxt').hidden), 'не число — ошибка');
   await p.fill('.sheet [data-v]', '10'); await p.click('.sheet [data-ok]');

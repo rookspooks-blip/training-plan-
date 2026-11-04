@@ -536,6 +536,26 @@ const W7 = '2026-11-16';
   await ctx.close();
 }
 
+{
+  /* нагрузка недели: минуты × тяжесть, скачок больше 30 % к средней прошлых; утренние недельные тесты; сон по времени */
+  const L = {}; ['2026-10-13', '2026-10-20', '2026-10-27'].forEach(d => { L[d] = [{ k: 'gym', id: 'd1', min: 60, rpe: 6 }]; });
+  L['2026-11-03'] = [{ k: 'ball', min: 100, rpe: 8 }];
+  const { ctx, p } = await at('2026-11-04', { planLoad: L, planSet: { start: '2026-10-05' } });
+  const r = await p.evaluate(() => {
+    const sp = loadSpike(); setGymLoad('2026-11-04', 'd3', 50, 7); setGymLoad('2026-11-04', 'd3', 55, 6);
+    const g = loadEntries('2026-11-04'); const by = ballYesterday('2026-11-04');
+    setTestOn('2026-11-04', 'kwL', 11); setTestOn('2026-11-04', 'kwL', 12);
+    goTab('me'); const seg = document.querySelectorAll('#scr-me [data-seg]').length, panes = document.querySelectorAll('#scr-me [data-pane]').length;
+    return { sp, g, by, kw: tests.filter(x => x.t === 'kwL').length, wk: weeklyTestsDone('2026-11-06'), seg, panes, plan: (goTab('plan'), !document.querySelector('#scr-plan [data-rcopy]') && !!document.querySelector('#scr-plan [data-tome]')) };
+  });
+  check('нагрузка: 800 против 360 — скачок', r.sp && r.sp.cur === 800 && r.sp.avg === 360, JSON.stringify(r.sp));
+  check('тяжесть тренировки: одна запись на день плана, перезаписывается', r.g.filter(x => x.k === 'gym').length === 1 && r.g[0].rpe === 6 && r.g[0].min === 55, JSON.stringify(r.g));
+  check('вчера баскет — колено «после игры»', r.by);
+  check('тест в утренней форме: одна запись на день, неделя засчитана', r.kw === 1 && r.wk);
+  check('«Я»: три раздела; «План» без отчёта, со ссылкой', r.seg === 3 && r.panes === 3 && r.plan, JSON.stringify(r));
+  await ctx.close();
+}
+
 await browser.close();
 server.close();
 console.log(fails ? `\n${fails} проверок не прошли` : '\nВсе проверки прошли');

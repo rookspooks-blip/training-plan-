@@ -328,7 +328,7 @@ function plRender(){
   else {
     const S=daySummary(e.day), W=watch[watchKey(PL.id)]||{}, ss=sessionState(PL.id);
     const m = ss==='run' ? watchMinutes({s:W.s, e:nowHM()}) : watchMinutes(W);
-    const d=dayDate(e), feel=num((body[d]||{}).feel);
+    const d=dayDate(e), feel=num((body[d]||{}).feel), GL=gymLoadOf(d, PL.id);
     const list=plExList(e);
     main=`<span class="tag">Итог</span><div class="pl-name">${ss==='done'?'Тренировка сделана':e.day.title}</div>
       <div class="pl-setn">${ss==='run'?`Идёт с ${esc(W.s)}`:ss==='done'?`${esc(W.s)}–${esc(W.e)}`:'Время не записано'}</div>
@@ -336,6 +336,9 @@ function plRender(){
         <div><b class="n">${m!=null?fmtDur(m):'—'}</b><span>время</span></div>
         <div><b class="n">${S.done}/${S.total}</b><span>упражнений</span></div>
         <div><b class="n">${S.vol?kfmt(S.vol):'—'}</b><span>кг поднято</span></div></div>
+      <div class="sec">Тяжесть всей тренировки, 1–10</div>
+      <div class="scale10">${Array.from({length:10},(_,i)=>`<button type="button" class="${GL&&GL.rpe===i+1?'on':''}" data-srpe="${i+1}">${i+1}</button>`).join('')}</div>
+      <div class="small muted" style="margin-top:6px">${GL?`${GL.min} мин × ${GL.rpe} = ${loadAU(GL)} — идёт в нагрузку недели`:'Для нагрузки недели: минуты × тяжесть. Оцени в целом, а не последний подход.'}</div>
       <div class="sec">Самочувствие после, 1–10</div>
       <div class="scale10">${Array.from({length:10},(_,i)=>`<button type="button" class="${feel===i+1?'on':''}" data-feel="${i+1}">${i+1}</button>`).join('')}</div>
       <div class="sec">Упражнения</div>
@@ -462,6 +465,11 @@ function plBind(e, st){
       if(num(body[d].feel)===v) delete body[d].feel; else body[d].feel=v;
       if(!Object.keys(body[d]).length) delete body[d];
       saveBody(); vibe(); plRender();
+    }));
+    box.querySelectorAll('[data-srpe]').forEach(b=>b.addEventListener('click',()=>{
+      const v=+b.dataset.srpe, G=gymLoadOf(d, PL.id), W=watch[watchKey(PL.id)]||{};
+      const m=watchMinutes(W.e?W:{s:W.s, e:nowHM()}) ?? dayMinutes(e.day, state.week);
+      setGymLoad(d, PL.id, G&&G.min || m, G&&G.rpe===v ? null : v); vibe(); plRender();
     }));
     box.querySelectorAll('[data-jumpex]').forEach(b=>b.addEventListener('click',()=>{ const ex=plExList(e).find(x=>x.id===b.dataset.jumpex); plGo(plGroupStart({ex},e)); }));
     on('[data-watch]',()=>watchSheet(PL.id));

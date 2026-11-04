@@ -17,6 +17,8 @@ function statusNotes(){
   if(info.kind==='deload') out.push({lvl:'g', html:'<b>Разгрузка</b>Меньше подходов и веса — так закрепляется рост прошлых недель.'});
   if(earlyDlOn()) out.push({lvl:'g', html:'<b>Досрочная разгрузка на этой неделе</b>Подходов вдвое меньше, вес ~90 %, скорость в полную силу. <button type="button" class="link" data-early="0">Отменить</button>'});
   else { const E=earlyDlSignal(); if(E) out.push({lvl:'y', html:`<b>Похоже, пора разгрузиться раньше</b>${E.why} — нервная система не успевает восстановиться. Плановые разгрузки остаются как были. <button type="button" class="link" data-early="1">Сделать эту неделю разгрузочной</button>`}); }
+  const LS=loadSpike();
+  if(LS) out.push({lvl:'y', html:`<b>Нагрузка недели выше обычного на ${Math.round((LS.ratio-1)*100)} %</b>Обычно ${LS.avg}, сейчас ${LS.cur} (минуты × тяжесть). Убери одно прыжковое занятие или сократи игру — так колено и ахилл не перегружаются.`});
   if(info.kind==='test') out.push({lvl:'i', html:'<b>Тестовая неделя</b>Замеры на свежую голову: прыжок, тесты, рабочие максимумы.'});
   return out;
 }
@@ -115,6 +117,16 @@ function renderOnboard(){
     <button type="button" class="btn big" data-ok>Понятно</button></div>`;
   box.querySelector('[data-ok]').addEventListener('click',()=>{ store.set('planOnboarded',true); onbForce=false; box.innerHTML=''; });
 }
+
+/* ---------- Кнопка «+»: быстрая запись с любой вкладки ---------- */
+function quickAddSheet(){
+  const items=[['m','Утренний замер','вес, пульс, колено, сон'],['load','Баскетбол или игра','в нагрузку недели'],['food','Еда','что съел'],['test','Тест','прыжок, спринт, касание…'],['daily','Зарядка для колен','отметить упражнения']];
+  openSheet(`<h2>Записать</h2><div class="card" style="padding:4px 16px">${items.map(([k,t,s])=>`<button type="button" class="secrow" data-q="${k}"><span><b>${t}</b><br><small class="muted">${s}</small></span><span class="chev" style="flex:none">›</span></button>`).join('')}</div>`,
+    (el,close)=>el.querySelectorAll('[data-q]').forEach(b=>b.addEventListener('click',()=>{ close(); const k=b.dataset.q;
+      if(k==='m') morningSheet(); else if(k==='load') loadAddSheet('ball'); else if(k==='food') foodQuickSheet(); else if(k==='test') testRecordSheet(); else dailySheet(todayIdx()); })));
+}
+{ const f=document.createElement('button'); f.type='button'; f.id='fab'; f.setAttribute('aria-label','Записать'); f.textContent='+';
+  f.addEventListener('click',quickAddSheet); document.body.appendChild(f); }
 
 /* ---------- Старт ---------- */
 loadAll();

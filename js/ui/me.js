@@ -139,7 +139,7 @@ function sparkSVG(list){
 function testRecordSheet(t0){
   let t=t0||'jump';
   openSheet(`<h2>Записать тест</h2>
-    <div class="pills" data-tt>${Object.keys(TESTS).map(k=>`<button type="button" class="pill${k===t?' ghost':''}" style="${k===t?'outline:3px solid var(--acc)':''}" data-t="${k}">${TESTS[k].n}</button>`).join('')}</div>
+    <div class="pills" data-tt>${Object.keys(TESTS).filter(k=>!TESTS[k].pair).map(k=>`<button type="button" class="pill${k===t?' ghost':''}" style="${k===t?'outline:3px solid var(--acc)':''}" data-t="${k}">${TESTS[k].n}</button>`).join('')}</div>
     <div class="btnrow" style="grid-template-columns:1fr 1fr;margin-top:14px">
       <div><div class="small t2" style="font-weight:700;margin-bottom:6px" data-u>Результат, ${TESTS[t].u}</div><input class="inp" data-v inputmode="decimal" placeholder="число" aria-label="Результат"></div>
       <div><div class="small t2" style="font-weight:700;margin-bottom:6px">Дата</div><input class="inp small" type="date" data-d value="${isoDay()}" aria-label="Дата"></div></div>
@@ -273,6 +273,29 @@ function openTodo(id){
   };
 }
 
+/* Цель к карточке теста — из «Целей года» (NOW.goals) */
+const TEST_GOAL={pull:'Подтягивания', sprint34:'3/4 площадки', jump:'Прыжок'};
+const goalOf=t=>{ const n=TEST_GOAL[t]; const r=n&&NOW.goals.find(g=>g[0]===n); return r?r[1]:null; };
+/* Пара «левая/правая» одной карточкой: последний замер каждой ноги и разница */
+function pairCardHTML(id, n, tl, tr, u, warn){
+  const a=testSummary(tl), b=testSummary(tr);
+  if(a.empty && b.empty) return `<button type="button" class="tst" data-pair="${id}"><div class="k">${n}</div><div class="v muted">—</div><div class="d">раз в неделю в утреннем замере</div></button>`;
+  const L=a.empty?null:a.last.v, R=b.empty?null:b.last.v, diff=L!=null&&R!=null?Math.abs(L-R):null;
+  const last=[a.last,b.last].filter(Boolean).map(x=>x.d).sort().pop();
+  return `<button type="button" class="tst" data-pair="${id}"><div class="k">${n}</div><div class="v n" style="font-size:20px">Л ${L!=null?R1c(L):'—'} · П ${R!=null?R1c(R):'—'}<small>${u}</small></div>
+    <div class="d">${diff!=null&&diff>warn?`<span style="color:var(--wn)">разница ${R1c(diff)} ${u}</span> · `:''}${shortDate(last)}</div></button>`;
+}
+function pairSheet(id){
+  const P={kw:['Колено к стене','kwL','kwR','см','Норма для прыгающего — от 10–12 см. Разница между ногами больше 2 см — слабую сторону в зарядке делай дважды.'],
+           bal:['Баланс с закрытыми глазами','balL','balR','с','Цель — 30 секунд на каждой ноге. Если одна нога заметно хуже, стопа на ней слабее: short foot и баланс на ней первыми.']}[id];
+  const ds=[...new Set(tests.filter(x=>x.t===P[1]||x.t===P[2]).map(x=>x.d))].sort().reverse();
+  openSheet(`<h2>${P[0]}</h2><div class="sub">${P[4]}</div>
+    <div class="card hist" style="padding:4px 16px">${ds.length?ds.map(d=>`<div class="row"><span class="grow"><div class="nm n">Л ${testOn(d,P[1])!=null?R1c(testOn(d,P[1])):'—'} · П ${testOn(d,P[2])!=null?R1c(testOn(d,P[2])):'—'} ${P[3]}</div><div class="ds">${shortDate(d)}</div></span></div>`).join(''):'<div class="t2">Записей нет.</div>'}</div>
+    <button type="button" class="btn big pri" data-m>Записать в утреннем замере</button>`,
+    (el,close)=>el.querySelector('[data-m]').addEventListener('click',()=>{ close(); morningSheet(); }));
+}
+const ME_SEGS=[['prog','Прогресс'],['week','Неделя'],['goals','Цели']];
+
 function renderMe(){
   const box=$('#scr-me'); if(!box) return;
   const J=testSummary('jump');
@@ -297,37 +320,55 @@ function renderMe(){
   /* тело */
   const S={}; ZONES.forEach(z=>S[z.id]=z.st());
   const due=backupDue();
+  /* вес: главная цифра — среднее за 7 дней, сегодняшнее взвешивание мелко */
+  const WS=weightsSorted(), WL=WS.length?WS[WS.length-1]:null;
+  const WA=WL && daysBetween(WL.d,isoDay())<=7 ? avgWin(WL.d,7) : null;
+  const WP=WA ? avgWin(addDays(WL.d,-7),7) : null;
+  const WD=WA&&WP&&WP.v!=null ? Math.round((WA.v-WP.v)*10)/10 : null;
+  const seg=ME_SEGS.some(s=>s[0]===settings.meSeg)?settings.meSeg:'prog';
 
   box.innerHTML=`
     <div class="hd"><div class="tt"><div class="kick">${cycleShort()} · ${weekTitle(state.cycle,state.week).toLowerCase()}</div><div class="h1">Я</div></div>
       <button type="button" class="icbtn" data-lib aria-label="Библиотека">${IC.book}</button>
       <button type="button" class="icbtn${due?' dot-badge':''}" data-set aria-label="Настройки и данные">${IC.gear}</button></div>
+    <div class="seg mseg" role="tablist">${ME_SEGS.map(([id,n])=>`<button type="button" role="tab" class="${seg===id?'on':''}" aria-selected="${seg===id}" data-seg="${id}">${n}</button>`).join('')}</div>
+    <div data-pane="prog"${seg==='prog'?'':' hidden'}>
     ${jump}
-    <div class="sec">Вес<span class="aux">${weightsSorted().length?`${fmt1(weightsSorted().slice(-1)[0].w)} кг · ${shortDate(weightsSorted().slice(-1)[0].d)}`:''}</span></div>
-    <div class="card">${C?C.html:'<div class="t2">Взвешивайся каждое утро натощак — график появится после двух взвешиваний, вывод — через две недели.</div>'}
+    <div class="sec">Вес<span class="aux">${WL?`сегодня ${fmt1(WL.w)} кг`:''}</span></div>
+    <div class="card">${WA?`<div style="display:flex;align-items:flex-end;gap:10px;margin-bottom:8px"><span class="n" style="font-size:40px;font-weight:900;letter-spacing:-.02em;line-height:1">${fmt1(WA.v)}</span><span style="font-weight:800;margin-bottom:4px">кг</span><span class="small t2" style="margin-left:auto;margin-bottom:4px;text-align:right">среднее за 7 дней${WD!=null?`<br><b style="color:${WD<=0?'var(--ok)':'var(--wn)'}">${WD>0?'+':''}${fmt1(WD)} кг за неделю</b>`:''}</span></div>`:''}${C?C.html:'<div class="t2">Взвешивайся каждое утро натощак — график появится после двух взвешиваний, вывод — через две недели.</div>'}
       ${coach.map(it=>`<div class="note ${it.c||''}" style="margin-top:10px"><b>${esc(it.b)}</b>${it.x}
         ${it.act?`<button type="button" class="btn" style="margin-top:8px;background:var(--s1)" data-act="${it.act}">${it.act>0?'Добавить':'Убрать'} ${Math.abs(it.act)} ккал</button>`:''}
         ${it.reset?`<button type="button" class="btn" style="margin-top:8px;background:var(--s1)" data-reset>Сбросить поправку</button>`:''}</div>`).join('')}
       <div class="btnrow"><button type="button" class="btn" data-wall>Все взвешивания</button><button type="button" class="btn" data-morning>Записать вес</button></div></div>
+    <div class="sec">Нагрузка недели<span class="aux">минуты × тяжесть</span></div>
+    ${loadCardHTML()}
     <div class="sec">Тело</div>
     <div class="card"><div class="body-map">${bodyMapSVG(S)}<div>${ZONES.map(z=>{ const s=S[z.id];
       return `<button type="button" class="zone" data-z="${z.id}"><i class="${s?'lv-'+s.lvl:'lv-n'}"></i><span><b>${z.n}${s&&s.v!=null&&z.id!=='hr'?` ${s.v}/10`:''}</b><span>${s ? (s.lvl==='g' ? (z.id==='hr'?esc(s.title):'зелёный') : (s.lvl==='y'?'жёлтый':'красный')+' · подробнее') : 'оцени утром'}</span></span></button>`; }).join('')}</div></div></div>
     <div class="sec">Тесты<button type="button" class="aux link" data-trec>Записать тест</button></div>
-    <div class="tests">${Object.keys(TESTS).filter(t=>t!=='jump').map(t=>{ const s=testSummary(t);
-      return `<button type="button" class="tst" data-t="${t}"><div class="k">${TESTS[t].n}</div>${s.empty?'<div class="v muted">—</div><div class="d">ещё не замерял</div>'
-        :`<div class="v n">${R1c(s.shown.v)}<small>${TESTS[t].u}</small></div><div class="d">${s.delta!=null&&s.delta?`<span style="color:${s.good?'var(--ok)':'var(--wn)'}">${s.delta>0?'+':''}${R1c(s.delta)}</span> · `:''}${shortDate(s.last.d)}</div>`}</button>`; }).join('')}
+    <div class="tests">${Object.keys(TESTS).filter(t=>t!=='jump' && !TESTS[t].pair).map(t=>{ const s=testSummary(t), g=goalOf(t);
+      return `<button type="button" class="tst" data-t="${t}"><div class="k">${TESTS[t].n}</div>${s.empty?`<div class="v muted">—</div><div class="d">ещё не замерял</div>`
+        :`<div class="v n">${R1c(s.shown.v)}<small>${TESTS[t].u}</small></div><div class="d">${s.delta!=null&&s.delta?`<span style="color:${s.good?'var(--ok)':'var(--wn)'}">${s.delta>0?'+':''}${R1c(s.delta)}</span> · `:''}${shortDate(s.last.d)}</div>${sparkSVG(s.list)}`}${g?`<div class="d" style="margin-top:4px">цель: ${esc(g)}</div>`:''}</button>`; }).join('')}
+      ${pairCardHTML('kw','Колено к стене','kwL','kwR','см',2)}${pairCardHTML('bal','Баланс, глаза закрыты','balL','balR','с',5)}
       <button type="button" class="tst" data-jt><div class="k">Прыжок</div><div class="v" style="font-size:18px;margin-top:8px">По видео</div><div class="d">замедленная съёмка</div></button></div>
     <div class="sec">Обхваты · раз в месяц</div>
     <button type="button" class="card tap" style="width:100%;text-align:left" data-circ>${circ.length?(()=>{ const c=circ[circ.length-1]; return `<dl class="kv"><dt>Талия, узкое</dt><dd class="n">${c.a??'—'} см</dd><dt>По пупку</dt><dd class="n">${c.b??'—'} см</dd><dt>Бедро</dt><dd class="n">${c.h??'—'} см</dd></dl><div class="small muted" style="margin-top:6px">${shortDate(c.d)} · записать новый</div>`; })():'<div class="t2">Ещё не мерил. Утром натощак, раз в месяц.</div><div class="link">Записать</div>'}</button>
+    </div>
+    <div data-pane="week"${seg==='week'?'':' hidden'}>
+    <div class="small t2" style="margin-top:4px">${esc(weekTitle(state.cycle,state.week))} · цикл ${state.cycle}. Другую неделю выбери в «Плане».</div>
+    ${weekSummaryHTML()}
+    </div>
+    <div data-pane="goals"${seg==='goals'?'':' hidden'}>
     <div class="sec">Цели года</div>
     <div class="card"><dl class="kv">${NOW.phase.map(r=>`<dt>${r[0]}</dt><dd>${r[1]}</dd>`).join('')}</dl>
       <div class="sec" style="margin-top:16px">Цели</div><dl class="kv">${NOW.goals.map(r=>`<dt>${r[0]}</dt><dd>${r[1]}</dd>`).join('')}</dl>
-      <div class="sec" style="margin-top:16px">Последние результаты</div><dl class="kv">${NOW.results.map(r=>`<dt>${r[0]}</dt><dd>${r[1]}</dd>`).join('')}</dl>
-      <div class="small muted" style="margin-top:10px">Данные из заметки от ${NOW.updated}.</div></div>
+      <details class="lx" style="margin-top:12px"><summary><b>Результаты из заметки</b><span>${NOW.updated}</span></summary><dl class="kv">${NOW.results.map(r=>`<dt>${r[0]}</dt><dd>${r[1]}</dd>`).join('')}</dl>
+      <div class="small muted" style="margin-top:10px">Свежие цифры — в «Прогрессе», в карточках тестов.</div></details></div>
     <div class="sec">Задачи<span class="aux">осталось ${NOW.todo.filter(t=>!todo[t[0]]).length} из ${NOW.todo.length}</span></div>
     <div class="card">${NOW.todo.map(t=>{ const A=TODO_ACT[t[0]], on=!!todo[t[0]];
       return `<div class="todo-li${on?' on':''}"><button type="button" class="ck${on?' on':''}" data-todo="${t[0]}" aria-label="${esc(t[1])} — ${on?'сделано':'не сделано'}">${IC.check}</button>
         <button type="button" class="todo-t" data-todo-open="${t[0]}">${t[1]}${A&&!on?`<span class="link small" style="display:block;margin-top:4px">${A.verb} ›</span>`:''}</button></div>`; }).join('')}</div>
+    </div>
     <div class="card" style="padding:4px 16px;margin-top:22px">
       <button type="button" class="secrow" data-lib>${IC.book.replace('<svg','<svg width="22" height="22"')}<span>Библиотека</span><span class="chev" style="flex:none">›</span></button>
       <button type="button" class="secrow" data-set>${IC.gear.replace('<svg','<svg width="22" height="22"')}<span>Настройки и данные${due?`<br><small style="color:var(--bad);font-weight:700">${due.days==null?'Копий ещё не было':`Последняя копия ${due.days} ${plural(due.days,'день','дня','дней')} назад`}</small>`:''}</span><span class="chev" style="flex:none">›</span></button>
@@ -349,6 +390,12 @@ function renderMe(){
   on('[data-t]',b=>testSheet(b.dataset.t));
   on('[data-trec]',()=>testRecordSheet());
   on('[data-circ]',circSheet);
+  on('[data-pair]',b=>pairSheet(b.dataset.pair));
+  bindLoadCard(box);
+  bindWeekSummary(box.querySelector('[data-pane="week"]'));
+  on('[data-seg]',b=>{ settings.meSeg=b.dataset.seg; saveSettings();
+    box.querySelectorAll('[data-seg]').forEach(x=>{ const o=x===b; x.classList.toggle('on',o); x.setAttribute('aria-selected',o); });
+    box.querySelectorAll('[data-pane]').forEach(p=>{ p.hidden=p.dataset.pane!==b.dataset.seg; }); window.scrollTo(0,0); });
   on('[data-todo-open]',b=>openTodo(b.dataset.todoOpen));
   on('[data-todo]',b=>{ const id=b.dataset.todo; todo[id]=!todo[id]; if(!todo[id]) delete todo[id]; store.set('planTodo',todo); vibe(); renderMe(); });
 }

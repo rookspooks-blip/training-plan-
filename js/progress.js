@@ -10,8 +10,22 @@ const TESTS={
   sprint34:{n:'Спринт 3/4 площадки', u:'с', better:-1},
   m60:{n:'60 м', u:'с', better:-1},
   pull:{n:'Подтягивания', u:'раз', better:1},
-  bike20:{n:'Велосипед 20 мин · средний пульс', u:'уд/мин', better:-1}
+  bike20:{n:'Велосипед 20 мин · средний пульс', u:'уд/мин', better:-1},
+  reach:{n:'Касание в прыжке', u:'см', better:1},
+  kwL:{n:'Колено к стене, левая', u:'см', better:1, pair:'kw'},
+  kwR:{n:'Колено к стене, правая', u:'см', better:1, pair:'kw'},
+  balL:{n:'Баланс, глаза закрыты, левая', u:'с', better:1, pair:'bal'},
+  balR:{n:'Баланс, глаза закрыты, правая', u:'с', better:1, pair:'bal'}
 };
+/* одна запись теста на день: перезаписывается (утренняя форма), пустое — убирает */
+function setTestOn(iso, t, v){
+  for(let i=tests.length-1;i>=0;i--) if(tests[i].t===t && tests[i].d===iso) tests.splice(i,1);
+  if(v!=null) tests.push({d:iso, t, v});
+  saveTests();
+}
+const testOn=(iso,t)=>{ const x=tests.find(r=>r.t===t && r.d===iso); return x?x.v:null; };
+/* недельные тесты зарядки: записаны ли на неделе этой даты */
+const weeklyTestsDone=iso=>{ const m=mondayOf(iso); return tests.some(x=>x.t in {kwL:1,kwR:1,balL:1,balR:1} && x.d>=m && x.d<=addDays(m,6)); };
 /* Результаты из заметки — чтобы графикам было от чего считать */
 const SEED_TESTS=[{d:'2026-09-20',t:'pull',v:8},{d:'2026-09-20',t:'m60',v:8.1}];
 const saveBody =()=>store.set('planBody',body);
