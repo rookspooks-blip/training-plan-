@@ -207,7 +207,7 @@ function buildWeek(){
 function buildWeekRaw(){
   const S=buildDays(state.cycle,state.week), C=cardioFor();
   if(noPE() && !isSession()) S[1]=homeSpeedDay();          /* четверг: физры не было */
-  /* пятница: «Первый шаг» (недели 1–2 цикла 1) или данки в каникулы; в остальные недели дня нет */
+  /* пятница: данки в каникулы; в остальные недели дня нет */
   if(!isSession()){ const F=fridayDay(state.cycle,state.week); if(F) S[3]=F; }
   /* летняя сессия — как зимняя: две короткие силовые и прыжки, без отдельных дней верха */
   const exam=summerMode()==='exam';

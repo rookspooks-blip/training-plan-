@@ -150,17 +150,12 @@ const W7 = '2026-11-16';
   await ctx.close();
 }
 
-/* 7б. Пятница: первый шаг после физры, без прыжков и без разминки — только на 1-й неделе (С9); в сессию — нет */
+/* 7б. Пятница: скорости нет ни в одной неделе учёбы (в сессию тоже), только данки в каникулы */
 {
   const { ctx, p } = await at('2026-10-09');
-  const r = await p.evaluate(() => {
-    const e = buildWeek().find(x => x.id === 'd4');
-    return { dow: e && e.dow, names: e ? e.day.ex.map(x => x.name) : [], noWarm: e && e.day.noWarm,
-             ses: withWeek(1, 13, () => buildWeek().some(x => x.id === 'd4')) };
-  });
-  check('пятница: старты и ускорения после физры', r.dow === 5 && r.names.join() === 'Старты из баскетбольной стойки,Ускорения 20 м' && r.noWarm, JSON.stringify(r));
-  check('в сессию пятницы-«первого шага» нет', r.ses === false, JSON.stringify(r));
-  check('на 2-й неделе пятница свободна (С9)', await p.evaluate(() => withWeek(1, 2, () => !buildWeek().some(x => x.id === 'd4'))));
+  const r = await p.evaluate(() => ({ w1: withWeek(1, 1, () => buildWeek().some(x => x.id === 'd4')), w2: withWeek(1, 2, () => buildWeek().some(x => x.id === 'd4')),
+    ses: withWeek(1, 13, () => buildWeek().some(x => x.id === 'd4')), thu: withWeek(1, 1, () => buildWeek().find(x => x.id === 'd2').dow) }));
+  check('пятницы-«первого шага» нет ни на 1-й, ни на 2-й неделе, ни в сессию; скоростная в четверг', r.w1 === false && r.w2 === false && r.ses === false && r.thu === 4, JSON.stringify(r));
   await ctx.close();
 }
 {
