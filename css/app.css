@@ -676,13 +676,18 @@ ul.src a{ color:var(--acc); text-decoration:none; }
   background:var(--tx); color:var(--bg); border-radius:16px; padding:10px 12px 10px 16px; font-weight:700; font-size:14px; box-shadow:0 8px 24px rgba(0,0,0,.3); }
 #updbar button{ min-height:36px; padding:0 16px; border-radius:12px; background:var(--acc); color:#fff; font-weight:800; }
 
-/* Нагрузка недели: столбики 6 недель */
-.lbars{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;align-items:end;min-height:110px}
-.lw{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11px;color:var(--t3)}
-.lw b{font-size:11px;color:var(--t2);font-weight:700;min-height:14px}
-.lw i{display:block;width:100%;max-width:34px;border-radius:6px 6px 3px 3px;background:var(--ln)}
-.lw.cur i{background:var(--acc)}
-.lw.cur span,.lw.cur b{color:var(--tx)}
+/* Нагрузка недели: дни недели */
+.lhead{display:flex;align-items:center;gap:8px}
+.lhead .grow b{display:block;font-size:16px}
+.lhead .grow small{color:var(--t3);font-size:13px}
+.lhead .icbtn[disabled]{opacity:.3}
+.ldays{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.ld{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 0;border-radius:12px;background:var(--s2);font-size:12px;color:var(--t2);min-height:68px;border:2px solid transparent;font-weight:700}
+.ld b{font-size:16px;color:var(--tx)}
+.ld small{font-size:11px;font-weight:800;color:var(--t3)}
+.ld.has small{color:var(--acc)}
+.ld.today b{text-decoration:underline}
+.ld.on{border-color:var(--acc);background:var(--s1)}
 .mseg{margin:6px 0 4px}
 
 /* Кнопка «+»: над нижней панелью справа; прячется в плеере, при мини-плеере и под листами */

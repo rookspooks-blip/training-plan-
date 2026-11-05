@@ -11,6 +11,8 @@ const LOAD_KINDS={
   ball: {n:'Баскетбол, тренировка', min:90},
   game: {n:'Игра', min:60},
   bike: {n:'Велосипед', min:20},
+  strength:{n:'Силовая вне плана', min:60},
+  run:{n:'Бег или кросс', min:30},
   other:{n:'Другое', min:45}
 };
 const RPE_WORDS=['','очень легко','легко','легко','средне','средне','тяжеловато','тяжело','тяжело','очень тяжело','предел'];
@@ -46,18 +48,42 @@ function loadSpike(){
 /* вчера был баскет или игра — утренняя оценка колена «после игры» */
 const ballYesterday=iso=>loadEntries(addDays(iso,-1)).some(r=>r.k==='ball'||r.k==='game');
 
-/* Лист «Добавить занятие»: вид, минуты, тяжесть 1–10 */
+/* ---------- Неделя по дням: выбери день и запиши, что и когда делал ---------- */
+let loadOff=0, loadSel=null;   /* loadOff: 0 — эта неделя, −1 — прошлая; loadSel — выбранный день */
+const loadMon=()=>addDays(mondayOf(isoDay()), loadOff*7);
+function loadSelDay(){
+  const mon=loadMon(), end=addDays(mon,6), t=isoDay();
+  if(loadSel && loadSel>=mon && loadSel<=end) return loadSel;
+  return (t>=mon && t<=end) ? t : mon;
+}
+const loadKindName=k=>LOAD_KINDS[k]?LOAD_KINDS[k].n:k;
+/* подпись недели плана («Н1», «С2» для сессии), до старта плана — пусто */
+function loadWeekLabel(mon){
+  const p=posForDate(mon);
+  if(p.pre) return '';
+  if(p.cycle===1 && p.week>12) return `С${p.week-12}`;
+  return `${p.cycle>1?`Ц${p.cycle} `:''}Н${p.week}`;
+}
+const loadSorted=iso=>[...loadEntries(iso)].sort((a,b)=>(a.t||'99:99')<(b.t||'99:99')?-1:1);
+
+/* Лист «Записать занятие»: что, какого числа, во сколько, сколько минут, насколько тяжело */
 function loadAddSheet(k0, iso0){
-  let k=k0||'ball', rpe=null;
+  let k=k0&&LOAD_KINDS[k0]&&k0!=='gym'?k0:'ball', rpe=null;
   const iso=iso0||isoDay();
-  openSheet(`${iso!==isoDay()?`<div class="kick">${shortDate(iso)}</div>`:''}<h2>Нагрузка: занятие</h2>
-    <div class="sub">Баскетбол, игра или что-то вне плана. Минуты × тяжесть 1–10 — так считается нагрузка недели.</div>
+  openSheet(`<h2>Записать занятие</h2>
+    <div class="sub">Баскетбол, игра или что-то вне плана. Минуты × тяжесть 1–10 идут в нагрузку недели.</div>
+    <div class="sec">Что делал</div>
     <div class="pills" data-lk>${Object.keys(LOAD_KINDS).filter(x=>x!=='gym').map(x=>`<button type="button" class="pill${x===k?' ghost':''}" style="${x===k?'outline:3px solid var(--acc)':''}" data-k="${x}">${LOAD_KINDS[x].n}</button>`).join('')}</div>
-    <div class="sec">Минут</div>
+    <div class="btnrow" style="grid-template-columns:1fr 1fr;margin-top:14px">
+      <div><div class="small t2" style="font-weight:700;margin-bottom:6px">Когда: день</div><input class="inp small" type="date" data-d value="${iso}" aria-label="День"></div>
+      <div><div class="small t2" style="font-weight:700;margin-bottom:6px">Во сколько начал</div><input class="inp small" type="time" data-t value="${iso===isoDay()?nowHM():''}" aria-label="Время начала"></div></div>
+    <div class="sec">Сколько минут</div>
     <input class="inp" data-min inputmode="numeric" value="${LOAD_KINDS[k].min}" aria-label="Минут">
-    <div class="sec">Тяжесть всего занятия, 1–10</div>
+    <div class="sec">Насколько было тяжело, 1–10</div>
     <div class="scale10" data-rpe>${Array.from({length:10},(_,i)=>`<button type="button" data-v="${i+1}">${i+1}</button>`).join('')}</div>
-    <div class="small muted" style="margin-top:6px" data-rw>Оцени через 15–30 минут после конца: насколько тяжело было в целом.</div>
+    <div class="small muted" style="margin-top:6px" data-rw>Оцени всё занятие в целом: 1 — прогулка, 10 — предел.</div>
+    <div class="sec">Заметка (по желанию)</div>
+    <input class="inp" data-note placeholder="например: игра 5 на 5, колено ок" maxlength="80" aria-label="Заметка">
     <div class="errtxt" hidden></div>
     <button type="button" class="btn big pri" style="margin-top:14px" data-ok>Записать</button>`,
     (el,close)=>{
@@ -69,44 +95,43 @@ function loadAddSheet(k0, iso0){
         el.querySelectorAll('[data-rpe] button').forEach(x=>x.classList.toggle('on',x===b));
         el.querySelector('[data-rw]').textContent=`${rpe} — ${RPE_WORDS[rpe]}`; vibe(8); }));
       el.querySelector('[data-ok]').addEventListener('click',()=>{
-        const m=num(mi.value);
+        const m=num(mi.value), d=el.querySelector('[data-d]').value||iso, t=el.querySelector('[data-t]').value||'', note=el.querySelector('[data-note]').value.trim();
         if(m==null || m<5 || m>300){ mi.classList.add('err'); err.hidden=false; err.textContent='Минут от 5 до 300'; return; }
         if(rpe==null){ err.hidden=false; err.textContent='Выбери тяжесть 1–10'; return; }
-        const rec=addLoad(iso, {k, min:Math.round(m), rpe}); close(); renderAll();
-        toast(`${LOAD_KINDS[k].n}: ${Math.round(m)} мин × ${rpe} = ${loadAU(rec)}`, ()=>{ removeLoad(iso, rec); renderAll(); });
+        const rec={k, min:Math.round(m), rpe}; if(t) rec.t=t; if(note) rec.note=note;
+        addLoad(d, rec);
+        loadSel=d; loadOff=Math.round(daysBetween(mondayOf(isoDay()), mondayOf(d))/7);
+        close(); renderAll();
+        toast(`${loadKindName(k)}: ${Math.round(m)} мин × ${rpe} = ${loadAU(rec)}`, ()=>{ removeLoad(d, rec); renderAll(); });
       });
     });
 }
 
-/* Карточка нагрузки: 6 недель столбиками, текущая — выделена, вывод */
-/* подпись столбика: номер недели плана («Н1», «С2» для сессии), до старта плана — дата понедельника */
-function loadWeekLabel(mon){
-  const p=posForDate(mon);
-  if(p.pre) return shortDate(mon);
-  if(p.cycle===1 && p.week>12) return `С${p.week-12}`;
-  return `${p.cycle>1?`Ц${p.cycle} `:''}Н${p.week}`;
-}
+/* Карточка «Нагрузка недели»: дни недели, у выбранного дня — что записано, внизу кнопка добавить */
 function loadCardHTML(){
-  const W=loadWeeks(6);
-  /* пустые недели до старта плана не показываем (остаются минимум две) */
-  while(W.length>2 && posForDate(W[0].mon).pre && !W[0].n) W.shift();
-  const mx=Math.max(1,...W.map(w=>w.v)), sp=loadSpike(), last=W.length-1;
-  const any=W.some(w=>w.n);
-  const base=W.slice(Math.max(0,last-3),last).filter(w=>w.n), avg=base.length?Math.round(base.reduce((a,w)=>a+w.v,0)/base.length):null;
-  const bars=W.map((w,i)=>`<div class="lw${i===last?' cur':''}"><b class="n">${w.v||''}</b><i style="height:${Math.max(3,Math.round(w.v/mx*70))}px"></i><span>${loadWeekLabel(w.mon)}</span></div>`).join('');
-  const today=loadEntries(isoDay());
-  return `<div class="card"><div class="lbars" style="grid-template-columns:repeat(${W.length},1fr)">${bars}</div>
-    ${!any?'<div class="t2" style="margin-top:8px">Пока пусто. Оценивай тяжесть в итоге тренировки, а баскетбол и игры добавляй кнопкой ниже.</div>'
-      : sp?`<div class="note y" style="margin-top:10px"><b>Неделя тяжелее обычного на ${Math.round((sp.ratio-1)*100)} %</b>Обычно ${sp.avg}, сейчас ${sp.cur}. Резкий рост нагрузки — главный риск для колена и ахилла: убери одно прыжковое занятие или сократи игру, силовые — с запасом 2–3 повтора.</div>`
-      : `<div class="small muted" style="margin-top:8px">${avg!=null?`Средняя прошлых недель ${avg}. Рост больше чем на 30 % за неделю — сигнал притормозить.`:'Сравнение появится после двух недель с записями.'}</div>`}
-    ${today.length?`<div class="sec" style="margin-top:12px">Сегодня</div>${today.map((r,i)=>`<div class="row"><span class="grow"><div class="nm">${esc(LOAD_KINDS[r.k]?LOAD_KINDS[r.k].n:r.k)}</div><div class="ds">${r.min} мин × ${r.rpe} = ${loadAU(r)}</div></span><button type="button" class="del" data-ldel="${i}" aria-label="Удалить">×</button></div>`).join('')}`:''}
-    <button type="button" class="btn" style="margin-top:10px" data-ladd>+ Баскетбол или игра</button></div>`;
+  const mon=loadMon(), sel=loadSelDay(), today=isoDay(), days=[0,1,2,3,4,5,6].map(i=>addDays(mon,i));
+  const W=weekLoad(mon), prev=weekLoad(addDays(mon,-7)), sp=loadOff===0?loadSpike():null, wl=loadWeekLabel(mon);
+  const list=loadSorted(sel);
+  const row=(r)=>`<div class="row"><span class="grow"><div class="nm">${esc(loadKindName(r.k))}${r.t?` · ${r.t}`:''}</div><div class="ds">${r.min} мин × ${r.rpe} = ${loadAU(r)}${r.note?` · ${esc(r.note)}`:''}</div></span><button type="button" class="del" data-ldel="${loadEntries(sel).indexOf(r)}" aria-label="Удалить">×</button></div>`;
+  return `<div class="card">
+    <div class="lhead"><button type="button" class="icbtn" data-lw="-1" aria-label="Прошлая неделя">‹</button>
+      <div class="grow"><b>${shortDate(mon)} – ${shortDate(addDays(mon,6))}</b><small>${loadOff===0?'эта неделя':loadOff===-1?'прошлая неделя':'неделя'}${wl?` · ${wl}`:''}</small></div>
+      <button type="button" class="icbtn" data-lw="1" aria-label="Следующая неделя" ${loadOff>=0?'disabled':''}>›</button></div>
+    <div class="small t2" style="margin:6px 0 10px">Всего за неделю: <b>${W.v||0}</b>${prev.v?` · прошлая неделя ${prev.v}`:''}</div>
+    <div class="ldays">${days.map((d,i)=>`<button type="button" class="ld${d===sel?' on':''}${d===today?' today':''}${dayLoad(d)?' has':''}" data-ld="${d}" aria-label="${DOW_IDX[i]} ${shortDate(d)}${dayLoad(d)?`, нагрузка ${dayLoad(d)}`:''}"><span>${DOW_IDX[i]}</span><b>${+d.slice(8)}</b><small>${dayLoad(d)||'·'}</small></button>`).join('')}</div>
+    <div class="sec" style="margin-top:14px">${sel===today?'Сегодня':`${DOW_IDX[(new Date(sel+'T12:00:00').getDay()+6)%7]}, ${shortDate(sel)}`}</div>
+    ${list.length?list.map(row).join(''):'<div class="t2" style="padding:6px 0">В этот день ничего не записано.</div>'}
+    <button type="button" class="btn" style="margin-top:10px" data-ladd>+ Записать, что делал</button>
+    ${sp?`<div class="note y" style="margin-top:10px"><b>Неделя тяжелее обычного на ${Math.round((sp.ratio-1)*100)} %</b>Обычно ${sp.avg}, сейчас ${sp.cur}. Резкий рост нагрузки — главный риск для колена и ахилла: убери одно прыжковое занятие или сократи игру, силовые — с запасом 2–3 повтора.</div>`:''}
+  </div>`;
 }
 function bindLoadCard(box){
-  box.querySelectorAll('[data-ladd]').forEach(b=>b.addEventListener('click',()=>loadAddSheet('ball')));
+  box.querySelectorAll('[data-lw]').forEach(b=>b.addEventListener('click',()=>{ loadOff=Math.min(0, loadOff+(+b.dataset.lw)); loadSel=null; renderMe(); }));
+  box.querySelectorAll('[data-ld]').forEach(b=>b.addEventListener('click',()=>{ loadSel=b.dataset.ld; renderMe(); }));
+  box.querySelectorAll('[data-ladd]').forEach(b=>b.addEventListener('click',()=>loadAddSheet('ball', loadSelDay())));
   box.querySelectorAll('[data-ldel]').forEach(b=>b.addEventListener('click',()=>{
-    const iso=isoDay(), rec=loadEntries(iso)[+b.dataset.ldel]; if(!rec) return;
+    const iso=loadSelDay(), rec=loadEntries(iso)[+b.dataset.ldel]; if(!rec) return;
     const at=removeLoad(iso, rec); renderAll();
-    toast('Занятие удалено', ()=>{ (loadLog[iso]=loadLog[iso]||[]).splice(at,0,rec); saveLoad(); renderAll(); });
+    toast('Запись удалена', ()=>{ (loadLog[iso]=loadLog[iso]||[]).splice(at,0,rec); saveLoad(); renderAll(); });
   }));
 }

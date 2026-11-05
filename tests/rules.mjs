@@ -551,6 +551,28 @@ const W7 = '2026-11-16';
   await ctx.close();
 }
 
+{
+  /* нагрузка по дням: нынешняя неделя, выбор дня, запись «что и когда» на выбранный день, прошлая неделя */
+  const { ctx, p } = await at('2026-11-05', { planSet: { start: '2026-11-02' } });
+  const r = await p.evaluate(() => {
+    goTab('me'); const q = s => document.querySelectorAll(s).length;
+    const first = { days: q('#scr-me .ldays .ld'), sel: document.querySelector('#scr-me .ld.on').dataset.ld, mon: document.querySelector('#scr-me .lhead b').textContent };
+    document.querySelector('#scr-me .ld[data-ld="2026-11-03"]').click();
+    const picked = document.querySelector('#scr-me .ld.on').dataset.ld;
+    loadAddSheet('ball', picked);
+    const sh = document.querySelector('.sheet'); sh.querySelector('[data-t]').value = '19:30'; sh.querySelector('[data-note]').value = 'игра 5 на 5';
+    sh.querySelector('[data-rpe] [data-v="8"]').click(); sh.querySelector('[data-ok]').click();
+    const rec = (loadLog['2026-11-03'] || [])[0];
+    const row = document.querySelector('#scr-me .card .row .ds'); const rowTxt = row ? row.textContent : '';
+    document.querySelector('#scr-me [data-lw="-1"]').click();
+    return { first, picked, rec, rowTxt, prevMon: document.querySelector('#scr-me .lhead b').textContent, nextDisabled: !!document.querySelector('#scr-me [data-lw="1"]') };
+  });
+  check('нагрузка: нынешняя неделя пн 2.11 – вс 8.11, 7 дней, выбран сегодня', r.first.days === 7 && r.first.sel === '2026-11-05' && /^2\.11/.test(r.first.mon), JSON.stringify(r.first));
+  check('выбрал вторник → запись на 3.11 со временем и заметкой', r.picked === '2026-11-03' && r.rec && r.rec.t === '19:30' && r.rec.note === 'игра 5 на 5' && r.rec.min === 90 && /90 мин × 8 = 720/.test(r.rowTxt), JSON.stringify(r));
+  check('стрелка назад — прошлая неделя 26.10', /^26\.10/.test(r.prevMon), r.prevMon);
+  await ctx.close();
+}
+
 await browser.close();
 server.close();
 console.log(fails ? `\n${fails} проверок не прошли` : '\nВсе проверки прошли');
