@@ -294,7 +294,7 @@ function pairSheet(id){
     <button type="button" class="btn big pri" data-m>Записать в утреннем замере</button>`,
     (el,close)=>el.querySelector('[data-m]').addEventListener('click',()=>{ close(); morningSheet(); }));
 }
-const ME_SEGS=[['prog','Прогресс'],['week','Неделя'],['goals','Цели']];
+const ME_SEGS=[['prog','Прогресс'],['goals','Цели']];
 
 function renderMe(){
   const box=$('#scr-me'); if(!box) return;
@@ -354,10 +354,6 @@ function renderMe(){
     <div class="sec">Обхваты · раз в месяц</div>
     <button type="button" class="card tap" style="width:100%;text-align:left" data-circ>${circ.length?(()=>{ const c=circ[circ.length-1]; return `<dl class="kv"><dt>Талия, узкое</dt><dd class="n">${c.a??'—'} см</dd><dt>По пупку</dt><dd class="n">${c.b??'—'} см</dd><dt>Бедро</dt><dd class="n">${c.h??'—'} см</dd></dl><div class="small muted" style="margin-top:6px">${shortDate(c.d)} · записать новый</div>`; })():'<div class="t2">Ещё не мерил. Утром натощак, раз в месяц.</div><div class="link">Записать</div>'}</button>
     </div>
-    <div data-pane="week"${seg==='week'?'':' hidden'}>
-    <div class="small t2" style="margin-top:4px">${esc(weekTitle(state.cycle,state.week))} · цикл ${state.cycle}. Другую неделю выбери в «Плане».</div>
-    ${weekSummaryHTML()}
-    </div>
     <div data-pane="goals"${seg==='goals'?'':' hidden'}>
     <div class="sec">Цели года</div>
     <div class="card"><dl class="kv">${NOW.phase.map(r=>`<dt>${r[0]}</dt><dd>${r[1]}</dd>`).join('')}</dl>
@@ -392,7 +388,6 @@ function renderMe(){
   on('[data-circ]',circSheet);
   on('[data-pair]',b=>pairSheet(b.dataset.pair));
   bindLoadCard(box);
-  bindWeekSummary(box.querySelector('[data-pane="week"]'));
   on('[data-seg]',b=>{ settings.meSeg=b.dataset.seg; saveSettings();
     box.querySelectorAll('[data-seg]').forEach(x=>{ const o=x===b; x.classList.toggle('on',o); x.setAttribute('aria-selected',o); });
     box.querySelectorAll('[data-pane]').forEach(p=>{ p.hidden=p.dataset.pane!==b.dataset.seg; }); window.scrollTo(0,0); });

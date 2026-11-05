@@ -79,13 +79,23 @@ function loadAddSheet(k0, iso0){
 }
 
 /* Карточка нагрузки: 6 недель столбиками, текущая — выделена, вывод */
+/* подпись столбика: номер недели плана («Н1», «С2» для сессии), до старта плана — дата понедельника */
+function loadWeekLabel(mon){
+  const p=posForDate(mon);
+  if(p.pre) return shortDate(mon);
+  if(p.cycle===1 && p.week>12) return `С${p.week-12}`;
+  return `${p.cycle>1?`Ц${p.cycle} `:''}Н${p.week}`;
+}
 function loadCardHTML(){
-  const W=loadWeeks(6), mx=Math.max(1,...W.map(w=>w.v)), sp=loadSpike();
+  const W=loadWeeks(6);
+  /* пустые недели до старта плана не показываем (остаются минимум две) */
+  while(W.length>2 && posForDate(W[0].mon).pre && !W[0].n) W.shift();
+  const mx=Math.max(1,...W.map(w=>w.v)), sp=loadSpike(), last=W.length-1;
   const any=W.some(w=>w.n);
-  const base=W.slice(2,5).filter(w=>w.n), avg=base.length?Math.round(base.reduce((a,w)=>a+w.v,0)/base.length):null;
-  const bars=W.map((w,i)=>`<div class="lw${i===5?' cur':''}"><b class="n">${w.v||''}</b><i style="height:${Math.max(3,Math.round(w.v/mx*70))}px"></i><span>${shortDate(w.mon)}</span></div>`).join('');
+  const base=W.slice(Math.max(0,last-3),last).filter(w=>w.n), avg=base.length?Math.round(base.reduce((a,w)=>a+w.v,0)/base.length):null;
+  const bars=W.map((w,i)=>`<div class="lw${i===last?' cur':''}"><b class="n">${w.v||''}</b><i style="height:${Math.max(3,Math.round(w.v/mx*70))}px"></i><span>${loadWeekLabel(w.mon)}</span></div>`).join('');
   const today=loadEntries(isoDay());
-  return `<div class="card"><div class="lbars">${bars}</div>
+  return `<div class="card"><div class="lbars" style="grid-template-columns:repeat(${W.length},1fr)">${bars}</div>
     ${!any?'<div class="t2" style="margin-top:8px">Пока пусто. Оценивай тяжесть в итоге тренировки, а баскетбол и игры добавляй кнопкой ниже.</div>'
       : sp?`<div class="note y" style="margin-top:10px"><b>Неделя тяжелее обычного на ${Math.round((sp.ratio-1)*100)} %</b>Обычно ${sp.avg}, сейчас ${sp.cur}. Резкий рост нагрузки — главный риск для колена и ахилла: убери одно прыжковое занятие или сократи игру, силовые — с запасом 2–3 повтора.</div>`
       : `<div class="small muted" style="margin-top:8px">${avg!=null?`Средняя прошлых недель ${avg}. Рост больше чем на 30 % за неделю — сигнал притормозить.`:'Сравнение появится после двух недель с записями.'}</div>`}

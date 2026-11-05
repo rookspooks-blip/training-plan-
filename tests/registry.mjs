@@ -475,15 +475,15 @@ for (const n of [54, 75, 78, 83, 84, 86, 87, 88, 89, 91, 94, 96, 101, 102, 103, 
 {
   const p = await at('2026-10-19T13:05:00', BASE);
   ok(113, await E(p, () => { const a = adjustKcal(150), b = adjustKcal(150), c = adjustKcal(150); resetKcal(); return a === 2750 && b === 2900 && c === 2900; }), '±150, предел ±300, сброс');
-  await p.click('#tabbar [data-go="me"]');
+  await p.click('#tabbar [data-go="plan"]');
   const t = await T(p);
-  ok(129, /Еда за неделю/.test(t) && /Пустые дни в недельную статистику не попадают/.test(t), 'еда за неделю в «Я» → «Неделя»');
+  ok(129, /Еда за неделю/.test(t) && /Пустые дни в недельную статистику не попадают/.test(t), 'еда за неделю в «Плане»');
   ok(129, await E(p, () => { const F = weekFoodStats(); return F.enough && F.verdict && OVER_ADVICE.length === 6; }), 'вердикт и 6 советов');
-  ok(130, /Отчёт за неделю/.test(t) && /эта часть будет неполной/.test(t) && await E(p, () => !!document.querySelector('#scr-me [data-rcopy]') && !!document.querySelector('#scr-me [data-rshare]')), 'отчёт: «Скопировать», «Поделиться», предупреждение');
+  ok(130, /Отчёт за неделю/.test(t) && /эта часть будет неполной/.test(t) && await E(p, () => !!document.querySelector('#scr-plan [data-rcopy]') && !!document.querySelector('#scr-plan [data-rshare]')), 'отчёт: «Скопировать», «Поделиться», предупреждение');
   ok(130, await E(p, () => /ОТЧЁТ ЗА НЕДЕЛЮ/.test(buildReport()) && /ПИТАНИЕ/.test(buildReport())), 'текст отчёта');
   ok(157, /Лёг в одно и то же время/.test(t) && /Сделал зарядку для колен/.test(t) && /Взвесился утром натощак/.test(t) && /Записал рабочие веса/.test(t) && /Не пропустил ни одного приёма пищи/.test(t), '5 привычек: 3 по данным, 2 кружками (В2)');
   ok(158, /Отбой 01:00 каждый день · подъём по расписанию/.test(t), 'подпись сна: отбой постоянный, подъём по расписанию');
-  ok(153, /≈\d(,5)? ч в среднем/.test(t) && await E(p, () => document.querySelectorAll('#scr-me .slw span').length === 7 && /^\d\d:\d\d$/.test(document.querySelector('#scr-me .slw span').childNodes[1].textContent)), 'норма сна недели и подъём по дням');
+  ok(153, /≈\d(,5)? ч в среднем/.test(t) && await E(p, () => document.querySelectorAll('#scr-plan .slw span').length === 7 && /^\d\d:\d\d$/.test(document.querySelector('#scr-plan .slw span').childNodes[1].textContent)), 'норма сна недели и подъём по дням');
   await close(p);
 }
 

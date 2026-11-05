@@ -546,13 +546,13 @@ const W7 = '2026-11-16';
     const g = loadEntries('2026-11-04'); const by = ballYesterday('2026-11-04');
     setTestOn('2026-11-04', 'kwL', 11); setTestOn('2026-11-04', 'kwL', 12);
     goTab('me'); const seg = document.querySelectorAll('#scr-me [data-seg]').length, panes = document.querySelectorAll('#scr-me [data-pane]').length;
-    return { sp, g, by, kw: tests.filter(x => x.t === 'kwL').length, wk: weeklyTestsDone('2026-11-06'), seg, panes, plan: (goTab('plan'), !document.querySelector('#scr-plan [data-rcopy]') && !!document.querySelector('#scr-plan [data-tome]')) };
+    return { sp, g, by, kw: tests.filter(x => x.t === 'kwL').length, wk: weeklyTestsDone('2026-11-06'), seg, panes, plan: (goTab('plan'), !!document.querySelector('#scr-plan [data-rcopy]') && !!document.querySelector('#scr-plan .slw')) };
   });
   check('нагрузка: 800 против 360 — скачок', r.sp && r.sp.cur === 800 && r.sp.avg === 360, JSON.stringify(r.sp));
   check('тяжесть тренировки: одна запись на день плана, перезаписывается', r.g.filter(x => x.k === 'gym').length === 1 && r.g[0].rpe === 6 && r.g[0].min === 55, JSON.stringify(r.g));
   check('вчера баскет — колено «после игры»', r.by);
   check('тест в утренней форме: одна запись на день, неделя засчитана', r.kw === 1 && r.wk);
-  check('«Я»: три раздела; «План» без отчёта, со ссылкой', r.seg === 3 && r.panes === 3 && r.plan, JSON.stringify(r));
+  check('«Я»: два раздела; отчёт, сон и еда недели снова в «Плане»', r.seg === 2 && r.panes === 2 && r.plan, JSON.stringify(r));
   await ctx.close();
 }
 

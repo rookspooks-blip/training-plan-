@@ -438,12 +438,12 @@ function renderWeekTab(){
     <div class="sec">Неделя · ${KIND_RU[info.kind]||''}<span class="aux">${toDl}</span></div>
     <div class="wk">${tiles}</div>
     ${/^(Рабочая|Разгрузочная|Тестовая) неделя$/.test(info.label)?'':`<div class="small t2" style="margin-top:8px">${esc(info.label)}</div>`}
-    <button type="button" class="card tap" style="width:100%;text-align:left;margin-top:18px" data-tome><div class="nm" style="font-weight:800">Еда, сон, привычки и отчёт недели</div><div class="small muted" style="margin-top:4px">Теперь в «Я» → «Неделя»</div><div class="link">Открыть</div></button>
+    ${weekSummaryHTML()}
   `;
 
   box.querySelector('[data-set]').addEventListener('click',()=>openSettings('week'));
   bindYearScrub(box, yw, nowI, selI);
   yearNoPop=false;
   bindDayTiles(box);
-  box.querySelector('[data-tome]').addEventListener('click',()=>{ settings.meSeg='week'; saveSettings(); goTab('me'); });
+  bindWeekSummary(box);
 }
