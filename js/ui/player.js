@@ -137,22 +137,27 @@ function plTick(){
 }
 
 /* ---------- Таймер темпа ----------
-   Один повтор = фазы из TEMPO («вниз 3, вверх 1»). Нажал — пошёл повтор: тон на
-   смену фазы, тихий щелчок на каждую секунду. Звуки ставятся заранее по часам
-   AudioContext, поэтому не плывут, даже если экран заблокирован.
+   Один повтор = фазы из TEMPO («вниз 3, вверх 1»). Нажал — пошёл повтор: голос
+   называет фазу («вниз», «вверх», «стоп»), после повтора — его номер. Руки заняты,
+   на слух проще, чем по сигналам. Нет синтеза речи — вместо слов тоны.
+   «Сам дальше»: следующий повтор через 1,5 сек после номера — хватает назвать
+   номер и вдохнуть, но мышца не успевает остыть.
    Наушники: пока таймер включён, играет беззвучная дорожка — так iPhone отдаёт
    кнопку наушников приложению (музыка при этом встанет). Любое нажатие —
    следующий повтор. */
-const TM={on:false, key:'', rep:0, target:0, auto:false, run:null, audio:null, raf:0, last:0, to:0};
+const TM_GAP=1500;
+const TM={on:false, key:'', rep:0, target:0, auto:false, run:null, audio:null, raf:0, last:0, to:0, sched:[]};
 function tempoOf(ex, v){
   if(v.P.timed){ const s=Math.round(num(v.r)||v.P.lo||30); return {hold:true, ph:[['держи',s]]}; }
   let ph=TEMPO[ex.tech]; if(!ph) return null;
   if(ex.tech==='bulgarian' && state.cycle===1 && loadWeek()<=4) ph=[['вниз',3],['вверх',3]];
-  if(ex.tech==='calf' && /пауза внизу/.test(ex.dose)) ph=[['вверх',1],['вниз',3],['пауза',1]];
+  if(ex.tech==='calf' && /пауза внизу/.test(ex.dose)) ph=[['вверх',1],['вниз',3],['стоп',1]];
   return {hold:false, ph};
 }
-const tmText=T=>T.ph.map(([n,s])=>`${s} ${n}`).join(' · ');
+const tmText=T=>T.ph.map(([n,s,x])=>`${s} ${n}${x?' '+x:''}`).join(' · ');
 const tmLen=T=>T.ph.reduce((a,p)=>a+p[1],0);
+/* вид фазы для цвета на экране и тона без голоса: вниз/назад, удержание, вверх/тяни */
+const tmKind=n=> /вниз|назад|шаг/.test(n) ? 'd' : /стоп|держи/.test(n) ? 'h' : 'u';
 function tmCtx(){ try{ PL.ctx=PL.ctx||new (window.AudioContext||window.webkitAudioContext)(); if(PL.ctx.state==='suspended') PL.ctx.resume(); }catch(e){} return PL.ctx; }
 function tmTone(t, f, dur, vol){
   const c=PL.ctx; if(!c) return;
@@ -161,8 +166,26 @@ function tmTone(t, f, dur, vol){
     g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(vol,t+0.01); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
     o.start(t); o.stop(t+dur+0.02); }catch(e){}
 }
-/* тон фазы: вниз и назад — низкий, вверх и тяни — высокий, удержание — средний */
-const tmFreq=n=> /вниз|опускай|назад|выкатывай/.test(n) ? 440 : /держи|пауза|замри/.test(n) ? 660 : 880;
+/* голос: русский, если есть; список голосов в Safari приходит не сразу */
+let tmVoiceCache=null;
+const tmCanSay=()=>'speechSynthesis' in window && typeof SpeechSynthesisUtterance!=='undefined';
+function tmVoice(){
+  if(tmVoiceCache) return tmVoiceCache;
+  try{ const vs=speechSynthesis.getVoices()||[];
+    tmVoiceCache=vs.find(v=>/^ru/i.test(v.lang) && v.localService) || vs.find(v=>/^ru/i.test(v.lang)) || null; }catch(e){}
+  return tmVoiceCache;
+}
+if(tmCanSay()) try{ speechSynthesis.addEventListener('voiceschanged',()=>{ tmVoiceCache=null; tmVoice(); }); }catch(e){}
+function tmSay(text){
+  if(!tmCanSay()) return false;
+  try{
+    const sy=speechSynthesis; if(sy.speaking||sy.pending) sy.cancel();
+    const u=new SpeechSynthesisUtterance(text); u.lang='ru-RU'; u.rate=1.1; u.volume=1;
+    const v=tmVoice(); if(v) u.voice=v;
+    sy.speak(u); return true;
+  }catch(e){ return false; }
+}
+function tmClearSched(){ TM.sched.forEach(clearTimeout); TM.sched=[]; }
 /* беззвучная дорожка: 1 сек, 8 кГц, 8 бит — нужна только для кнопки наушников */
 function tmSilent(){
   const n=8000, b=new Uint8Array(44+n), d=new DataView(b.buffer), w=(o,s)=>[...s].forEach((ch,i)=>b[o+i]=ch.charCodeAt(0));
@@ -197,10 +220,14 @@ function tmCur(){
 function tmOn(){
   const c=tmCur(); if(!c) return;
   tmCtx(); TM.on=true; TM.key=c.key; TM.rep=0; TM.run=null; TM.target=c.T.hold?1:Math.round(num(c.v.r)||c.v.P.lo||8);
-  tmMedia(true, c.st.ex.name); plWakeOn(); plRender();
+  tmMedia(true, c.st.ex.name); plWakeOn();
+  /* первое слово — по касанию: iPhone разрешает голос только после жеста */
+  tmSay('готов');
+  plRender();
 }
 function tmOff(){
-  clearTimeout(TM.to); cancelAnimationFrame(TM.raf);
+  clearTimeout(TM.to); tmClearSched(); cancelAnimationFrame(TM.raf);
+  try{ tmCanSay() && speechSynthesis.cancel(); }catch(e){}
   TM.on=false; TM.run=null; TM.key=''; tmMedia(false);
   if(!PL.rest) plWakeOff();
 }
@@ -210,30 +237,37 @@ function tmPress(){
   const c=tmCur(); if(!TM.on || !c) return;
   if(c.key!==TM.key){ TM.key=c.key; TM.rep=0; TM.run=null; TM.target=c.T.hold?1:Math.round(num(c.v.r)||c.v.P.lo||8); }
   if(TM.run) tmRepEnd(true);   /* нажал посреди повтора — он засчитан, сразу следующий */
+  clearTimeout(TM.to);
   tmRep(c);
 }
 function tmRep(c){
-  const ctx=tmCtx(), T=c.T, t0=ctx ? ctx.currentTime+0.05 : 0;
+  const T=c.T, voice=tmCanSay();
+  tmClearSched();
   let off=0;
-  if(ctx) T.ph.forEach(([n,s])=>{
-    tmTone(t0+off, tmFreq(n), 0.16, 0.4);
-    for(let k=1;k<s;k++) tmTone(t0+off+k, 1500, 0.04, 0.12);
+  T.ph.forEach(([n,s])=>{
+    const at=off*1000;
+    if(voice) TM.sched.push(setTimeout(()=>tmSay(n), at));
+    else { const ctx=tmCtx(); if(ctx) tmTone(ctx.currentTime+0.05+off, tmKind(n)==='d'?440:tmKind(n)==='h'?660:880, 0.16, 0.4); }
+    /* удержание на время: последние три секунды вслух */
+    if(T.hold && voice && s>=6) [3,2,1].forEach(k=>TM.sched.push(setTimeout(()=>tmSay(String(k)), (off+s-k)*1000)));
     off+=s;
   });
-  TM.run={start:Date.now()+50, len:tmLen(T)*1000, T};
-  clearTimeout(TM.to); TM.to=setTimeout(()=>tmRepEnd(false), TM.run.len+50);
+  TM.run={start:Date.now(), len:tmLen(T)*1000, T};
+  clearTimeout(TM.to); TM.to=setTimeout(()=>tmRepEnd(false), TM.run.len);
   tmPaint();
 }
 function tmRepEnd(early){
-  clearTimeout(TM.to);
+  clearTimeout(TM.to); tmClearSched();
   if(!TM.run) return;
   TM.run=null; TM.rep++;
-  const c=tmCur();
-  if(c && !c.T.hold && !c.v.rec && TM.key===c.key){ const ek=c.v.k+'|'+c.st.si; PL.edit[ek]={...(PL.edit[ek]||{}), r:TM.rep}; }
-  if(c && c.T.hold && !c.v.rec && TM.key===c.key){ const ek=c.v.k+'|'+c.st.si; PL.edit[ek]={...(PL.edit[ek]||{}), r:tmLen(c.T)}; }
-  if(TM.rep>=TM.target){ if(!early){ plBeep(); } }
-  else if(!early && TM.auto && c){ TM.to=setTimeout(()=>{ if(TM.on && !TM.run) tmRep(c); }, 700); tmTone((PL.ctx||{}).currentTime||0, 1200, 0.06, 0.25); }
-  else if(!early && PL.ctx) tmTone(PL.ctx.currentTime, 1200, 0.06, 0.25);
+  const c=tmCur(), mine=c && TM.key===c.key, done=TM.rep>=TM.target;
+  if(mine && !c.v.rec){ const ek=c.v.k+'|'+c.st.si; PL.edit[ek]={...(PL.edit[ek]||{}), r:c.T.hold?tmLen(c.T):TM.rep}; }
+  if(!early){
+    /* номер повтора; на последнем — «всё» */
+    const said = c && c.T.hold ? tmSay('всё') : tmSay(done ? `${TM.rep}. Всё` : String(TM.rep));
+    if(!said){ if(done) plBeep(); else if(PL.ctx) tmTone(PL.ctx.currentTime, 1200, 0.06, 0.25); }
+    if(!done && TM.auto && c) TM.to=setTimeout(()=>{ if(TM.on && !TM.run){ const c2=tmCur(); if(c2 && c2.key===TM.key) tmRep(c2); } }, TM_GAP);
+  }
   if(!$('#player').hidden && !PL.rest) plRender();
 }
 /* живая подпись фазы и секунд — только пока экран виден */
@@ -246,7 +280,7 @@ function tmPaint(){
   for(const [n,s] of TM.run.T.ph){ if(t<acc+s){ name=n; left=Math.ceil(acc+s-t); break; } acc+=s; }
   if(!name){ name=TM.run.T.ph[TM.run.T.ph.length-1][0]; left=0; }
   el.innerHTML=`${esc(name)} <span class="n">${Math.max(0,left)}</span>`;
-  el.dataset.ph=tmFreq(name)===440?'d':tmFreq(name)===660?'h':'u';
+  el.dataset.ph=tmKind(name);
   TM.raf=requestAnimationFrame(tmPaint);
 }
 function tmHTML(ex, v){
@@ -260,7 +294,7 @@ function tmHTML(ex, v){
     <div class="tp-rep">${T.hold?(rep?'готово':''):`повтор <b class="n">${rep}</b> из ${tgt}`}</div>
   </div>
   <div class="tp-ctl"><button type="button" class="pill${TM.auto?' on':''}" data-tpauto>${TM.auto?'Сам дальше: да':'Сам дальше: нет'}</button><button type="button" class="pill" data-tpoff>Выключить таймер</button></div>
-  <div class="small muted" style="margin-top:6px">Наушники: одно нажатие — следующий повтор. Музыка на время таймера встанет.</div>`;
+  <div class="small muted" style="margin-top:6px">Голос говорит фазу — «вниз», «вверх», «стоп» — и номер повтора. Наушники: одно нажатие — следующий повтор. «Сам дальше» — повторы идут сами, между ними 1,5 сек. Музыка на время таймера встанет.</div>`;
 }
 
 /* ---------- Открыть, свернуть ---------- */
