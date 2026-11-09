@@ -287,6 +287,20 @@ body.playing #toast{ bottom:calc(env(safe-area-inset-bottom) + 150px); }
 .pl-prev b{ color:var(--tx); }
 .pl-why{ font-size:15px; color:var(--t2); margin-top:8px; line-height:1.4; }
 .pl-why b{ color:var(--tx); }
+.tempo-start{ display:flex; align-items:center; gap:12px; width:100%; margin-top:14px; padding:14px 16px; border-radius:20px; background:var(--s2); color:var(--tx); text-align:left; font:inherit; border:0; }
+.tempo-start svg{ width:26px; height:26px; flex:none; color:var(--c); }
+.tempo-start span{ display:grid; gap:2px; }
+.tempo-start small{ color:var(--t2); font-size:14px; }
+.tempo{ margin-top:14px; padding:16px; border-radius:24px; background:var(--s2); text-align:center; cursor:pointer; user-select:none; -webkit-user-select:none; touch-action:manipulation; }
+.tempo .tp-ph{ font-size:14px; color:var(--t2); }
+.tempo .tp-big{ font-size:30px; font-weight:800; min-height:44px; margin:8px 0 4px; color:var(--tx); }
+.tempo .tp-big[data-ph="d"]{ color:var(--c); }
+.tempo .tp-big[data-ph="h"]{ color:var(--warmc, var(--t2)); }
+.tempo .tp-big .n{ font-variant-numeric:tabular-nums; opacity:.7; margin-left:6px; }
+.tempo .tp-rep{ font-size:16px; color:var(--t2); min-height:20px; }
+.tempo .tp-rep b{ color:var(--tx); font-size:20px; }
+.tp-ctl{ display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
+.tp-ctl .pill.on{ background:var(--c); color:#fff; }
 .pl-act{ display:flex; flex-wrap:wrap; gap:8px; margin-top:14px; }
 .pl-act .pill{ background:var(--s2); box-shadow:none; }
 .pl-dock{ position:absolute; left:0; right:0; bottom:0; z-index:4; padding:14px 18px calc(env(safe-area-inset-bottom) + 18px);

@@ -4,7 +4,7 @@
    из кэша, а свежую копию докачиваем в фоне к следующему запуску.
    Иконки и картинки: сначала кэш.
    При изменении списка файлов увеличь VERSION. */
-const VERSION = 'v75';
+const VERSION = 'v76';
 const CACHE = 'tri-cikla-' + VERSION;
 const NET_WAIT = 3000;
 const FILES = [
@@ -42,6 +42,10 @@ const FILES = [
   './icons/icon-512.png',
   './icons/icon-maskable-512.png',
   './plan.ics',
+  './img/ex/ankle-on-the-knee-0.webp',
+  './img/ex/ankle-on-the-knee-1.webp',
+  './img/ex/band-pull-apart-0.webp',
+  './img/ex/band-pull-apart-1.webp',
   './img/ex/barbell-bench-press---medium-grip-0.webp',
   './img/ex/barbell-bench-press---medium-grip-1.webp',
   './img/ex/barbell-full-squat-0.webp',
@@ -88,12 +92,16 @@ const FILES = [
   './img/ex/inchworm-1.webp',
   './img/ex/it-band-and-glute-stretch-0.webp',
   './img/ex/it-band-and-glute-stretch-1.webp',
+  './img/ex/jogging-treadmill-0.webp',
+  './img/ex/jogging-treadmill-1.webp',
   './img/ex/kettlebell-one-legged-deadlift-0.webp',
   './img/ex/kettlebell-one-legged-deadlift-1.webp',
   './img/ex/kettlebell-pistol-squat-0.webp',
   './img/ex/kettlebell-pistol-squat-1.webp',
   './img/ex/kneeling-hip-flexor-0.webp',
   './img/ex/kneeling-hip-flexor-1.webp',
+  './img/ex/lateral-bound-0.webp',
+  './img/ex/lateral-bound-1.webp',
   './img/ex/lateral-cone-hops-0.webp',
   './img/ex/lateral-cone-hops-1.webp',
   './img/ex/leg-extensions-0.webp',
@@ -114,6 +122,8 @@ const FILES = [
   './img/ex/pushups-1.webp',
   './img/ex/quadriceps-smr-0.webp',
   './img/ex/quadriceps-smr-1.webp',
+  './img/ex/rope-jumping-0.webp',
+  './img/ex/rope-jumping-1.webp',
   './img/ex/seated-bent-over-rear-delt-raise-0.webp',
   './img/ex/seated-bent-over-rear-delt-raise-1.webp',
   './img/ex/seated-leg-curl-0.webp',
@@ -135,7 +145,7 @@ const FILES = [
   './img/ex/standing-soleus-and-achilles-stretch-0.webp',
   './img/ex/standing-soleus-and-achilles-stretch-1.webp',
   './img/ex/trap-bar-deadlift-0.webp',
-  './img/ex/trap-bar-deadlift-1.webp'
+  './img/ex/trap-bar-deadlift-1.webp',
 ];
 
 /* Код кладём весь или никакой: без него офлайн не откроется. Картинки — по одной,

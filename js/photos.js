@@ -14,14 +14,18 @@ const PHOTO_BY_TECH={
   rdl:'kettlebell-one-legged-deadlift', calf:'calf-raise-on-a-dumbbell', plank:'side-bridge',
   pallof:'pallof-press', deadbug:'dead-bug', curl:'dumbbell-bicep-curl',
   triceps:'dumbbell-one-arm-triceps-extension', facepull:'face-pull', jump:'freehand-jump-squat',
-  nordic:'natural-glute-ham-raise', hamslide:'platform-hamstring-slides', plyo:'hurdle-hops',
+  nordic:'natural-glute-ham-raise', plyo:'hurdle-hops',
+  /* hamslide: на фото таз лежит на полу, а в плане он поднят — оставлена схема */
   w_inchworm:'inchworm', w_bridge:'butt-lift-bridge',
   lateral:'side-lateral-raise', reardelt:'seated-bent-over-rear-delt-raise',
   legext:'leg-extensions', legcurl:'seated-leg-curl',
   st_calf:'calf-stretch-hands-against-wall', st_soleus:'standing-soleus-and-achilles-stretch',
-  st_ham:'hamstring-stretch', st_glute:'it-band-and-glute-stretch', st_hipflex:'kneeling-hip-flexor',
+  st_glute:'ankle-on-the-knee', st_hipflex:'kneeling-hip-flexor',
+  /* st_ham: фото лёжа с резиной, а в карточке пятка на опоре — оставлена схема */
   roll_quad:'quadriceps-smr', roll_ham:'hamstring-smr', roll_it:'iliotibial-tract-smr',
-  roll_calf:'calves-smr', roll_glute:'piriformis-smr'
+  roll_calf:'calves-smr', roll_glute:'piriformis-smr',
+  w_pullapart:'band-pull-apart', w_raise:'rope-jumping', run_setup:'jogging-treadmill',
+  bench:'barbell-bench-press---medium-grip'
 };
 /* Название точнее техники: тот же приём, другой снаряд или хват.
    null — фото по технике вводило бы в заблуждение, лучше схема */
@@ -34,7 +38,7 @@ const PHOTO_BY_NAME={
   'Жим штанги лёжа':'barbell-bench-press---medium-grip',
   'Отжимания на брусьях':'dips---chest-version', 'Брусья с весом':'dips---chest-version',
   'Прыжки на тумбу':'front-box-jump', 'Выпрыгивания на тумбу':'front-box-jump',
-  'Латеральные прыжки':'lateral-cone-hops',
+  'Латеральные прыжки':'lateral-bound',
   'Тяга гантели лёжа грудью на скамье':null, 'Тяга гантелей лёжа грудью на скамье':null,
   'Разгибания из-за головы':'standing-dumbbell-triceps-extension',
   'Отжимания с ногами на опоре':'decline-push-up',

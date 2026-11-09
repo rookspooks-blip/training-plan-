@@ -497,5 +497,81 @@ bike:`<svg viewBox="0 0 260 132" style="color:var(--muted)">
   <path d="M146 40l-24 8"/></g>
  <path d="M104 44h44" fill="none" stroke="var(--warmc)" stroke-width="1.6" stroke-dasharray="3 3"/>
  <text x="8" y="26" fill="var(--muted)" font-size="10">колено почти прямое</text>
- ${CAP(14,128,'80–85 оборотов, пульс 135–140 · крути круг, а не дави вниз')}</svg>`
+ ${CAP(14,128,'80–85 оборотов, пульс 135–140 · крути круг, а не дави вниз')}</svg>`,
+/* ---------- добавлено: схемы для карточек без фото ---------- */
+achilles:`<svg viewBox="0 0 260 132" style="color:var(--muted)">
+ <path d="M14 110h232" ${AC}/><path d="M50 14v96" ${WK}/><g ${ST}>
+ ${head(104,24,-1,0)}<path d="M104 33v32"/><path d="M104 65l3 20 -1 13"/><path d="M106 98l14 12"/><path d="M106 98l-5 4"/>
+ <path d="M104 65l-6 20 -14 2"/><path d="M104 42l-26 10 -26 -2"/></g>
+ <path d="M98 104h12" fill="none" stroke="var(--warmc)" stroke-width="2" stroke-dasharray="3 3"/>
+ <text x="130" y="56" fill="var(--warmc)" font-size="10.5">пятка не до конца вверх,</text>
+ <text x="130" y="70" fill="var(--warmc)" font-size="10.5">а на середине высоты</text>
+ ${CAP(14,128,'одна нога, пятка на середине высоты · 30 сек без движения')}</svg>`,
+
+tibialis:`<svg viewBox="0 0 260 132" style="color:var(--muted)">
+ <path d="M14 110h232" ${AC}/><path d="M30 14v96M150 14v96" ${WK}/><g ${ST}>
+ ${head(42,22,1,0)}<path d="M40 31l6 36"/><path d="M46 67l34 38"/><path d="M80 105l14 4"/><path d="M42 40l8 26"/>
+ ${head(162,22,1,0)}<path d="M160 31l6 36"/><path d="M166 67l34 38"/><path d="M200 105l10 -10"/><path d="M162 40l8 26"/></g>
+ <path d="M214 104q8 -8 0 -16" fill="none" stroke="var(--accent)" stroke-width="2" stroke-dasharray="3 3"/>
+ ${CAP(14,128,'спиной к стене, пятки в 30–40 см')}${CAP(146,128,'носки к себе, вниз медленно')}</svg>`,
+
+wallslide:`<svg viewBox="0 0 260 132" style="color:var(--muted)">
+ <path d="M14 110h232" ${AC}/><rect x="20" y="6" width="220" height="104" rx="2" fill="none" stroke="var(--warmc)" stroke-width="1.4" stroke-dasharray="4 4"/><g ${ST}>
+ ${head(70,26,0,0)}<path d="M70 35v38"/><path d="M70 73l-8 36M70 73l8 36"/><path d="M70 42l-20 6 -4 -22M70 42l20 6 4 -22"/>
+ ${head(190,30,0,0)}<path d="M190 39v34"/><path d="M190 73l-8 36M190 73l8 36"/><path d="M190 42l-14 -16 -10 -16M190 42l14 -16 10 -16"/></g>
+ <path d="M112 50h26" fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linecap="round"/><path d="M132 45l7 5 -7 5" fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linecap="round"/>
+ ${CAP(26,126,'«W»: локти и кисти у стены')}${CAP(146,126,'«Y»: вверх, не отрывая')}</svg>`,
+
+toetuck:`<svg viewBox="0 0 260 132" style="color:var(--muted)">
+ <path d="M14 110h232" ${AC}/><g ${ST}>
+ ${head(30,66,0,1)}<path d="M38 72h62"/><path d="M40 72v36"/><path d="M100 72v36"/><path d="M100 108l20 -8"/><path d="M120 100l6 10"/>
+ ${head(160,64,0,1)}<path d="M168 72l52 14"/><path d="M168 72l-6 36"/><path d="M220 86l-18 22"/><path d="M202 108h20"/><path d="M222 108l4 -10 6 12"/></g>
+ <path d="M120 100l6 10" fill="none" stroke="var(--accent)" stroke-width="3.4" stroke-linecap="round"/>
+ <path d="M226 98l6 12" fill="none" stroke="var(--accent)" stroke-width="3.4" stroke-linecap="round"/>
+ ${CAP(14,128,'пальцы ног подогнуты')}${CAP(140,128,'таз к пяткам, насколько пускают')}</svg>`,
+
+kneewall:`<svg viewBox="0 0 260 132" style="color:var(--muted)">
+ <path d="M14 110h232" ${AC}/><path d="M200 10v100" ${WK}/><g ${ST}>
+ ${head(160,22,1,0)}<path d="M158 31l2 30"/><path d="M160 61l36 18"/><path d="M196 79l-22 27"/><path d="M168 110h22"/>
+ <path d="M160 61l-14 24 -16 22"/><path d="M158 40l20 8 20 -2"/></g>
+ <circle cx="197" cy="79" r="5" fill="var(--accent)"/>
+ <path d="M190 118h10" fill="none" stroke="var(--warmc)" stroke-width="2"/><path d="M190 114v8M200 114v8" fill="none" stroke="var(--warmc)" stroke-width="1.6"/>
+ <text x="44" y="60" fill="var(--warmc)" font-size="11">8–10 см до стены</text>
+ <text x="44" y="76" fill="var(--warmc)" font-size="11">пятка прижата</text>
+ ${CAP(14,128,'колено к стене над 2–3 пальцем и обратно')}</svg>`,
+
+waddle:`<svg viewBox="0 0 260 132" style="color:var(--muted)">
+ <path d="M14 110h232" ${AC}/><g ${ST}>
+ ${head(70,22,0,0)}<path d="M70 31v36"/><path d="M62 67h16"/><path d="M62 67l-2 21 0 20M78 67l2 21 0 20"/><path d="M52 109h10M78 109h10"/><path d="M70 38l-12 26M70 38l12 26"/>
+ ${head(190,22,0,0)}<path d="M190 31v36"/><path d="M182 67h16"/><path d="M182 67l-2 21 0 20"/><path d="M198 67l14 20 -6 18"/><path d="M172 109h10"/><path d="M204 104l4 6"/><path d="M190 38l-12 26M190 38l12 26"/></g>
+ <path d="M218 86h14" fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linecap="round"/><path d="M228 82l5 4 -5 4" fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linecap="round"/>
+ ${CAP(14,128,'стопы на ширине кулака, носки прямо')}${CAP(144,128,'пятка вверх — колено наружу')}</svg>`,
+
+decel:`<svg viewBox="0 0 260 132" style="color:var(--muted)">
+ <path d="M14 110h232" ${AC}/><g ${ST}>
+ ${head(40,40,1,0.3)}<path d="M47 45l22 22"/><path d="M69 67l16 24 6 17"/><path d="M69 67l-16 14 -4 26"/><path d="M48 50l-14 14M52 50l22 -4"/>
+ ${head(196,40,1,0.4)}<path d="M190 48l-18 26"/><path d="M172 74l34 12 8 22"/><path d="M172 74l-12 18 -18 16"/><path d="M192 52l14 14"/></g>
+ <path d="M106 108h6M124 108h6M140 108h6" fill="none" stroke="var(--warmc)" stroke-width="3" stroke-linecap="round"/>
+ <path d="M142 116h72" fill="none" stroke="var(--warmc)" stroke-width="1.6" stroke-dasharray="3 3"/>
+ ${CAP(14,128,'разгон')}${CAP(96,128,'шаги короче, последний широкий, таз назад')}</svg>`,
+
+latstart:`<svg viewBox="0 0 260 132" style="color:var(--muted)">
+ <g fill="none" stroke="currentColor" stroke-width="2.6">
+ <ellipse cx="40" cy="62" rx="7" ry="13"/><ellipse cx="72" cy="62" rx="7" ry="13" stroke-dasharray="3 3"/>
+ <ellipse cx="160" cy="62" rx="7" ry="13" stroke-dasharray="3 3"/><ellipse cx="192" cy="62" rx="7" ry="13"/></g>
+ <ellipse cx="106" cy="62" rx="7" ry="13" fill="none" stroke="var(--accent)" stroke-width="3"/>
+ <ellipse cx="226" cy="48" rx="7" ry="13" fill="none" stroke="var(--accent)" stroke-width="3" transform="rotate(30 226 48)"/>
+ <path d="M80 62h16" fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linecap="round"/><path d="M92 57l6 5 -6 5" fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linecap="round"/>
+ <path d="M162 44q30 -26 58 -6" fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-dasharray="4 3"/>
+ <path d="M40 84h12M160 84h12" fill="none" stroke="var(--warmc)" stroke-width="2.4" stroke-linecap="round"/>
+ <text x="22" y="98" fill="var(--warmc)" font-size="10">толчок дальней</text><text x="142" y="98" fill="var(--warmc)" font-size="10">дальняя через ближнюю</text>
+ <text x="90" y="20" fill="var(--muted)" font-size="10">вид сверху · бег вправо →</text>
+ ${CAP(20,124,'боковой шаг')}${CAP(150,124,'скрестный старт')}</svg>`,
+
+rdlb:`<svg viewBox="0 0 260 132" style="color:var(--muted)">
+ <path d="M14 110h232" ${AC}/><g ${ST}>
+ ${head(62,22,1,0)}<path d="M62 31l-2 31"/><path d="M60 62l6 24 -2 22"/><path d="M58 110h16"/><path d="M60 62l-8 24 -8 20"/><path d="M44 106l-4 4"/><path d="M61 40v32"/>
+ ${head(200,64,1,0.6)}<path d="M150 60l42 10"/><path d="M150 60l6 26 -2 22"/><path d="M146 110h18"/><path d="M150 60l-10 26 -12 20"/><path d="M128 106l-4 4"/><path d="M186 70v26"/></g>
+ <path d="M53 74h16M178 98h16" ${AC}/>
+ ${CAP(14,128,'задняя нога на носке, подпирает')}${CAP(140,128,'таз назад, гантели вдоль ноги')}</svg>`
 };
