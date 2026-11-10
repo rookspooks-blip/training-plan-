@@ -29,8 +29,8 @@ function smoothPath(P){
 }
 
 /* ---------- График веса: среднее за 7 дней, точки, ориентиры сушки ----------
-   Точка — сам вес за день, на своей высоте; линия — среднее за 7 дней, она идёт между точками и
-   сглаживает скачки воды. Нажатие на график — подсказка: вес, среднее, и сам список «Все взвешивания» */
+   Точка — сам вес за день, основная линия идёт ровно через центры точек. Среднее за 7 дней — тонкая
+   пунктирная линия рядом: она сглаживает скачки воды. Нажатие на график — подсказка: вес и среднее */
 function weightChartHTML(){
   const pts=weightsSorted();
   if(pts.length<2) return null;
@@ -49,19 +49,20 @@ function weightChartHTML(){
   const step=(hi-lo)>6?2:1;
   let grid='';
   for(let v=lo; v<=hi; v+=step) grid+=`<line x1="${L}" x2="${W-R}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--ln)" stroke-width="1"/><text x="${L-6}" y="${Y(v)+3.5}" text-anchor="end" font-size="10" fill="var(--t3)">${v}</text>`;
-  const line=smoothPath(avg.map(p=>[X(p.d), Y(p.v)]));
+  const line=smoothPath(shown.map(p=>[X(p.d), Y(p.w)])), avgLine=smoothPath(avg.map(p=>[X(p.d), Y(p.v)]));
   const tgPath = tg.length ? (()=>{ const b=avgWin(addDays(settings.start,6),14); const p0={d:settings.start,v:b?b.v:tg[0].v};
     return [p0,...tg].filter(p=>p.d>=x0).map((p,i)=>`${i?'L':'M'}${X(p.d).toFixed(1)} ${Y(p.v).toFixed(1)}`).join(''); })() : '';
   return {shown, X, Y, W, H, T, B, html:`<div class="chart"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="График веса">${grid}
       ${tgPath?`<path d="${tgPath}" fill="none" stroke="var(--t3)" stroke-width="1.5" stroke-dasharray="4 4"/>`:''}
       ${tg.map(g=>`<path d="M${X(g.d)} ${Y(g.v)-5}l5 5-5 5-5-5z" fill="var(--s1)" stroke="var(--t3)" stroke-width="1.5"/>`).join('')}
+      ${shown.length>2?`<path d="${avgLine}" fill="none" stroke="var(--t3)" stroke-width="1.4" stroke-dasharray="3 3" opacity=".9"/>`:''}
       <path class="draw" pathLength="1" d="${line}" fill="none" stroke="var(--acc)" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>
-      ${shown.map(p=>`<circle cx="${X(p.d).toFixed(1)}" cy="${Y(p.w).toFixed(1)}" r="3" fill="var(--s1)" stroke="var(--t3)" stroke-width="1.6"/>`).join('')}
+      ${shown.map(p=>`<circle cx="${X(p.d).toFixed(1)}" cy="${Y(p.w).toFixed(1)}" r="3.2" fill="var(--s1)" stroke="var(--acc)" stroke-width="1.8"/>`).join('')}
       <line data-cross x1="0" x2="0" y1="${T}" y2="${H-B}" stroke="var(--tx)" stroke-width="1" opacity="0"/>
       <circle data-dot r="4.5" fill="var(--acc)" stroke="var(--s1)" stroke-width="2" opacity="0"/>
       <text x="${L}" y="${H-6}" font-size="10" fill="var(--t3)">${shortDate(x0)}</text><text x="${W-R}" y="${H-6}" font-size="10" fill="var(--t3)" text-anchor="end">${shortDate(x1)}</text></svg>
       <div class="tt"></div></div>
-    <div class="legend"><span><i style="background:var(--acc)"></i>среднее за 7 дней</span><span><i style="background:var(--s1);border:1.6px solid var(--t3);height:6px;width:6px;border-radius:50%"></i>вес за день</span>${tg.length?'<span><i style="background:none;border-top:2px dashed var(--t3);height:0"></i>ориентир сушки</span>':''}</div>`};
+    <div class="legend"><span><i style="background:var(--s1);border:1.8px solid var(--acc);height:6px;width:6px;border-radius:50%"></i>вес за день</span><span><i style="background:none;border-top:2px dashed var(--t3);height:0"></i>среднее за 7 дней</span>${tg.length?'<span><i style="background:none;border-top:2px dashed var(--t3);height:0"></i>ориентир сушки</span>':''}</div>`};
 }
 function bindWeightChart(root, C){
   const svg=root.querySelector('.chart svg'); if(!svg) return;

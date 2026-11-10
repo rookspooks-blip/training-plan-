@@ -458,6 +458,8 @@ const W7 = '2026-11-16';
     const cs = [...div.querySelectorAll('circle')].filter(c => !c.hasAttribute('data-dot'));
     const off = C.shown.map((q, i) => { const c = cs[i]; return Math.max(Math.abs(+c.getAttribute('cx') - C.X(q.d)), Math.abs(+c.getAttribute('cy') - C.Y(q.w))); });
     return { n: cs.length, shown: C.shown.length, off: Math.max(...off) }; });
+  check('график веса: линия проходит через центры точек', await p.evaluate(() => { const C = weightChartHTML(); const div = document.createElement('div'); div.innerHTML = C.html;
+    const d = div.querySelector('path.draw').getAttribute('d'); return C.shown.every(q => d.includes(`${C.X(q.d).toFixed(1)} ${C.Y(q.w).toFixed(1)}`)); }));
   check('график веса: каждая точка — на весе за день', r.n === r.shown && r.n >= 5 && r.off < 0.1, JSON.stringify(r));
   await ctx.close();
 }
