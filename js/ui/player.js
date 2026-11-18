@@ -1,734 +1,787 @@
 "use strict";
 /* ############################################################
-   ПЛЕЕР ТРЕНИРОВКИ · ЭКРАН (E3.1, макет А «Лента»)
-   Сверху шапка: закрыть, штрихи шагов, меню. В середине лента: сделанное строками,
-   текущее упражнение с дозой, «в прошлый раз», записанные подходы со временем.
-   Внизу панель: вес и повторы с − и +, «Готово». Над панелью после подхода - полоса отдыха.
-   Отдых ничего не блокирует. Модель, запись и таймер отдыха - в player-core.js.
-   Один обработчик нажатий на весь экран (делегирование): экран перерисовывается целиком,
-   а числа на панели при − и + обновляются на месте, чтобы удержание кнопки не рвалось.
+   ПЛЕЕР ТРЕНИРОВКИ
+   Один подход на экран: фото, огромные числа плана, «Готово».
+   Отдых — круг во весь экран, звук и вибрация в конце.
+   Пары («в паре с …») чередуются: подход A → подход B → отдых.
+   После последнего подхода — «Как тяжело?».
+   Пишет туда же, что и раньше: журнал подходов, галочки,
+   время с часов, самочувствие. Формат данных тот же.
    ############################################################ */
-const ICO={
-  x:'<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>',
-  more:'<svg viewBox="0 0 24 24"><path d="M5 12h.01M12 12h.01M19 12h.01" stroke-width="3.4"/></svg>',
-  ck:'<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
-  sk:'<svg viewBox="0 0 24 24"><path d="M6 12h12"/></svg>'
-};
-const plBox=()=>$('#player');
+const PL={id:null, steps:[], i:0, rest:null, iv:0, wake:null, ctx:null, edit:{}, passed:new Set(), photo2:false};
+const TYPE_VAR={'c-str':'var(--str)','c-spd':'var(--spd)','c-up':'var(--up)','c-car':'var(--car)','c-rest':'var(--t3)'};
+const plEntry=()=>PL.id ? buildWeek().find(e=>e.id===PL.id && e.type==='gym') : null;
+const plSkipDose=ex=>/пропустить/.test(ex.dose);
+const mmss=s=>`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+const plSide=ex=>{ const m=ex.dose.match(/на (ногу|руку|сторону)/); return m ? `на ${m[1]==='ногу'?'каждую ногу':m[1]==='руку'?'каждую руку':'каждую сторону'}` : ''; };
+const plUnit=P=>P.timed?'сек':'повт.';
 
-/* ---------- Тексты ---------- */
-/* «12,5 кг × 8, 8, 7»: вес один на все подходы - выносится вперёд, разный - у каждого */
-function plSumSets(sets, timed){
-  const rec=(sets||[]).filter(x=>num(x.r)!=null); if(!rec.length) return '';
-  const ws=rec.map(x=>num(x.w)||0), rs=rec.map(x=>String(x.r));
-  const unit=timed?' сек':'';
-  if(ws.every(w=>w===ws[0])) return (ws[0]?`${fmtW(ws[0])} кг × `:'')+rs.join(', ')+(ws[0]?'':unit);
-  return rec.map((x,i)=>(ws[i]?fmtW(ws[i])+'×':'')+rs[i]).join(', ')+unit;
-}
-const plRowVal=(x,timed)=>{ const w=num(x.w)||0; return w ? `${fmtW(w)} кг × ${x.r}` : timed ? `${x.r} сек` : `${x.r} повт.`; };
-const plFmtNum=n=>String(Math.round(n*10)/10).replace('.',',');
-
-/* ---------- Лента ---------- */
-function plPastLine(g, e, steps, L){
-  const st=plGroupState(g, e, steps);
-  if(st==='todo') return null;
-  const tm=L.tm[g.id]||'';
-  if(g.warm) return {sk:st==='skip', txt:'Разминка'+(st==='skip'?' · пропущена':''), tm:st==='skip'?'':tm, id:g.id};
-  const ex=g.ex, Lg=plLog(ex);
-  if(st==='skip') return {sk:true, txt:`${plShortName(ex.name)} · пропущено`, tm:'', id:g.id};
-  if(isLogged(ex)){
-    const sum=plSumSets(Lg&&Lg.sets, parseDose(ex.dose).timed);
-    const last=Lg&&Lg.sets?[...Lg.sets].reverse().find(x=>num(x.r)!=null):null;
-    return {sk:false, txt:sum?`${plShortName(ex.name)} · ${sum}`:plShortName(ex.name), tm:(last&&last.t)||'', id:g.id, part:st==='part'};
-  }
-  return {sk:false, txt:ex.name, tm, id:g.id};
-}
-function plPastHTML(lines, cap){
-  if(!lines.length) return '';
-  let more='';
-  if(cap && lines.length>cap){ more=`<div class="more">ещё ${lines.length-cap} выше</div>`; lines=lines.slice(-cap); }
-  return `<div class="pastl">${more}${lines.map(l=>`<button type="button" class="pl${l.sk?' sk':''}" data-a="past" data-id="${esc(l.id)}">${l.sk?ICO.sk:ICO.ck}<span>${esc(l.txt)}</span><time>${esc(l.tm)}</time></button>`).join('')}</div>`;
-}
-function plHeadHTML(tag, name, dose, id){
-  return `<div class="exh" role="button" tabindex="0" data-a="title" data-id="${esc(id)}"><span class="ptag">${esc(tag)}</span><h2>${esc(name)}</h2>${dose?`<p class="dose">${esc(dose)}</p>`:''}</div>`;
-}
-function plFocusHTML(e, steps, cur, fid, groups){
-  const gi=groups.findIndex(g=>g.id===fid), g=groups[gi], L=live();
-  const tagOf=s=>`${s} · ${gi+1} из ${groups.length}`;
-  if(g.warm){
-    const W=warmupOf(e.day,state.week);
-    return plHeadHTML(tagOf('Разминка'),'Разминка',W.dur,'warm')+`<div class="xcard">${W.list.map((s,i)=>
-      `<button type="button" class="xrow wm chk" data-a="wi" data-tech="${esc(s.tech)}" data-nm="${esc(s.name)}"><span class="ck2${marks[key(PL.id,s.id)]?' on':''}"></span><span class="v">${esc(s.name)}</span><time>${mmss(s.sec)}</time></button>`).join('')}</div>`;
-  }
-  const ex=g.ex, type=plType(ex), tag=tagOf(ex.badge[0]), dose=ex.dose+(ex.zapas?` · запас ${ex.zapas}`:'')+(ex.sub?' · замена'+(ex.sub.note?': '+ex.sub.note.toLowerCase():''):'');
-  if(type==='iv') return plIvFocus(ex, tag);
-  if(type==='scn') return plScnFocus(ex, tag);
-  if(type==='test') return plHeadHTML(tag, ex.name, ex.dose, ex.id)+`<div class="xcard"><div class="xrow"><span class="lbl">Последний результат</span><span class="pv">${plTestLast(ex)}</span></div></div>`;
-  if(type==='set' || type==='hold'){
-    const P=parseDose(ex.dose), Lg=plLog(ex), N=plSets(ex), last=lastLog(ex.name, logKey(PL.id,ex.id));
-    const rows=[`<div class="xrow"><span class="lbl">В прошлый раз</span><span class="pv">${last?esc(plSumSets(last.sets,P.timed)):'нет записей'}</span></div>`];
-    if(ex.hint) rows.push(`<div class="xrow"><span class="lbl">${esc(ex.hint)}</span></div>`);
-    for(let si=0; si<N; si++){
-      if(!plSetFull(ex,si)) continue;
-      const s=Lg.sets[si], fresh=PL.undo && PL.undo.id===ex.id && PL.undo.si===si && Date.now()-PL.undo.t<UNDO_MS;
-      const isNew=PL.newRow && PL.newRow.id===ex.id && PL.newRow.si===si;
-      rows.push(`<div class="xrow${isNew?' new':''}" role="button" tabindex="0" data-a="row" data-id="${esc(ex.id)}" data-si="${si}"><span class="n">${si+1}</span><span class="v">${esc(plRowVal(s,P.timed))}</span>${fresh?`<button type="button" class="un" data-a="undo" data-t="${esc(s.t||'')}">Отменить</button>`:`<time>${esc(s.t||'')}</time>`}</div>`);
+/* ---------- Шаги ---------- */
+function plSets(ex){ const P=parseDose(ex.dose), L=logs[logKey(PL.id,ex.id)]; return Math.max(P.sets, L&&L.sets?L.sets.length:0); }
+function plExList(e){ return e.day.ex.filter(x=>!plSkipDose(x)); }
+function plBuild(e){
+  const out=[], list=plExList(e);
+  if(!e.day.noWarm) out.push({k:'warm'});
+  const isPair=x=>/^в паре/.test(x.rest||'') && isLogged(x);
+  for(let n=0;n<list.length;n++){
+    const ex=list[n], nx=list[n+1];
+    if(isPair(ex) && nx && isPair(nx)){
+      const A=plSets(ex), B=plSets(nx);
+      for(let s=0;s<Math.max(A,B);s++){
+        if(s<A) out.push({k:'set', ex, si:s, n:A, mate:s<B?nx:null, first:true});
+        if(s<B) out.push({k:'set', ex:nx, si:s, n:B, mate:s<A?ex:null});
+      }
+      out.push({k:'rpe', ex},{k:'rpe', ex:nx}); n++; continue;
     }
-    PL.newRow=null;
-    const done=plGroupState(g,e,steps)==='done' && !plSkipped(ex.id);
-    if(done && fid===ex.id){
-      const cur10=Lg&&Lg.rpe;
-      rows.push(`<div class="chiprow"><span class="lbl">Запас повторов</span>${ZAP.map(([t,v])=>`<button type="button" class="zc${cur10===v?' on':''}" data-a="zap" data-id="${esc(ex.id)}" data-v="${v}">${t}</button>`).join('')}</div>`);
-    }
-    return plHeadHTML(tag, ex.name, dose, ex.id)+`<div class="xcard">${rows.join('')}</div>`;
+    if(isLogged(ex)){ const N=plSets(ex); for(let s=0;s<N;s++) out.push({k:'set', ex, si:s, n:N}); out.push({k:'rpe', ex}); }
+    else out.push({k:'ex', ex});
   }
-  /* готовность и счёт: заголовок, при необходимости одна строка */
-  const rows=[];
-  if(ex.rest && ex.rest!=='—') rows.push(`<div class="xrow"><span class="lbl">Отдых между</span><span class="pv">${esc(ex.rest)}</span></div>`);
-  if(type==='ready' && readyLow()) rows.push(`<div class="xrow"><span class="lbl" style="color:var(--acc)">Лёгкий день по прыжку</span></div>`);
-  return plHeadHTML(tag, ex.name, dose, ex.id)+(rows.length?`<div class="xcard">${rows.join('')}</div>`:'');
+  out.push({k:'sum'});
+  return out;
 }
-
-/* ---------- Панель ---------- */
-function plRestHTML(){
-  const R=plRest(); if(!R) return '';
-  const frac=R.total>0 ? Math.max(0,Math.min(1, 1-R.left/R.total)) : 1;
-  return `<div class="rest${R.over?' over':''}" data-rest><span>Отдых</span><div class="bar"><i data-rbar style="width:${(R.over?100:frac*100).toFixed(1)}%"></i></div><b data-rt>${R.over?'+':''}${mmss(Math.abs(R.left))}</b></div>`;
+const plLog=ex=>logs[logKey(PL.id,ex.id)];
+const plSetFull=(ex,si)=>{ const L=plLog(ex); return !!(L && L.sets && L.sets[si] && num(L.sets[si].r)!=null); };
+const plAnyLogged=e=>plExList(e).some(x=>{ const L=plLog(x); return L && hasData(L); });
+function plStepDone(st, e){
+  if(st.k==='warm') return PL.passed.has('warm') || warmupOf(e.day,state.week).list.every(s=>marks[key(PL.id,s.id)]) || plAnyLogged(e);
+  if(st.k==='set') return plSetFull(st.ex, st.si);
+  if(st.k==='rpe'){ const L=plLog(st.ex); return PL.passed.has('rpe'+st.ex.id) || !!(L && L.rpe!=null); }
+  if(st.k==='ex') return PL.passed.has('ex'+st.ex.id) || !!marks[key(PL.id,st.ex.id)];
+  return false;
 }
-function plStepper(f, val, unit, opt){
-  const txt = f==='w' && !val ? '—' : plFmtNum(val);
-  return `<div class="stp${opt.solo?' solo':''}${opt.chg?' chgd':''}" data-stp="${f}"><button type="button" class="sb" data-st="${f}" data-d="-1" aria-label="${f==='w'?'Вес':'Повторы'} меньше">−</button><button type="button" class="num" data-a="num" data-f="${f}" data-v>${txt}<small>${unit}</small></button><button type="button" class="sb" data-st="${f}" data-d="1" aria-label="${f==='w'?'Вес':'Повторы'} больше">+</button></div>`;
-}
-function plSetLabel(cur, lag, v){
-  const side=plSide(cur.ex);
-  const base=`Подход ${cur.si+1} из ${cur.n}${side?` · ${side}`:''}${cur.mate?` · в паре с «${cur.mate.name}»`:''}`;
-  return lag ? `Дальше: ${plShortName(cur.ex.name)} · подход ${cur.si+1} из ${cur.n}` : base;
-}
-function plChgText(v){
-  const cw='w' in v.ed, cr='r' in v.ed;
-  if(cw && cr) return 'значения изменены';
-  if(cw || cr) return cw ? 'вес изменён' : (v.P.timed?'секунды изменены':'повторы изменены');
-  /* правило прогрессии советует прибавить: одна строка вместо длинного пояснения («в прошлый раз 10 кг, сегодня 12,5») */
-  if(!v.rec && v.lastTop>0 && v.pl.w>v.lastTop && v.w===v.pl.w && !(v.w===v.defW && v.defW!==v.pl.w)) return `по плану +${plFmtNum(v.pl.w-v.lastTop)} кг`;
-  return '';
-}
-function plPanelHTML(e, steps, cur, lag){
-  const rest=plRestHTML();
-  /* вопрос про опечатку: пока нет ответа, ничего не пишется */
-  if(PL.ask && cur.k==='set'){
-    const A=PL.ask;
-    return `<div class="panel">${rest}<div class="plbl"><span>${esc(plSetLabel(cur,lag))}</span></div>
-      <div class="ask"><b>${plFmtNum(A.val)} кг вместо ${plFmtNum(A.fix)}?</b><p>Это больше прошлого веса (${plFmtNum(A.ref)} кг) в ${Math.round(A.val/A.ref)} раз.</p></div>
-      <div class="two"><button type="button" class="go alt" data-a="ask" data-v="keep">${plFmtNum(A.val)} кг</button><button type="button" class="go" data-a="ask" data-v="fix">${plFmtNum(A.fix)} кг</button></div></div>`;
-  }
-  /* новые виды шагов (интервалы, сценарий, тест) подключаются здесь по cur.k и cur.t: панель своя, остальной экран тот же */
-  if(cur.k==='warm') return `<div class="panel">${rest}<div class="plbl"><span>Все пункты отмечаются сразу</span></div><button type="button" class="go" style="margin-top:0" data-a="warmdone">Разминка сделана</button></div>`;
-  if(cur.k==='ex' && cur.t==='iv') return plIvPanel(cur, rest);
-  if(cur.k==='ex' && cur.t==='scn') return plScnPanel(cur, rest);
-  if(cur.k==='ex' && cur.t==='test') return plTestPanel(cur, rest, lag);
-  if(cur.k==='ex'){
-    const lab=(lag?`Дальше: ${plShortName(cur.ex.name)} · `:'')+cur.ex.dose;
-    if(cur.t==='ready') return `<div class="panel">${rest}<div class="plbl"><span>${esc(lag?'Дальше: '+plShortName(cur.ex.name):'Метка на стене')}</span><span class="chg">не достал 2 из 3 - лёгкий день</span></div><div class="two" style="margin-top:0"><button type="button" class="go" data-a="ready" data-v="1">Достал метку</button><button type="button" class="go alt" data-a="ready" data-v="0">Не достал</button></div></div>`;
-    return `<div class="panel">${rest}<div class="plbl"><span>${esc(lab)}</span></div><button type="button" class="go" style="margin-top:0" data-a="count">Сделано</button></div>`;
-  }
-  const v=plValues(cur), label=plSetLabel(cur,lag,v);
-  if(cur.t==='hold'){
-    const H=PL.hold && PL.hold.key===plSig(cur) ? PL.hold : null;
-    if(H){
-      const left=Math.max(0,Math.ceil((H.end-Date.now())/1000));
-      return `<div class="panel">${rest}<div class="phase"><div class="plbl" style="padding:0 0 4px"><span>${esc(label)}</span></div><div class="big" data-hbig>${mmss(left)}<small>осталось</small></div><div class="pbar"><i data-hbar style="width:${(100*(1-left/H.sec)).toFixed(1)}%"></i></div></div><button type="button" class="go alt" style="margin-top:10px" data-a="hstop">Стоп</button></div>`;
-    }
-    return `<div class="panel">${rest}<div class="plbl"><span>${esc(label)}</span><span class="chg" data-chg>${esc(plChgText(v))}</span></div><div class="steppers">${plStepper('r',v.r,'секунд',{solo:true,chg:'r' in v.ed})}</div><button type="button" class="go" data-a="hstart">Старт</button></div>`;
-  }
-  const showW=v.hasW;
-  const plus = !showW && v.canW ? `<button type="button" class="chg" style="min-height:44px;margin:-10px -6px -10px 0;padding:0 6px;font-weight:900" data-a="wplus">+ вес</button>` : `<span class="chg" data-chg>${esc(plChgText(v))}</span>`;
-  return `<div class="panel">${rest}<div class="plbl"><span>${esc(label)}</span>${plus}</div>
-    <div class="steppers">${showW?plStepper('w',v.w,v.WK.ph==='доп.'?'кг доп.':'кг',{chg:'w' in v.ed}):''}${plStepper('r',v.r,plUnit(v.P)==='сек'?'секунд':'повторов',{solo:!showW,chg:'r' in v.ed})}</div>
-    <button type="button" class="go" data-a="done">Готово</button></div>`;
-}
-/* итог: время, сколько подходов, одна необязательная шкала */
-function plSumPanel(e, steps){
-  const W=watch[watchKey(PL.id)]||{}, ss=sessionState(PL.id);
-  const m = ss==='run' ? watchMinutes({s:W.s, e:nowHM()}) : watchMinutes(W);
-  const d=dayDate(e), GL=gymLoadOf(d, PL.id);
-  let sets=0; plExList(e).forEach(ex=>{ sets+=plRecCount(ex); });
-  const left=!!plCur(e,steps) || plGroups(e).some(g=>plSkipped(g.id));   /* есть что догнать: «Продолжить» вернёт пропущенное */
-  return `<div class="panel sumv"><div class="big"><b>${m!=null?(m<60?`${m} мин`:`${Math.floor(m/60)} ч ${String(m%60).padStart(2,'0')}`):'-'}</b><span>${m!=null&&m>=60?'мин · ':''}${sets} ${plural(sets,'подход','подхода','подходов')}</span></div>
-    <div class="plbl" style="padding-top:14px"><span>Как тяжело была тренировка, 1-10</span><span class="chg">${GL?`${GL.min} мин × ${GL.rpe}`:''}</span></div>
-    <div class="sc">${Array.from({length:10},(_,i)=>`<button type="button" class="${GL&&GL.rpe===i+1?'on':''}" data-a="srpe" data-v="${i+1}">${i+1}</button>`).join('')}</div>
-    <div class="two">${left?`<button type="button" class="go alt" data-a="resume">Продолжить</button>`:''}<button type="button" class="go${left?'':' neutral'}" data-a="min">Закрыть</button></div></div>`;
-}
-
-/* ---------- Отрисовка ---------- */
-function plRender(){
-  const box=plBox(), e=plEntry();
-  if(!e){ closePlayer(); return; }
-  const steps=plBuild(e), cur=plCur(e,steps), L=live(), groups=plGroups(e);
-  const sum = !cur || PL.view==='sum';
-  /* фокус ленты: текущее упражнение. Сразу после последнего подхода лента остаётся на нём (запас повторов),
-     а панель уже говорит «Дальше» */
-  let fid=null, lag=false;
-  if(!sum){
-    fid=cur.id;
-    if(L.lx && L.lx!==cur.id){
-      const lx=plOrdered(e).find(x=>x.id===L.lx);
-      if(lx && isLogged(lx) && !plSkipped(lx.id) && plGroupState({id:lx.id},e,steps)==='done' && !(cur.k==='set' && plHasRec(cur.ex))){ fid=lx.id; lag=true; }
-    }
-  }
-  const dash=groups.map(g=>{ const st=plGroupState(g,e,steps); return `<i class="${g.id===fid?'c':(st==='done'||(sum&&st!=='skip'&&st!=='todo'))?'d':''}"></i>`; }).join('');
-  const lines=groups.filter(g=>g.id!==fid).map(g=>plPastLine(g,e,steps,L)).filter(Boolean);
-  let feed;
-  if(sum) feed=`<div class="fin"><div class="exh"><span class="ptag">Итог</span><h2>${esc(e.day.title)}</h2></div><div style="height:12px"></div>${plPastHTML(lines,0)}</div>`;
-  else feed=`<div class="fin">${plPastHTML(lines,4)}${plFocusHTML(e,steps,cur,fid,groups)}</div>`;
-  const panel = sum ? plSumPanel(e,steps) : plPanelHTML(e,steps,cur,lag);
-  box.innerHTML=`<div class="pnav"><button type="button" class="rb" data-a="min" aria-label="Закрыть">${ICO.x}</button><div class="dashes">${dash}</div><button type="button" class="rb" data-a="menu" aria-label="Меню">${ICO.more}</button></div>
-    ${PL.saveBad?`<div class="savebad"><span>Не сохраняется на телефоне</span><button type="button" data-a="saveb">Сделать копию</button></div>`:''}
-    <div class="feed">${feed}</div>${panel}`;
-  const f=box.querySelector('.feed'); if(f) f.scrollTop=f.scrollHeight;
-  /* кнопка «Отменить» живёт 5 секунд: после - строка снова обычная */
-  clearTimeout(PL.undoT);
-  if(PL.undo && Date.now()-PL.undo.t<UNDO_MS) PL.undoT=setTimeout(plExpireUndo, UNDO_MS-(Date.now()-PL.undo.t)+30);
-}
-/* через 5 секунд «Отменить» превращается во время подхода. На месте, без перерисовки: нажатие в этот момент не пропадает */
-function plExpireUndo(){
-  plBox().querySelectorAll('.xrow .un').forEach(b=>{ const t=document.createElement('time'); t.textContent=b.dataset.t||''; b.replaceWith(t); });
-}
-/* числа панели на месте: удержание «+» не рвётся перерисовкой */
-function plPatchPanel(){
-  const box=plBox(); if(!box || box.hidden || !PL.id) return;
+function plFirstUndone(e){ const i=PL.steps.findIndex(st=>!plStepDone(st,e)); return i<0 ? PL.steps.length-1 : i; }
+const plSig=st=>st ? `${st.k}|${st.ex?st.ex.id:''}|${st.si??''}` : '';
+/* Состав дня поменялся (замена, колено, «не достал метку») — остаёмся на том же месте */
+function plRebuild(){
   const e=plEntry(); if(!e) return;
-  const cur=plCur(e); if(!cur || cur.k!=='set') return;
-  const v=plValues(cur);
-  const put=(f,val,unit)=>{ const s=box.querySelector(`[data-stp="${f}"]`); if(!s) return;
-    const n=s.querySelector('[data-v]'); n.innerHTML=`${f==='w'&&!val?'—':plFmtNum(val)}<small>${unit}</small>`; s.classList.toggle('chgd', f in v.ed); };
-  put('w',v.w,v.WK.ph==='доп.'?'кг доп.':'кг');
-  put('r',v.r,v.P.timed?'секунд':'повторов');
-  const c=box.querySelector('[data-chg]'); if(c) c.textContent=plChgText(v);
+  const sig=plSig(PL.steps[PL.i]);
+  PL.steps=plBuild(e);
+  const j=PL.steps.findIndex(st=>plSig(st)===sig);
+  PL.i = j>=0 ? j : Math.min(PL.i, PL.steps.length-1);
 }
 
-/* ---------- Нажатия на − и +: один тап - один шаг, удержание повторяет ---------- */
-function plAdj(f, d){
-  const e=plEntry(); if(!e) return;
-  const cur=plCur(e); if(!cur || cur.k!=='set') return;
-  const v=plValues(cur);
-  if(f==='w'){
-    const step=plWStep(v.WK), val=v.w||0;
-    let nv;
-    if(d>0) nv = val ? val+step : (v.pl.w || v.lastTop || OPT_W[cur.ex.tech] || (v.WK.ph==='штанга'?20:step));
-    else nv = Math.max(0, val-step);
-    nv=Math.min(400, Math.round(nv*10)/10);
-    plSetEdit(cur.ex,'w',nv);
-  }else{
-    const step=v.P.timed?5:1, val=v.r||0;
-    plSetEdit(cur.ex,'r',Math.max(1,Math.min(v.P.timed?600:200, val+d*step)));
-  }
-  PL.ask=null;
-  plNormEdit(cur); plPatchPanel();
+/* ---------- Запись подхода — как раньше в журнале ---------- */
+function plWrite(ex, si, w, r){
+  const k=logKey(PL.id, ex.id), P=parseDose(ex.dose);
+  const L=logs[k] || {n:ex.name, d:null, sets:[], rpe:null};
+  while(L.sets.length<P.sets) L.sets.push({w:'',r:''});
+  while(L.sets.length<=si) L.sets.push({w:'',r:''});
+  L.sets[si]={w: w ? fmtW(w) : '', r: r==null ? '' : String(r)};
+  L.n=ex.name; L.tr=P.lo; L.th=P.hi; L.ns=P.sets; L.wk=earlyDlOn()?'deload':weekKind(state.cycle,state.week);
+  if(!L.d && hasData(L)) L.d=isoDay();
+  logs[k]=L; saveLogs();
+  /* все подходы записаны → упражнение отмечено само */
+  if(L.sets.length && L.sets.every(x=>num(x.r)!=null)){ marks[key(PL.id,ex.id)]=true; saveMarks(); }
+  delete PL.edit[k+'|'+si];
 }
-let plRep={t:0,i:0};
-function plRepStop(){ clearTimeout(plRep.t); clearInterval(plRep.i); }
-function plRepStart(f,d){
-  plRepStop(); plAdj(f,d); vibe(6);
-  plRep.t=setTimeout(()=>{ plRep.i=setInterval(()=>{ plAdj(f,d); },110); }, 450);
+function plSetRpe(ex, v){
+  const k=logKey(PL.id, ex.id), P=parseDose(ex.dose);
+  const L=logs[k] || {n:ex.name, d:null, sets:Array.from({length:P.sets},()=>({w:'',r:''})), rpe:null};
+  L.rpe=v; L.n=ex.name; L.tr=P.lo; L.th=P.hi; L.ns=P.sets; L.wk=earlyDlOn()?'deload':weekKind(state.cycle,state.week);
+  logs[k]=L; saveLogs();
+}
+/* Что показать в подходе: записанное → правка → вес прошлого подхода → план */
+function plValues(st){
+  const ex=st.ex, P=parseDose(ex.dose), k=logKey(PL.id,ex.id), L=logs[k];
+  const pl=planFor(ex,P,k), WK=weightKind(ex,P);
+  const rec = plSetFull(ex, st.si) ? L.sets[st.si] : null;
+  const ed = PL.edit[k+'|'+st.si] || {};
+  const ps = pl.sets[st.si] || pl.sets[pl.sets.length-1] || {};
+  const prev = st.si>0 && L && L.sets[st.si-1] && num(L.sets[st.si-1].r)!=null ? num(L.sets[st.si-1].w) : undefined;
+  const w = rec ? num(rec.w) : ('w' in ed ? ed.w : (prev!==undefined ? prev : (ps.w ?? null)));
+  const r = rec ? num(rec.r) : ('r' in ed ? ed.r : (ps.r ?? null));
+  return {ex, P, k, L, pl, WK, rec, w, r};
+}
+const plWStep=WK=> WK.ph==='штанга'||WK.ph==='доп.'||WK.ph==='тренажёр' ? 2.5 : WK.ph==='рюкзак' ? 1 : 0.5;
+const plCanW=WK=> WK.ph!=='—' || /пусто, если без веса/.test(WK.hint);
+
+/* ---------- Отдых: считает от времени окончания, экран не гаснет ---------- */
+function plBeep(){
+  try{
+    const c=PL.ctx; if(c){
+      [0,0.22,0.44].forEach(t=>{
+        const o=c.createOscillator(), g=c.createGain();
+        o.frequency.value=880; o.connect(g); g.connect(c.destination);
+        g.gain.setValueAtTime(0.0001,c.currentTime+t);
+        g.gain.exponentialRampToValueAtTime(0.35,c.currentTime+t+0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001,c.currentTime+t+0.18);
+        o.start(c.currentTime+t); o.stop(c.currentTime+t+0.2);
+      });
+    }
+  }catch(e){}
+  try{ if(navigator.vibrate) navigator.vibrate([200,100,200]); else [0,180,360].forEach(t=>setTimeout(haptic,t)); }catch(e){}
+}
+async function plWakeOn(){ try{ if('wakeLock' in navigator && !PL.wake) PL.wake=await navigator.wakeLock.request('screen'); }catch(e){} }
+function plWakeOff(){ try{ PL.wake && PL.wake.release(); }catch(e){} PL.wake=null; }
+function plStartRest(sec, label){
+  try{ PL.ctx=PL.ctx||new (window.AudioContext||window.webkitAudioContext)(); if(PL.ctx.state==='suspended') PL.ctx.resume(); }catch(e){}
+  PL.rest={end:Date.now()+sec*1000, total:sec, label:label||''};
+  plWakeOn(); clearInterval(PL.iv); PL.iv=setInterval(plTick,250);
+}
+function plStopRest(){ clearInterval(PL.iv); PL.rest=null; if(!TM.on) plWakeOff(); updateMini(); }
+const plLeft=()=>PL.rest ? Math.max(0, Math.round((PL.rest.end-Date.now())/1000)) : 0;
+function plTick(){
+  if(!PL.rest){ clearInterval(PL.iv); return; }
+  const left=plLeft(), box=$('#player');
+  if(!box.hidden){
+    const v=box.querySelector('.bigring .v'), arc=box.querySelector('.bigring .arc');
+    if(v) v.textContent=mmss(left);
+    if(arc){ const c=+arc.dataset.c; arc.setAttribute('stroke-dashoffset', (c*(1-left/PL.rest.total)).toFixed(1)); }
+  }
+  updateMini();
+  if(left<=0){
+    plBeep(); plStopRest();
+    if(box.hidden) toast('Отдых закончился — подход');
+    else plRender();
+  }
 }
 
-/* ---------- Ввод с клавиатуры ---------- */
-/* Границы и тексты ошибок. Тостов для проверки ввода нет: красная линия и одна строка под полем */
-const PL_RULE={
-  w:{re:/^\d+([.,]\d+)?$/, min:0, max:400, msg:'вес от 0 до 400'},
-  r:{re:/^\d+$/, min:1, max:200, msg:'повторы от 1 до 200'},
-  s:{re:/^\d+$/, min:1, max:600, msg:'секунды от 1 до 600'},
-  v:{re:/^\d+([.,]\d+)?$/, min:0, max:99999, msg:'число от 0 до 99999'}
-};
-function plParse(kind, text){
-  const R=PL_RULE[kind], t=String(text==null?'':text).trim();
-  if(!R.re.test(t)) return {ok:false, msg:R.msg};
-  let x=parseFloat(t.replace(',','.'));
-  if(kind==='w' || kind==='v') x=Math.round(x*10)/10;
-  if(!isFinite(x) || x<R.min || x>R.max) return {ok:false, msg:R.msg};
-  return {ok:true, val:x};
+/* ---------- Таймер темпа ----------
+   Один повтор = фазы из TEMPO («вниз 3, вверх 1»). Нажал — пошёл повтор: голос
+   называет фазу («вниз», «вверх», «стоп»), после повтора — его номер. Руки заняты,
+   на слух проще, чем по сигналам. Нет синтеза речи — вместо слов тоны.
+   «Сам дальше»: следующий повтор через 1,5 сек после номера — хватает назвать
+   номер и вдохнуть, но мышца не успевает остыть.
+   Наушники: пока таймер включён, играет беззвучная дорожка — так iPhone отдаёт
+   кнопку наушников приложению (музыка при этом встанет). Любое нажатие —
+   следующий повтор. */
+const TM_GAP=1500;
+const TM={on:false, key:'', rep:0, target:0, auto:false, run:null, audio:null, raf:0, last:0, to:0, sched:[]};
+function tempoOf(ex, v){
+  if(v.P.timed){ const s=Math.round(num(v.r)||v.P.lo||30); return {hold:true, ph:[['держи',s]]}; }
+  let ph=TEMPO[ex.tech]; if(!ph) return null;
+  if(ex.tech==='bulgarian' && state.cycle===1 && loadWeek()<=4) ph=[['вниз',3],['вверх',3]];
+  if(ex.tech==='calf' && /пауза внизу/.test(ex.dose)) ph=[['вверх',1],['вниз',3],['стоп',1]];
+  return {hold:false, ph};
 }
-function plNumSheet(o){
-  return new Promise(res=>{
-    let done=false;
-    openSheet(`<h2>${esc(o.title)}</h2>${o.sub?`<div class="sub">${esc(o.sub)}</div>`:''}
-      <div class="estp" style="grid-template-columns:1fr"><div class="col"><div class="fld"><input data-in class="inp0" type="text" inputmode="${o.kind==='w'?'decimal':'numeric'}" enterkeyhint="done" autocomplete="off" autocapitalize="off" spellcheck="false" value="${esc(plFmtNum(o.value))}" aria-label="${esc(o.title)}"></div></div></div>
-      <div class="errtxt" data-err hidden></div>
-      <button type="button" class="btn big pri" style="margin-top:12px" data-ok>Готово</button>`,
-      (el,close)=>{
-        const inp=el.querySelector('[data-in]'), err=el.querySelector('[data-err]');
-        const ok=()=>{
-          const r=plParse(o.kind, inp.value);
-          if(!r.ok){ inp.classList.add('err'); err.hidden=false; err.textContent=r.msg; return; }
-          done=true; close(); res(r.val);
-        };
-        inp.addEventListener('input',()=>{ inp.classList.remove('err'); err.hidden=true; });
-        inp.addEventListener('keydown',ev=>{ if(ev.key==='Enter'){ ev.preventDefault(); ok(); } });
-        el.querySelector('[data-ok]').addEventListener('click',ok);
-        try{ inp.focus(); inp.select(); }catch(x){}
-      }, {onClose:()=>{ if(!done) res(null); }});
-  });
+const tmText=T=>T.ph.map(([n,s,x])=>`${s} ${n}${x?' '+x:''}`).join(' · ');
+const tmLen=T=>T.ph.reduce((a,p)=>a+p[1],0);
+/* вид фазы для цвета на экране и тона без голоса: вниз/назад, удержание, вверх/тяни */
+const tmKind=n=> /вниз|назад|шаг/.test(n) ? 'd' : /стоп|держи/.test(n) ? 'h' : 'u';
+function tmCtx(){ try{ PL.ctx=PL.ctx||new (window.AudioContext||window.webkitAudioContext)(); if(PL.ctx.state==='suspended') PL.ctx.resume(); }catch(e){} return PL.ctx; }
+function tmTone(t, f, dur, vol){
+  const c=PL.ctx; if(!c) return;
+  try{ const o=c.createOscillator(), g=c.createGain();
+    o.frequency.value=f; o.connect(g); g.connect(c.destination);
+    g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(vol,t+0.01); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+    o.start(t); o.stop(t+dur+0.02); }catch(e){}
 }
-async function plTypeNum(f){
-  const e=plEntry(); if(!e) return;
-  const cur=plCur(e); if(!cur || cur.k!=='set') return;
-  const v=plValues(cur), ex=cur.ex;
-  const kind = f==='w' ? 'w' : (v.P.timed ? 's' : 'r');
-  const x=await plNumSheet({kind, title:f==='w'?'Вес, кг':(v.P.timed?'Секунды':'Повторы'), sub:f==='w'?v.WK.hint.replace(/<[^>]+>/g,''):'', value:f==='w'?v.w:v.r});
-  if(x===null) return;
-  /* опечатка на порядок: вес в 2 и более раза больше прошлого по этому упражнению */
-  if(f==='w'){
-    let prev=0; for(let i=cur.si-1;i>=0;i--) if(plSetFull(ex,i)){ prev=num(plLog(ex).sets[i].w)||0; break; }
-    const ref=prev||v.lastTop;
-    if(ref>0 && x>=2*ref){ PL.ask={field:'w', val:x, fix:Math.round(x/10*10)/10, ref}; plRender(); return; }
+/* голос: русский, если есть; список голосов в Safari приходит не сразу */
+let tmVoiceCache=null;
+const tmCanSay=()=>'speechSynthesis' in window && typeof SpeechSynthesisUtterance!=='undefined';
+function tmVoice(){
+  if(tmVoiceCache) return tmVoiceCache;
+  try{ const vs=speechSynthesis.getVoices()||[];
+    tmVoiceCache=vs.find(v=>/^ru/i.test(v.lang) && v.localService) || vs.find(v=>/^ru/i.test(v.lang)) || null; }catch(e){}
+  return tmVoiceCache;
+}
+if(tmCanSay()) try{ speechSynthesis.addEventListener('voiceschanged',()=>{ tmVoiceCache=null; tmVoice(); }); }catch(e){}
+function tmSay(text){
+  if(!tmCanSay()) return false;
+  try{
+    const sy=speechSynthesis; if(sy.speaking||sy.pending) sy.cancel();
+    const u=new SpeechSynthesisUtterance(text); u.lang='ru-RU'; u.rate=1.1; u.volume=1;
+    const v=tmVoice(); if(v) u.voice=v;
+    sy.speak(u); return true;
+  }catch(e){ return false; }
+}
+function tmClearSched(){ TM.sched.forEach(clearTimeout); TM.sched=[]; }
+/* беззвучная дорожка: 1 сек, 8 кГц, 8 бит — нужна только для кнопки наушников */
+function tmSilent(){
+  const n=8000, b=new Uint8Array(44+n), d=new DataView(b.buffer), w=(o,s)=>[...s].forEach((ch,i)=>b[o+i]=ch.charCodeAt(0));
+  w(0,'RIFF'); d.setUint32(4,36+n,true); w(8,'WAVEfmt '); d.setUint32(16,16,true); d.setUint16(20,1,true); d.setUint16(22,1,true);
+  d.setUint32(24,8000,true); d.setUint32(28,8000,true); d.setUint16(32,1,true); d.setUint16(34,8,true); w(36,'data'); d.setUint32(40,n,true);
+  for(let i=0;i<n;i++) b[44+i]=128+(i&1);
+  return URL.createObjectURL(new Blob([b],{type:'audio/wav'}));
+}
+const TM_ACTS=['play','pause','nexttrack','previoustrack'];
+function tmMedia(on, title){
+  const ms='mediaSession' in navigator ? navigator.mediaSession : null;
+  if(on){
+    try{ if(!TM.audio){ TM.audio=new Audio(tmSilent()); TM.audio.loop=true; TM.audio.setAttribute('playsinline',''); }
+      const p=TM.audio.play(); if(p&&p.catch) p.catch(()=>{}); }catch(e){}
+    if(ms){
+      try{ ms.metadata=new MediaMetadata({title:title||'Темп', artist:'Нажми на наушниках — следующий повтор', album:'Три цикла'}); }catch(e){}
+      TM_ACTS.forEach(a=>{ try{ ms.setActionHandler(a, ()=>{ try{ TM.audio.play(); }catch(e){} ms.playbackState='playing'; tmPress(); }); }catch(e){} });
+      try{ ms.playbackState='playing'; }catch(e){}
+    }
+  } else {
+    try{ TM.audio && TM.audio.pause(); }catch(e){}
+    if(ms){ TM_ACTS.forEach(a=>{ try{ ms.setActionHandler(a, null); }catch(e){} }); try{ ms.playbackState='none'; ms.metadata=null; }catch(e){} }
   }
-  PL.ask=null;
-  plSetEdit(ex, f, x); plNormEdit(cur); plRender();
 }
-function plAskAnswer(a){
-  const A=PL.ask; if(!A) return;
-  const e=plEntry(), cur=e&&plCur(e); PL.ask=null;
-  if(cur && cur.k==='set'){ plSetEdit(cur.ex,'w', a==='fix'?A.fix:A.val); plNormEdit(cur); }
+/* текущий подход и его темп, если таймер к нему применим */
+function tmCur(){
+  if($('#player').hidden || PL.rest) return null;
+  const st=PL.steps[PL.i]; if(!st || st.k!=='set') return null;
+  const v=plValues(st), T=tempoOf(st.ex, v);
+  return T ? {st, v, T, key:plSig(st)} : null;
+}
+function tmOn(){
+  const c=tmCur(); if(!c) return;
+  tmCtx(); TM.on=true; TM.key=c.key; TM.rep=0; TM.run=null; TM.target=c.T.hold?1:Math.round(num(c.v.r)||c.v.P.lo||8);
+  tmMedia(true, c.st.ex.name); plWakeOn();
+  /* первое слово — по касанию: iPhone разрешает голос только после жеста */
+  tmSay('готов');
   plRender();
 }
-
-/* ---------- Лист правки записанного подхода ---------- */
-function plEditSheet(exId, si){
-  const e=plEntry(); if(!e) return;
-  const ex=plExList(e).find(x=>x.id===exId); if(!ex) return;
-  const L=plLog(ex), s=L&&L.sets[si]; if(!s) return;
-  const P=parseDose(ex.dose), WK=weightKind(ex,P), wStep=plWStep(WK);
-  const showW = (num(s.w)||0)>0 || plCanW(WK) || ['штанга','гантель','тренажёр','рюкзак','доп.'].includes(WK.ph);
-  const fld=(f,lab,val)=>`<div class="col"><div class="lab">${lab}</div><div class="fld"><button type="button" data-d="-1" data-f="${f}" aria-label="меньше">−</button><input data-i="${f}" type="text" inputmode="${f==='w'?'decimal':'numeric'}" autocomplete="off" value="${esc(val)}" aria-label="${lab}"><button type="button" data-d="1" data-f="${f}" aria-label="больше">+</button></div></div>`;
-  openSheet(`<h2>Подход ${si+1} · ${esc(plShortName(ex.name))}</h2>${s.t?`<div class="sub">записан в ${esc(s.t)}</div>`:''}
-    <div class="estp" style="${showW?'':'grid-template-columns:1fr'}">${showW?fld('w','Вес, кг',plFmtNum(num(s.w)||0)):''}${fld('r',P.timed?'Секунды':'Повторы',String(s.r))}</div>
-    <div class="errtxt" data-err hidden></div>
-    <button type="button" class="btn big pri" style="margin-top:12px" data-save>Сохранить</button>
-    <button type="button" class="btn danger" style="margin-top:10px" data-del>Удалить подход</button>`,
-    (el,close)=>{
-      const err=el.querySelector('[data-err]');
-      const inp=f=>el.querySelector(`[data-i="${f}"]`);
-      el.querySelectorAll('[data-d]').forEach(b=>b.addEventListener('click',()=>{
-        const f=b.dataset.f, d=+b.dataset.d, i=inp(f), x=parseFloat(String(i.value).replace(',','.'));
-        const base=isFinite(x)?x:0, step=f==='w'?wStep:(P.timed?5:1);
-        const nv=Math.max(f==='w'?0:1, Math.min(f==='w'?400:(P.timed?600:200), base+d*step));
-        i.value=plFmtNum(nv); i.classList.remove('err'); err.hidden=true; vibe(6);
-      }));
-      el.querySelectorAll('[data-i]').forEach(i=>i.addEventListener('input',()=>{ i.classList.remove('err'); err.hidden=true; }));
-      el.querySelector('[data-save]').addEventListener('click',()=>{
-        const rr=plParse(P.timed?'s':'r', inp('r').value);
-        const ww=showW ? plParse('w', inp('w').value) : {ok:true,val:0};
-        const bad=!rr.ok?['r',rr.msg]:!ww.ok?['w',ww.msg]:null;
-        if(bad){ inp(bad[0]).classList.add('err'); err.hidden=false; err.textContent=bad[1]; return; }
-        plEditSet(ex, si, ww.val, rr.val); close(); plRender();
-      });
-      el.querySelector('[data-del]').addEventListener('click',()=>{
-        const undo=plDeleteSet(ex, si); close(); plRender();
-        if(undo) toast('Подход удалён', ()=>{ undo(); plRender(); });
-      });
-    });
+function tmOff(){
+  clearTimeout(TM.to); tmClearSched(); cancelAnimationFrame(TM.raf);
+  try{ tmCanSay() && speechSynthesis.cancel(); }catch(e){}
+  TM.on=false; TM.run=null; TM.key=''; tmMedia(false);
+  if(!PL.rest) plWakeOff();
 }
-
-/* ---------- Листы действий ---------- */
-const plOpt=(a,t,s,extra)=>`<button type="button" class="opt${extra&&extra.danger?' danger':''}" data-a="${a}"><span class="grow"><b>${esc(t)}</b>${s?`<span>${esc(s)}</span>`:''}</span></button>`;
-/* действия с упражнением: тап по заголовку и то же самое в меню */
-function plExOptions(e, steps, exId){
-  const g=plGroups(e).find(x=>x.id===exId); if(!g) return [];
-  const o=[], st=plGroupState(g,e,steps), open=st!=='done';
-  if(g.warm){ if(open) o.push(plOpt('skipex','Пропустить','разминка не нужна')); return o; }
-  const ex=g.ex, A=ALTS[ex.name];
-  o.push(plOpt('how','Как делать',ex.name));
-  if(ex.sub && ex.sub.live) o.push(plOpt('rep0',`Вернуть «${ex.sub.from}»`,'замена больше не нужна'));
-  else if(ex.alts && ex.alts.length && !plSkipDose(ex)) o.push(plOpt('rep1','Заменить','выбери причину: '+[...new Set(ex.alts.map(a=>V2_WHY[a.why]||a.why))].map(x=>x.toLowerCase()).join(', ')));
-  else if(ex.sub) o.push(plOpt('sub0',`Вернуть «${ex.sub.from}»`,'замена больше не нужна'));
-  else if(A && !plSkipDose(ex)) o.push(plOpt('sub1','Заменить',`на «${A.name}», если ${A.why}`));
-  if(ex.action==='jump') o.push(plOpt('jump','Посчитать прыжок по видео','откроется в «Я»'));
-  if(ex.action==='shootstage'){
-    if(ex.stage<4) o.push(plOpt('shn',`Ритм автоматический - этап ${ex.stage+1}`,''));
-    if(ex.stage>1) o.push(plOpt('shp',`Мяч опять ждёт - этап ${ex.stage-1}`,''));
-  }
-  if(open && plOrdered(e).filter(x=>x.id!==ex.id && !plSkipped(x.id) && plGroupState({id:x.id},e,steps)!=='done').length) o.push(plOpt('later','Сделать позже','упражнение уедет в конец тренировки'));
-  if(open) o.push(plOpt('skipex','Пропустить',st==='skip'?'':'без переноса и вопросов'));
-  if(isLogged(ex) && !plSkipped(ex.id)) o.push(plOpt('addset','Ещё один подход',''));
-  return o;
+/* нажатие: экран или наушники */
+function tmPress(){
+  const now=Date.now(); if(now-TM.last<350) return; TM.last=now;
+  const c=tmCur(); if(!TM.on || !c) return;
+  if(c.key!==TM.key){ TM.key=c.key; TM.rep=0; TM.run=null; TM.target=c.T.hold?1:Math.round(num(c.v.r)||c.v.P.lo||8); }
+  if(TM.run) tmRepEnd(true);   /* нажал посреди повтора — он засчитан, сразу следующий */
+  clearTimeout(TM.to);
+  tmRep(c);
 }
-function plExSheet(exId, title){
-  const e=plEntry(); if(!e) return;
-  const steps=plBuild(e), cur=plCur(e,steps), g=plGroups(e).find(x=>x.id===exId);
-  const opts=plExOptions(e,steps,exId); if(!opts.length) return;
-  openSheet(`<h2>${esc(title||(g&&g.ex?g.ex.name:'Разминка'))}</h2>${opts.join('')}<button type="button" class="btn" style="margin-top:8px" data-close>Закрыть</button>`,
-    (el,close)=>el.querySelectorAll('[data-a]').forEach(b=>b.addEventListener('click',()=>{ close(); plExAction(b.dataset.a, exId); })));
-}
-function plExAction(a, exId){
-  const e=plEntry(); if(!e) return;
-  const steps=plBuild(e), cur=plCur(e,steps), g=plGroups(e).find(x=>x.id===exId), ex=g&&g.ex;
-  if(a==='how' && ex){
-    const st = steps.find(x=>x.k==='set' && x.id===ex.id && !plDone(x,e)) || steps.find(x=>x.k==='set' && x.id===ex.id) || null;
-    techSheet(ex.tech, ex.name, ex, st);
-  }
-  else if(a==='sub0'||a==='sub1'){ const from=a==='sub0'?ex.sub.from:ex.name; setSub(from, a==='sub1'); renderAll(); toast(a==='sub1'?'Заменено - журнал этого упражнения отдельный':`Вернул «${from}»`, ()=>{ setSub(from, a!=='sub1'); renderAll(); }); }
-  else if(a==='rep1' && ex) plRepSheet(ex);
-  else if(a==='rep0' && ex){ delete live().rep[ex.id]; liveSave(); plRender(); toast(`Вернул «${ex.sub.from}»`); }
-  else if(a==='later'){ plLater(exId); plRender(); }
-  else if(a==='skipex'){
-    plSkipEx(exId); plCheckEnd(e, plBuild(e)); plRender();
-    toast('Пропущено', ()=>{ plUnskipEx(exId); const W=watch[watchKey(PL.id)]; if(W && W.e && !W.ac){ delete W.e; saveWatch(); } plRender(); });
-  }
-  else if(a==='addset' && ex){
-    const k=logKey(PL.id,ex.id), P=parseDose(ex.dose), Lg=logs[k]||{n:ex.name, d:null, sets:[], rpe:null};
-    while(Lg.sets.length<P.sets) Lg.sets.push({w:'',r:''});
-    Lg.sets.push({w:'',r:''}); Lg.n=ex.name; logs[k]=Lg; plPersistOk(saveLogs());
-    delete marks[key(PL.id,ex.id)]; saveMarks();
-    const W=watch[watchKey(PL.id)]; if(W && W.e){ delete W.e; delete W.ac; saveWatch(); }
-    plRender();
-  }
-  else if(a==='jump'){ closePlayer(); goTab('me'); openJumpTool(); }
-  else if(a==='shn'){ settings.shootStage=Math.min(4,shootStage()+1); saveSettings(); renderAll(); toast(`Бросок: этап ${shootStage()}`); }
-  else if(a==='shp'){ settings.shootStage=Math.max(1,shootStage()-1); saveSettings(); renderAll(); toast(`Бросок: этап ${shootStage()}`); }
-}
-function plMenu(){
-  const e=plEntry(); if(!e) return;
-  const steps=plBuild(e), cur=plCur(e,steps), L=live();
-  const ss=sessionState(PL.id);
-  const exo = cur ? plExOptions(e,steps,cur.id) : [];
-  openSheet(`<h2>${esc(e.day.title)}</h2>${exo.join('')}
-    ${plOpt('short', L.short?'Полная версия':'Короткая версия', L.short?'вернуть необязательные упражнения':'без изоляции и кора, главные упражнения остаются')}
-    ${ss!=='done'?plOpt('fin','Закончить сейчас','остальное пометится пропущенным'):''}
-    ${plOpt('watch','Время и пульс с часов','начало, конец, пульс')}
-    <button type="button" class="btn" style="margin-top:8px" data-close>Закрыть</button>`,
-    (el,close)=>el.querySelectorAll('[data-a]').forEach(b=>b.addEventListener('click',()=>{
-      const a=b.dataset.a; close();
-      if(a==='short'){ plShort(!L.short); plRender(); }
-      else if(a==='fin'){ plFinishNow(e); PL.view=null; plRender(); }
-      else if(a==='watch') watchSheet(PL.id);
-      else if(cur) plExAction(a, cur.id);
-    })));
-}
-/* тап по свёрнутой строке: правка подходов, снять отметку, вернуть пропущенное */
-function plPastSheet(id){
-  const e=plEntry(); if(!e) return;
-  const steps=plBuild(e), g=plGroups(e).find(x=>x.id===id); if(!g) return;
-  const st=plGroupState(g,e,steps);
-  if(st==='skip'){
-    openSheet(`<h2>${esc(g.warm?'Разминка':g.ex.name)}</h2><div class="sub">Пропущено</div>
-      <button type="button" class="btn big pri" data-un>Вернуть в тренировку</button><button type="button" class="btn" style="margin-top:10px" data-close>Закрыть</button>`,
-      (el,close)=>el.querySelector('[data-un]').addEventListener('click',()=>{ close(); plUnskipEx(id); const W=watch[watchKey(PL.id)]; if(W && W.e){ delete W.e; delete W.ac; saveWatch(); } PL.view=null; plRender(); }));
-    return;
-  }
-  if(g.warm || !isLogged(g.ex)){
-    const ex=g.ex, ready=ex&&plType(ex)==='ready';
-    openSheet(`<h2>${esc(g.warm?'Разминка':ex.name)}</h2>
-      ${ready?`<button type="button" class="opt" data-low><span class="grow"><b>${readyLow()?'Метку достал - вернуть обычный день':'Не достал метку 2 из 3'}</b><span>${readyLow()?'ноги и старты снова по плану':'день станет лёгким'}</span></span></button>`:''}
-      <button type="button" class="opt" data-off><span class="grow"><b>Снять отметку</b><span>шаг снова станет текущим</span></span></button>
-      <button type="button" class="btn" style="margin-top:8px" data-close>Закрыть</button>`,
-      (el,close)=>{
-        el.querySelector('[data-off]').addEventListener('click',()=>{ close();
-          if(g.warm) warmupOf(e.day,state.week).list.forEach(s=>{ delete marks[key(PL.id,s.id)]; }); else delete marks[key(PL.id,id)];
-          saveMarks(); const W=watch[watchKey(PL.id)]; if(W && W.e){ delete W.e; delete W.ac; saveWatch(); } PL.view=null; plRender(); });
-        const lo=el.querySelector('[data-low]'); if(lo) lo.addEventListener('click',()=>{ close(); setReadyLow(!readyLow()); renderAll(); });
-      });
-    return;
-  }
-  const ex=g.ex, Lg=plLog(ex), P=parseDose(ex.dose);
-  const rows=(Lg&&Lg.sets||[]).map((s,i)=>num(s.r)==null?'':`<button type="button" class="opt" data-si="${i}"><span class="grow"><b>${i+1} · ${esc(plRowVal(s,P.timed))}</b>${s.t?`<span>${esc(s.t)}</span>`:''}</span></button>`).join('');
-  openSheet(`<h2>${esc(ex.name)}</h2><div class="sub">Тап по подходу - правка</div>${rows||'<div class="sub">Подходов нет</div>'}
-    <button type="button" class="btn" style="margin-top:8px" data-close>Закрыть</button>`,
-    (el,close)=>el.querySelectorAll('[data-si]').forEach(b=>b.addEventListener('click',()=>{ close(); plEditSheet(id,+b.dataset.si); })));
-}
-
-/* ---------- Нажатия ---------- */
-function plDoneTap(){
-  const now=Date.now(); if(now-PL.lastDone<DONE_GUARD_MS) return;
-  const e=plEntry(); if(!e || PL.ask) return;
-  const cur=plCur(e); if(!cur || cur.k!=='set' || cur.t!=='set') return;
-  PL.lastDone=now; plAudio();
-  const v=plValues(cur);
-  if(!(v.r>=1)) return;
-  plRecord(cur, v.w, v.r);
-  PL.newRow={id:cur.id, si:cur.si}; vibe(25);
-  plRender();
-}
-function plHoldStart(){
-  const e=plEntry(); if(!e) return; const cur=plCur(e); if(!cur || cur.t!=='hold') return;
-  const v=plValues(cur); plAudio();
-  PL.hold={key:plSig(cur), end:Date.now()+v.r*1000, sec:v.r};
-  const L=live(); L.hold=PL.hold; liveSave(); vibe(15); plRender();
-}
-function plHoldFinish(early){
-  const e=plEntry(); if(!e || !PL.hold) return; const cur=plCur(e);
-  if(!cur || plSig(cur)!==PL.hold.key){ PL.hold=null; live().hold=null; liveSave(); return; }
-  const H=PL.hold, v=plValues(cur);
-  const sec = early ? Math.max(1,Math.min(H.sec, Math.round(H.sec-(H.end-Date.now())/1000))) : H.sec;
-  PL.hold=null; plRecord(cur, v.hasW?v.w:0, sec);
-  PL.newRow={id:cur.id, si:cur.si}; if(!early) plBeep(); else vibe(25);
-  plRender();
-}
-function plClick(ev){
-  const t=ev.target.closest('[data-a]'); if(!t || !plBox().contains(t)) return;
-  const a=t.dataset.a;
-  /* свайп по строке уже сработал: нажатие после него не считается */
-  if(PL.swiped && Date.now()-PL.swiped<400){ ev.preventDefault(); return; }
-  if(a==='min') closePlayer();
-  else if(a==='menu') plMenu();
-  else if(a==='title') plExSheet(t.dataset.id);
-  else if(a==='done') plDoneTap();
-  else if(a==='num') plTypeNum(t.dataset.f);
-  else if(a==='ask') plAskAnswer(t.dataset.v);
-  else if(a==='wplus') plAdj('w',1);
-  else if(a==='warmdone'){ const e=plEntry(), cur=e&&plCur(e); if(cur&&cur.k==='warm'){ PL.lastDone=Date.now(); plMarkEx(cur,e); vibe(20); plRender(); } }
-  else if(a==='count'||a==='ready'){
-    let e=plEntry(), cur=e&&plCur(e); if(!cur||cur.k!=='ex') return;
-    if(Date.now()-PL.lastDone<DONE_GUARD_MS) return; PL.lastDone=Date.now();
-    if(a==='ready'){ const id=cur.id; setReadyLow(t.dataset.v==='0'); e=plEntry(); cur=plBuild(e).find(s=>s.id===id); if(!cur) return; }
-    plMarkEx(cur,e); vibe(25); plRender();
-    if(a==='ready' && t.dataset.v==='0') toast('Лёгкий день: объём меньше, без отказа');
-  }
-  else if(a==='ivstart'||a==='ivpause'||a==='ivresume'||a==='ivfinish'||a==='ivsave'){
-    const e=plEntry(), cur=e&&plCur(e); if(!cur||cur.t!=='iv') return;
-    if(a==='ivstart'){ plAudio(); plIvStart(cur.ex); vibe(15); }
-    else if(a==='ivpause') plIvPause(cur.ex);
-    else if(a==='ivresume') plIvResume(cur.ex);
-    else {
-      if(Date.now()-PL.lastDone<DONE_GUARD_MS) return; PL.lastDone=Date.now();
-      let hr=null; if(a==='ivsave'){ const inp=plBox().querySelector('[data-hrend]'), v=inp?inp.value.trim():'';
-        if(v!==''){ const r=/^\d{2,3}$/.test(v)?+v:null; if(r==null||r<40||r>230){ inp.classList.add('err'); const er=plBox().querySelector('[data-err]'); if(er){ er.hidden=false; er.textContent='пульс от 40 до 230'; } return; } hr=r; } }
-      plIvFinish(cur, e, hr); vibe(25);
-    }
-    plRender();
-  }
-  else if(a==='scstart'||a==='scnext'||a==='scp'){
-    const e=plEntry(), cur=e&&plCur(e); if(!cur||cur.t!=='scn') return;
-    if(a==='scstart'){ plAudio(); plScnStart(cur.ex); vibe(15); }
-    else if(a==='scnext'){ if(Date.now()-PL.lastDone<DONE_GUARD_MS) return; PL.lastDone=Date.now(); plScnNext(cur, e); vibe(20); }
-    else { const S=scnState(cur.ex), B=S&&scnBlocks(cur.ex)[S.blk]; if(B){ plShotAdj(B.id, t.dataset.f, +t.dataset.d); vibe(6); } }
-    plRender();
-  }
-  else if(a==='tsave'){
-    const e=plEntry(), cur=e&&plCur(e); if(!cur||cur.t!=='test') return;
-    const inp=plBox().querySelector('[data-tv]'), er=plBox().querySelector('[data-err]'), r=plParse('v', inp?inp.value:'');
-    if(!r.ok){ if(inp) inp.classList.add('err'); if(er){ er.hidden=false; er.textContent=r.msg; } return; }
-    if(Date.now()-PL.lastDone<DONE_GUARD_MS) return; PL.lastDone=Date.now();
-    plTestWrite(cur.ex, r.val, cur.ex.id==='sB2'?'2':''); plMarkEx(cur, e); vibe(25); plRender();
-  }
-  else if(a==='hstart') plHoldStart();
-  else if(a==='hstop') plHoldFinish(true);
-  else if(a==='undo'){ ev.stopPropagation(); if(plUndoLast()){ vibe(10); plRender(); } }
-  else if(a==='row') plEditSheet(t.dataset.id, +t.dataset.si);
-  else if(a==='zap'){ const e=plEntry(), ex=e&&plExList(e).find(x=>x.id===t.dataset.id); if(ex){ plSetZap(ex, +t.dataset.v); vibe(10); plRender(); } }
-  else if(a==='past') plPastSheet(t.dataset.id);
-  else if(a==='wi') techSheet(t.dataset.tech, t.dataset.nm);
-  else if(a==='saveb') exportBackup();
-  else if(a==='srpe'){
-    const e=plEntry(); if(!e) return;
-    const v=+t.dataset.v, d=dayDate(e), G=gymLoadOf(d, PL.id), W=watch[watchKey(PL.id)]||{};
-    const m=watchMinutes(W.e?W:{s:W.s, e:nowHM()}) ?? dayMinutes(e.day, state.week);
-    setGymLoad(d, PL.id, G&&G.min || m, G&&G.rpe===v ? null : v, W.iv ? {iv:{n:W.iv.n, work:W.iv.work, easy:W.iv.easy, ...(W.iv.hrEnd!=null?{hrEnd:W.iv.hrEnd}:{})}} : null); vibe(); plRender();
-  }
-  else if(a==='resume'){ const e=plEntry(); if(e){ plResume(e); PL.view=null; plRender(); } }
-}
-function plBindOnce(){
-  const box=plBox();
-  box.addEventListener('click', plClick);
-  /* − и +: на pointerdown, чтобы удержание повторяло; клавиатурное нажатие приходит как click без указателя */
-  box.addEventListener('pointerdown', ev=>{
-    const b=ev.target.closest('[data-st]'); if(!b) return;
-    ev.preventDefault(); plRepStart(b.dataset.st, +b.dataset.d);
+function tmRep(c){
+  const T=c.T, voice=tmCanSay();
+  tmClearSched();
+  let off=0;
+  T.ph.forEach(([n,s])=>{
+    const at=off*1000;
+    if(voice) TM.sched.push(setTimeout(()=>tmSay(n), at));
+    else { const ctx=tmCtx(); if(ctx) tmTone(ctx.currentTime+0.05+off, tmKind(n)==='d'?440:tmKind(n)==='h'?660:880, 0.16, 0.4); }
+    /* удержание на время: последние три секунды вслух */
+    if(T.hold && voice && s>=6) [3,2,1].forEach(k=>TM.sched.push(setTimeout(()=>tmSay(String(k)), (off+s-k)*1000)));
+    off+=s;
   });
-  box.addEventListener('click', ev=>{
-    const b=ev.target.closest('[data-st]'); if(!b || ev.detail!==0) return;
-    plAdj(b.dataset.st, +b.dataset.d);
-  });
-  box.addEventListener('contextmenu', ev=>{ if(ev.target.closest('[data-st]')) ev.preventDefault(); });
-  ['pointerup','pointercancel','pointerleave'].forEach(n=>{ box.addEventListener(n, plRepStop); });
-  window.addEventListener('blur', plRepStop);
-  /* свайп влево по строке подхода - удалить (то же самое есть кнопкой в листе правки) */
-  let sx=0, sy=0, row=null, dx=0;
-  box.addEventListener('touchstart', ev=>{ const r=ev.target.closest('.xrow[data-a="row"]'); if(!r||ev.touches.length!==1){ row=null; return; } row=r; dx=0; sx=ev.touches[0].clientX; sy=ev.touches[0].clientY; }, {passive:true});
-  box.addEventListener('touchmove', ev=>{
-    if(!row) return; const t=ev.touches[0]; dx=t.clientX-sx; const dy=t.clientY-sy;
-    if(Math.abs(dy)>Math.abs(dx)+6){ row.style.transform=''; row=null; return; }
-    if(dx<0){ row.style.transform=`translateX(${Math.max(dx,-140)}px)`; row.style.opacity=String(1+Math.max(dx,-140)/280); }
-  }, {passive:true});
-  const endSwipe=()=>{
-    if(!row) return; const r=row; row=null;
-    if(dx<-90){
-      PL.swiped=Date.now();
-      const e=plEntry(), ex=e&&plExList(e).find(x=>x.id===r.dataset.id);
-      if(ex){ const undo=plDeleteSet(ex, +r.dataset.si); plRender(); if(undo) toast('Подход удалён', ()=>{ undo(); plRender(); }); }
-    } else { r.style.transform=''; r.style.opacity=''; }
-  };
-  box.addEventListener('touchend', endSwipe); box.addEventListener('touchcancel', endSwipe);
-  /* свайп шапки вниз - свернуть */
-  let hy=null;
-  box.addEventListener('touchstart', ev=>{ hy=ev.target.closest('.pnav') && !ev.target.closest('button') ? ev.touches[0].clientY : null; }, {passive:true});
-  box.addEventListener('touchend', ev=>{ if(hy==null) return; const dy=ev.changedTouches[0].clientY-hy; hy=null; if(dy>60) closePlayer(); }, {passive:true});
-  /* Enter и пробел на заголовке и строках */
-  box.addEventListener('keydown', ev=>{ if((ev.key==='Enter'||ev.key===' ') && ev.target.matches('[role="button"]')){ ev.preventDefault(); ev.target.click(); } });
+  TM.run={start:Date.now(), len:tmLen(T)*1000, T};
+  clearTimeout(TM.to); TM.to=setTimeout(()=>tmRepEnd(false), TM.run.len);
+  tmPaint();
+}
+function tmRepEnd(early){
+  clearTimeout(TM.to); tmClearSched();
+  if(!TM.run) return;
+  TM.run=null; TM.rep++;
+  const c=tmCur(), mine=c && TM.key===c.key, done=TM.rep>=TM.target;
+  if(mine && !c.v.rec){ const ek=c.v.k+'|'+c.st.si; PL.edit[ek]={...(PL.edit[ek]||{}), r:c.T.hold?tmLen(c.T):TM.rep}; }
+  if(!early){
+    /* номер повтора; на последнем — «всё» */
+    const said = c && c.T.hold ? tmSay('всё') : tmSay(done ? `${TM.rep}. Всё` : String(TM.rep));
+    if(!said){ if(done) plBeep(); else if(PL.ctx) tmTone(PL.ctx.currentTime, 1200, 0.06, 0.25); }
+    if(!done && TM.auto && c) TM.to=setTimeout(()=>{ if(TM.on && !TM.run){ const c2=tmCur(); if(c2 && c2.key===TM.key) tmRep(c2); } }, TM_GAP);
+  }
+  if(!$('#player').hidden && !PL.rest) plRender();
+}
+/* живая подпись фазы и секунд — только пока экран виден */
+function tmPaint(){
+  cancelAnimationFrame(TM.raf);
+  const el=document.querySelector('#player [data-tpbig]');
+  if(!el || !TM.run) return;
+  const t=(Date.now()-TM.run.start)/1000;
+  let acc=0, name='', left=0;
+  for(const [n,s] of TM.run.T.ph){ if(t<acc+s){ name=n; left=Math.ceil(acc+s-t); break; } acc+=s; }
+  if(!name){ name=TM.run.T.ph[TM.run.T.ph.length-1][0]; left=0; }
+  el.innerHTML=`${esc(name)} <span class="n">${Math.max(0,left)}</span>`;
+  el.dataset.ph=tmKind(name);
+  TM.raf=requestAnimationFrame(tmPaint);
+}
+function tmHTML(ex, v){
+  const T=tempoOf(ex, v); if(!T) return '';
+  const cur=TM.on && TM.key===plSig(PL.steps[PL.i]);
+  if(!TM.on) return `<button type="button" class="tempo-start" data-tpon>${IC.play}<span><b>Таймер темпа</b><small>${T.hold?`держишь ${tmLen(T)} сек`:esc(tmText(T))} · можно с наушников</small></span></button>`;
+  const rep=cur?TM.rep:0, tgt=T.hold?1:(cur&&TM.target?TM.target:Math.round(num(v.r)||v.P.lo||8));
+  return `<div class="tempo" data-tpgo role="button" tabindex="0" aria-label="Следующий повтор">
+    <div class="tp-ph">${T.hold?`держишь ${tmLen(T)} сек`:esc(tmText(T))}</div>
+    <div class="tp-big" data-tpbig>${TM.run&&cur?'':(T.hold?'нажми — пошло время':'нажми — следующий повтор')}</div>
+    <div class="tp-rep">${T.hold?(rep?'готово':''):`повтор <b class="n">${rep}</b> из ${tgt}`}</div>
+  </div>
+  <div class="tp-ctl"><button type="button" class="pill${TM.auto?' on':''}" data-tpauto>${TM.auto?'Сам дальше: да':'Сам дальше: нет'}</button><button type="button" class="pill" data-tpoff>Выключить таймер</button></div>
+  <div class="small muted" style="margin-top:6px">Голос говорит фазу — «вниз», «вверх», «стоп» — и номер повтора. Наушники: одно нажатие — следующий повтор. «Сам дальше» — повторы идут сами, между ними 1,5 сек. Музыка на время таймера встанет.</div>`;
 }
 
 /* ---------- Открыть, свернуть ---------- */
 function openPlayer(id, at){
-  const e=buildWeek().find(x=>x.id===id && x.type==='gym');
+  const same=PL.id===id && PL.steps.length;
+  if(PL.id!==id){ plStopRest(); PL.id=id; PL.edit={}; PL.passed=new Set(); }
+  const e=plEntry();
   if(!e){ toast('Этой тренировки нет на открытой неделе'); return; }
-  if(isDropped(id)){ toast('День отменён - сначала верни его'); return; }
-  plAutoClose();
-  if(PL.id!==id){ PL.undo=null; PL.ask=null; PL.hold=null; }
-  PL.id=id; const L=live();
-  if(L.hold && !PL.hold) PL.hold=L.hold;
-  PL.view = (at==='sum' || (at!=='resume' && sessionState(id)==='done')) ? 'sum' : null;
-  if(at==='resume'){ plResume(e); PL.view=null; }
+  if(isDropped(id)){ toast('День отменён — сначала верни его'); return; }
+  if(same) plRebuild(); else { PL.steps=plBuild(e); PL.i=plFirstUndone(e); }
+  if(at==='sum') PL.i=PL.steps.length-1;
+  PL.photo2=false;
   closeSheets();
-  const pl=plBox(), wasHidden=pl.hidden;
-  /* ошибка записи показывается строкой в плеере, а не тостом */
-  if(wasHidden){ PL.warnedBefore=storeWarned; storeWarned=true; }
+  const pl=$('#player'), wasHidden=pl.hidden;
   pl.hidden=false; document.body.classList.add('playing','locked');
   if(wasHidden && !reducedMotion()){ pl.classList.remove('opening'); void pl.offsetWidth; pl.classList.add('opening'); }
-  plWakeOn(); plRender(); updateMini();
+  plRender(); updateMini();
 }
 function startWorkout(id){
   const e=buildWeek().find(x=>x.id===id);
   if(e && isNowWeek() && e.dow===new Date().getDay() && sessionState(id)==='idle'){
-    setWatch(id,'s',nowHM());
-    const W=watch[watchKey(id)]; if(W){ W.lt=Date.now(); saveWatch(); }
+    setWatch(id,'s',nowHM()); toast(`Начало ${nowHM()} · удачной тренировки`);
   }
   openPlayer(id);
 }
 function closePlayer(){
   if(TM.on) tmOff();
-  plRepStop(); clearTimeout(PL.undoT);
-  plBox().hidden=true; document.body.classList.remove('playing');
+  $('#player').hidden=true; document.body.classList.remove('playing');
   if(!sheetStack.length && $('#page').hidden) document.body.classList.remove('locked');
-  plWakeOff();
-  if(PL.warnedBefore!==undefined){ storeWarned=PL.warnedBefore; PL.warnedBefore=undefined; }
-  PL.view=null;
   renderAll();
 }
-/* После правок данных из других мест: плеер на виду - перерисовать */
+function plFinish(){
+  setWatch(PL.id,'e',nowHM()); plStopRest(); if(TM.on) tmOff();
+  PL.i=PL.steps.length-1; plRender();
+  toast('Готово. Оцени самочувствие — это видно в отчёте');
+}
+/* После правок данных из других мест: плеер на виду — перестроить */
 function plRefresh(){
-  if(plBox().hidden || !PL.id) return;
+  if($('#player').hidden || !PL.id) return;
   const e=plEntry();
-  if(!e || isDropped(PL.id)){ closePlayer(); return; }
+  if(!e || isDropped(PL.id)){ plStopRest(); closePlayer(); return; }
+  plRebuild(); plRender();
+}
+
+/* ---------- Переходы ---------- */
+function plGo(i){ if(PL.rest) plStopRest(); PL.anim=true; PL.i=Math.max(0,Math.min(PL.steps.length-1,i)); PL.photo2=false; plRender(); $('#player .pl-scroll') && ($('#player .pl-scroll').scrollTop=0); }
+function plGroups(e){
+  const g=[]; if(!e.day.noWarm) g.push({warm:true});
+  plExList(e).forEach(ex=>g.push({ex})); return g;
+}
+function plGroupStart(gr, e){
+  const match=st=> gr.warm ? st.k==='warm' : (st.ex && st.ex.id===gr.ex.id && st.k!=='rpe');
+  const idx=PL.steps.map((st,i)=>match(st)?i:-1).filter(i=>i>=0);
+  return idx.find(i=>!plStepDone(PL.steps[i],e)) ?? idx[0] ?? 0;
+}
+function plCurGroup(e){
+  const st=PL.steps[PL.i], gs=plGroups(e);
+  if(st.k==='warm') return 0;
+  if(!st.ex) return -1;
+  return gs.findIndex(g=>g.ex && g.ex.id===st.ex.id);
+}
+function plSwipe(dir){
+  const e=plEntry(), gs=plGroups(e), cur=plCurGroup(e);
+  if(cur<0){ if(dir<0) plGo(plGroupStart(gs[gs.length-1],e)); return; }
+  const n=cur+dir;
+  if(n<0) return;
+  if(n>=gs.length){ plGo(PL.steps.length-1); return; }
+  plGo(plGroupStart(gs[n],e));
+}
+function plAdvance(fromDone){
+  const cur=PL.steps[PL.i], nx=PL.steps[PL.i+1];
+  if(!nx) return;
+  let rs=0;
+  if(fromDone && nx.k!=='sum'){
+    if(cur.k==='set'){ if(!(cur.first && nx.k==='set' && cur.mate && nx.ex===cur.mate) && nx.k!=='rpe') rs=restSec(cur.ex.rest); }
+    else if(cur.k==='rpe' && (nx.k==='set'||nx.k==='ex')) rs=restSec(cur.ex.rest);
+  }
+  /* следующий шаг уже сделан (вернулся назад и прошёл заново) — отдыха нет */
+  if(rs && plStepDone(nx, plEntry())) rs=0;
+  PL.i++; PL.photo2=false; PL.anim=true;
+  if(rs>0) plStartRest(rs, cur.ex.name);
   plRender();
+  const sc=$('#player .pl-scroll'); if(sc) sc.scrollTop=0;
 }
 
-/* ---------- Ход времени: отдых, удержание, автозакрытие ---------- */
-let plLastAC=0, plLastMini=0;
-function plTick(){
-  const vis=!plBox().hidden, now=Date.now();
-  if(now-plLastAC>=30000){   /* автозакрытие проверяем раз в 30 секунд */
-    plLastAC=now;
-    if(plAutoClose()){ if(vis) plRender(); renderAll(); return; }
+/* ---------- Отрисовка ---------- */
+function plTop(e, light){
+  const gs=plGroups(e), cur=plCurGroup(e);
+  const dots=gs.map((g,i)=>{
+    const done = g.warm ? plStepDone({k:'warm'},e) : !!marks[key(PL.id,g.ex.id)];
+    return `<button type="button" class="${i===cur?'c':done?'d':''}" data-g="${i}" aria-label="${g.warm?'Разминка':esc(g.ex.name)}"><i></i></button>`;
+  }).join('');
+  return `<div class="pl-top"><button type="button" class="pl-cb" data-min aria-label="Свернуть">${IC.close}</button>
+    <div class="pl-dots">${dots}<button type="button" class="${PL.steps[PL.i].k==='sum'?'c':''}" data-g="sum" aria-label="Итог"><i></i></button></div>
+    <button type="button" class="pl-cb" data-menu aria-label="Ещё">${IC.more}</button></div>`;
+}
+function plMedia(ex){
+  const p=photoOf(ex.tech, ex.name);
+  if(p) return {html:`<div class="pl-photo" data-ph style="background-image:url('img/ex/${p}-${PL.photo2?1:0}.webp')"><span class="phl">${PL.photo2?'2 · конец':'1 · начало'}</span></div>`, img:true};
+  const t=TECH[ex.tech];
+  return {html:`<div class="pl-fig">${t && t.fig ? `<div class="fig">${S[t.fig]}</div>` : ''}</div>`, img:false};
+}
+function plTag(ex, e){
+  const list=plExList(e), i=list.findIndex(x=>x.id===ex.id);
+  return `<span class="tag">${esc(ex.badge[0])} · ${i+1} из ${list.length}</span>${ex.sub?' <span class="tag" style="background:var(--s3);color:var(--tx)">замена</span>':''}`;
+}
+function plNextText(st){
+  if(!st) return '';
+  if(st.k==='set'){ const v=plValues(st); return {b:`Подход ${st.si+1} из ${st.n} · ${v.w?fmtW(v.w)+' кг × ':''}${v.r??'—'} ${plUnit(v.P)}`, s:st.ex.name}; }
+  if(st.k==='rpe') return {b:'Как тяжело было', s:st.ex.name};
+  if(st.k==='ex') return {b:st.ex.name, s:st.ex.dose};
+  return {b:'Итог тренировки', s:''};
+}
+
+function plRender(){
+  const box=$('#player'), e=plEntry();
+  if(!e){ closePlayer(); return; }
+  if(PL.i>=PL.steps.length) PL.i=PL.steps.length-1;
+  const st=PL.steps[PL.i], col=TYPE_VAR[typeClass(e)];
+  box.style.setProperty('--c', col);
+  if(PL.rest) return plRenderRest(e);
+  let media={html:'<div class="pl-fig"></div>', img:false}, main='', dock='';
+
+  if(st.k==='warm'){
+    const warm=warmupOf(e.day, state.week), all=warm.list.every(s=>marks[key(PL.id,s.id)]);
+    main=`<span class="tag">Разминка</span><div class="pl-name">Разминка${warm.level?` · уровень ${warm.level}`:''}</div>
+      <div class="pl-setn">${warm.label} · ${warm.dur}</div>
+      <div style="margin-top:14px">${dayNotesHTML(e)}</div>
+      <div class="card" style="padding:4px 16px;margin-top:6px">${warm.list.map((s,i)=>{ const k=key(PL.id,s.id), on=!!marks[k];
+        return `<div class="row"><button type="button" class="ck${on?' on':''}" data-wk="${k}" aria-label="${esc(s.name)}">${IC.check}</button>
+          <div class="grow"><div class="nm">${i+1}. ${esc(s.name)}</div><div class="ds">${mmss(s.sec)} · ${esc(s.dose)}</div></div>
+          <button type="button" class="link" data-tech="${s.tech}" data-nm="${esc(s.name)}">Как</button></div>`; }).join('')}</div>`;
+    dock=`<button type="button" class="pl-done" data-warm>${all?'Дальше':'Вся сделана'}</button>`;
   }
-  const R=PL.id ? plRest() : null;
-  if(R){
-    if(R.over && !PL.beeped){ PL.beeped=true; if(R.left>-3) plBeep(); }
-    if(vis){
-      const box=plBox(), rt=box.querySelector('[data-rt]'), bar=box.querySelector('[data-rbar]'), rs=box.querySelector('[data-rest]');
-      if(rt){ rt.textContent=(R.over?'+':'')+mmss(Math.abs(R.left)); if(bar) bar.style.width=((R.over?1:Math.max(0,Math.min(1,1-R.left/(R.total||1))))*100).toFixed(1)+'%'; if(rs) rs.classList.toggle('over',R.over); }
-      else plRender();   /* полоса появилась (вернулись после паузы) */
-    }
-  }else if(vis && plBox().querySelector('[data-rest]')) plRender();
-  /* интервалы: цифры на месте, смена фазы - сигнал и перерисовка */
-  if(PL.id && LIVE && LIVE.iv){
-    const e=plEntry(), cur=e&&plCur(e);
-    if(cur && cur.t==='iv'){
-      const S=ivState(cur.ex), idx=S.st==='end'?-1:S.idx;
-      if(S.st==='run' && PL.ivIdx!==undefined && PL.ivIdx!==idx){ PL.ivIdx=idx; plBeep(); if(vis) plRender(); }
-      else if(S.st==='end' && PL.ivIdx!==-1){ PL.ivIdx=-1; plBeep(); if(vis) plRender(); }
-      else if(S.st==='run' && vis){
-        PL.ivIdx=idx; const box=plBox(), b=box.querySelector('[data-ivbig]'), bar=box.querySelector('[data-ivbar]');
-        if(b) b.firstChild.nodeValue=mmss(S.left); if(bar) bar.style.width=(100*(1-S.left/S.cur.sec)).toFixed(1)+'%';
+  else if(st.k==='set'){
+    const v=plValues(st), ex=st.ex, P=v.P;
+    media=plMedia(ex);
+    const last=lastLog(ex.name, v.k);
+    const canW=plCanW(v.WK);
+    let nums;
+    const rBtn=`<button type="button" class="v n" data-r>${v.r??'—'}</button><span class="u">${plUnit(P)}</span>`;
+    if(v.w) nums=`<button type="button" class="v n" data-w>${fmtW(v.w)}</button><span class="u">${v.WK.ph==='доп.'?'кг доп.':'кг'}</span><span class="x">×</span>${rBtn}`;
+    else if(['штанга','гантель','тренажёр','рюкзак','доп.'].includes(v.WK.ph) && !/пусто, если без веса/.test(v.WK.hint) && v.pl.kind!=='back' && v.pl.kind!=='body')
+      nums=`<button type="button" class="v n" data-w>—</button><span class="u">кг</span><span class="x">×</span>${rBtn}`;
+    else nums=`${rBtn}${canW?`<button type="button" class="bw" data-w>свой вес</button>`:`<span class="bw">свой вес</span>`}`;
+    const side=plSide(ex);
+    main=`${plTag(ex,e)}<div class="pl-name">${esc(ex.name)}</div>
+      <div class="pl-setn">Подход ${st.si+1} из ${st.n}${side?` · ${side}`:''}${st.mate?` · в паре с «${esc(st.mate.name)}»`:''}</div>
+      <div class="huge">${nums}</div>
+      <div class="pl-prev">${last?esc(lastSummary(last,P)):'В прошлый раз — нет записей'}</div>
+      ${v.pl.t?`<div class="pl-why">Сегодня: ${v.pl.t}</div>`:''}
+      ${CUE[ex.tech]?`<div class="pl-why"><b>Одна мысль:</b> ${CUE[ex.tech]}</div>`:''}
+      ${tmHTML(ex, v)}
+      ${st.si===0 && ex.warm && !/^Не нужна/.test(ex.warm)?`<div class="note" style="margin-top:12px"><b>Подводка</b>${ex.warm}</div>`:''}
+      <div class="muted small" style="margin-top:10px">${v.WK.hint}</div>
+      <div class="pl-act">
+        <button type="button" class="pill" data-how>Как делать</button>
+        ${ALTS[ex.name]||ex.sub?`<button type="button" class="pill" data-how>Заменить</button>`:''}
+        ${st.si===st.n-1?`<button type="button" class="pill" data-addset>+ подход</button>`:''}
+        <button type="button" class="pill" data-skipex>Пропустить упражнение</button>
+      </div>`;
+    const nx=PL.steps[PL.i+1];
+    const rs = nx && nx.k!=='sum' && nx.k!=='rpe' && !(st.first && nx.k==='set' && st.mate && nx.ex===st.mate) ? restSec(ex.rest) : 0;
+    dock = v.rec ? `<button type="button" class="pl-done neutral" data-next>${IC.check} Записано · дальше</button>`
+      : v.r==null ? `<button type="button" class="pl-done" data-done>Ввести ${P.timed?'секунды':'повторы'}</button>`
+      : `<button type="button" class="pl-done" data-done>Готово${rs?` <small>· отдых ${mmss(rs)}</small>`:(st.first&&st.mate?' <small>· пара без отдыха</small>':'')}</button>`;
+  }
+  else if(st.k==='rpe'){
+    const L=plLog(st.ex), cur=L&&L.rpe;
+    const R=[[6,'Легко, запас 4 и больше'],[7,'Мог ещё 3'],[8,'Мог ещё 2'],[9,'Мог ещё 1'],[10,'Предел, больше ни одного']];
+    main=`${plTag(st.ex,e)}<div class="pl-name" style="margin-top:14px">Как тяжело было в последнем подходе?</div>
+      <div class="pl-setn">${esc(st.ex.name)} · от этого зависит вес в следующий раз</div>
+      <div class="rpe">${R.map(([v,t])=>`<button type="button" class="${v>=9?'h':''}${cur===v?' on':''}" data-rpe="${v}"><b>${v}</b><span>${t}</span></button>`).join('')}</div>`;
+    dock=`<button type="button" class="btn big" data-rpeskip>${cur!=null?'Дальше':'Пропустить'}</button>`;
+  }
+  else if(st.k==='ex'){
+    const ex=st.ex, done=!!marks[key(PL.id,ex.id)];
+    media=plMedia(ex);
+    main=`${plTag(ex,e)}<div class="pl-name">${esc(ex.name)}</div>
+      <div class="huge" style="margin-top:12px"><span class="bw" style="color:var(--tx)">${esc(ex.dose)}</span></div>
+      ${ex.rest&&ex.rest!=='—'?`<div class="pl-prev">Отдых ${esc(ex.rest)}</div>`:''}
+      ${ex.warm && !/^Не нужна/.test(ex.warm)?`<div class="note" style="margin-top:12px"><b>Подводка</b>${ex.warm}</div>`:(ex.warm?`<div class="pl-why">${ex.warm}</div>`:'')}
+      ${ex.action==='ready' && isNowWeek()?`<button type="button" class="btn big" style="margin-top:14px" data-ready>${readyLow()?'Метку достал — вернуть обычный день':'Не достал метку 2 из 3 → лёгкий день'}</button>`:''}
+      ${ex.action==='jump'?`<button type="button" class="btn big pri" style="margin-top:14px" data-jump>Посчитать прыжок по видео</button>`:''}
+      ${ex.action==='shootstage'?`<div style="margin-top:14px;display:grid;gap:8px">
+        ${ex.stage<4?`<button type="button" class="btn big pri" data-shootnext>Ритм автоматический → этап ${ex.stage+1}</button>`:''}
+        ${ex.stage>1?`<button type="button" class="btn big" data-shootprev>Мяч опять ждёт → этап ${ex.stage-1}</button>`:''}</div>`:''}
+      <div class="pl-act">
+        <button type="button" class="pill" data-how>Как делать</button>
+        ${restSec(ex.rest)?`<button type="button" class="pill" data-timer>Таймер отдыха ${mmss(restSec(ex.rest))}</button>`:''}
+        <button type="button" class="pill" data-skipex>Пропустить</button>
+      </div>`;
+    dock=`<button type="button" class="pl-done${done?' neutral':''}" data-exdone>${done?`${IC.check} Сделано · дальше`:'Сделано'}</button>`;
+  }
+  else {
+    const S=daySummary(e.day), W=watch[watchKey(PL.id)]||{}, ss=sessionState(PL.id);
+    const m = ss==='run' ? watchMinutes({s:W.s, e:nowHM()}) : watchMinutes(W);
+    const d=dayDate(e), feel=num((body[d]||{}).feel), GL=gymLoadOf(d, PL.id);
+    const list=plExList(e);
+    main=`<span class="tag">Итог</span><div class="pl-name">${ss==='done'?'Тренировка сделана':e.day.title}</div>
+      <div class="pl-setn">${ss==='run'?`Идёт с ${esc(W.s)}`:ss==='done'?`${esc(W.s)}–${esc(W.e)}`:'Время не записано'}</div>
+      <div class="mac" style="margin:16px 0 6px">
+        <div><b class="n">${m!=null?fmtDur(m):'—'}</b><span>время</span></div>
+        <div><b class="n">${S.done}/${S.total}</b><span>упражнений</span></div>
+        <div><b class="n">${S.vol?kfmt(S.vol):'—'}</b><span>кг поднято</span></div></div>
+      <div class="sec">Тяжесть всей тренировки, 1–10</div>
+      <div class="scale10">${Array.from({length:10},(_,i)=>`<button type="button" class="${GL&&GL.rpe===i+1?'on':''}" data-srpe="${i+1}">${i+1}</button>`).join('')}</div>
+      <div class="small muted" style="margin-top:6px">${GL?`${GL.min} мин × ${GL.rpe} = ${loadAU(GL)} — идёт в нагрузку недели`:'Для нагрузки недели: минуты × тяжесть. Оцени в целом, а не последний подход.'}</div>
+      <div class="sec">Самочувствие после, 1–10</div>
+      <div class="scale10">${Array.from({length:10},(_,i)=>`<button type="button" class="${feel===i+1?'on':''}" data-feel="${i+1}">${i+1}</button>`).join('')}</div>
+      <div class="sec">Упражнения</div>
+      <div class="card" style="padding:4px 16px">${list.map(ex=>{ const L=plLog(ex), on=!!marks[key(PL.id,ex.id)];
+        const P=parseDose(ex.dose);
+        const t= L&&hasData(L) ? L.sets.filter(x=>num(x.r)!=null).map(x=>(num(x.w)?fmtW(num(x.w))+'×':'')+x.r).join(' · ')+(L.rpe?` · тяжесть ${L.rpe}`:'') : (on?'сделано':'не сделано');
+        return `<button type="button" class="row tap" style="width:100%;text-align:left" data-jumpex="${ex.id}"><span class="ck${on?' on':''}" style="width:32px;height:32px">${IC.check}</span>
+          <span class="grow"><div class="nm">${esc(ex.name)}</div><div class="ds">${esc(t)}${P.timed&&L&&hasData(L)?' сек':''}</div></span></button>`; }).join('')}</div>
+      <button type="button" class="btn" style="margin-top:6px" data-watch>Время, пульс и калории с часов</button>`;
+    dock = ss==='run' ? `<button type="button" class="pl-done" data-finish>Закончить тренировку</button>`
+      : `<button type="button" class="btn big pri" data-min>Закрыть</button>`;
+  }
+
+  box.classList.toggle('pl-noimg', !media.img);
+  box.innerHTML=`${plTop(e)}<div class="pl-scroll">${media.html}<div class="pl-body${PL.anim?' in':''}">${main}</div></div><div class="pl-dock">${dock}</div>`;
+  PL.anim=false;
+  plBind(e, st);
+  if(TM.on && TM.run && st.k==='set' && TM.key===plSig(st)) tmPaint();
+}
+
+function plRenderRest(e){
+  const box=$('#player'), left=plLeft(), R=PL.rest, nx=plNextText(PL.steps[PL.i]);
+  const size=300, sw=18, r=(size-sw)/2, c=2*Math.PI*r;
+  box.classList.add('pl-noimg');
+  box.innerHTML=`${plTop(e)}<div class="pl-scroll"><div class="pl-rest">
+      <div class="bigring"><svg viewBox="0 0 ${size} ${size}" aria-hidden="true">
+        <circle cx="${size/2}" cy="${size/2}" r="${r}" stroke="var(--s3)" stroke-width="${sw}" fill="none"/>
+        <circle class="arc" data-c="${c.toFixed(1)}" cx="${size/2}" cy="${size/2}" r="${r}" stroke="var(--c)" stroke-width="${sw}" fill="none" stroke-linecap="round" stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${(c*(1-left/R.total)).toFixed(1)}"/></svg>
+        <div class="c"><div class="l">Отдых</div><div class="v">${mmss(left)}</div><div class="s">экран не погаснет</div></div></div>
+      ${nx?`<div class="pl-next"><div class="k">Дальше</div><b>${esc(nx.b)}</b><span>${esc(nx.s)}</span></div>`:''}
+    </div></div>
+    <div class="pl-dock"><div class="pl-two"><button type="button" class="btn" data-plus>+30 сек</button><button type="button" class="btn pri" data-rskip>Пропустить</button></div></div>`;
+  plBindTop(e);
+  box.querySelector('[data-plus]').addEventListener('click',()=>{ PL.rest.end+=30000; PL.rest.total+=30; plTick(); vibe(); });
+  box.querySelector('[data-rskip]').addEventListener('click',()=>{ plStopRest(); plRender(); });
+}
+
+function plBindTop(e){
+  const box=$('#player');
+  box.querySelectorAll('[data-min]').forEach(b=>b.addEventListener('click',closePlayer));
+  box.querySelector('[data-menu]').addEventListener('click',()=>plMenu(e));
+  box.querySelectorAll('[data-g]').forEach(b=>b.addEventListener('click',()=>{
+    if(PL.rest) plStopRest();
+    if(b.dataset.g==='sum') return plGo(PL.steps.length-1);
+    plGo(plGroupStart(plGroups(e)[+b.dataset.g], e));
+  }));
+}
+function plBind(e, st){
+  const box=$('#player');
+  plBindTop(e);
+  /* фото: начало ↔ конец движения */
+  const ph=box.querySelector('[data-ph]'); if(ph) ph.addEventListener('click',()=>{ PL.photo2=!PL.photo2; plRender(); });
+  /* свайп — соседнее упражнение */
+  const sc=box.querySelector('.pl-scroll'); let x0=null, y0=0;
+  sc.addEventListener('touchstart',ev=>{ const t=ev.touches[0]; x0=t.clientX; y0=t.clientY; },{passive:true});
+  sc.addEventListener('touchend',ev=>{ if(x0==null) return; const t=ev.changedTouches[0], dx=t.clientX-x0, dy=t.clientY-y0; x0=null;
+    if(Math.abs(dx)>70 && Math.abs(dy)<50) plSwipe(dx<0?1:-1); },{passive:true});
+  box.querySelectorAll('[data-tech]').forEach(b=>b.addEventListener('click',()=>techSheet(b.dataset.tech, b.dataset.nm)));
+  box.querySelectorAll('[data-how]').forEach(b=>b.addEventListener('click',()=>techSheet(st.ex.tech, st.ex.name, st.ex)));
+  const on=(sel,f)=>{ const b=box.querySelector(sel); if(b) b.addEventListener('click',f); };
+
+  if(st.k==='warm'){
+    box.querySelectorAll('[data-wk]').forEach(b=>b.addEventListener('click',()=>{ const k=b.dataset.wk; if(marks[k]) delete marks[k]; else marks[k]=true; saveMarks(); vibe(); plRender(); }));
+    on('[data-warm]',()=>{ warmupOf(e.day,state.week).list.forEach(s=>{ marks[key(PL.id,s.id)]=true; }); saveMarks(); PL.passed.add('warm'); vibe(20); plAdvance(false); });
+  }
+  if(st.k==='set'){
+    const v=plValues(st), ek=v.k+'|'+st.si;
+    const putEdit=(f,x)=>{
+      if(v.rec){ const w=f==='w'?x:v.w, r=f==='r'?x:v.r; plWrite(st.ex, st.si, w, r); }
+      else { PL.edit[ek]={...(PL.edit[ek]||{}), [f]:x}; }
+      plRender();
+    };
+    on('[data-w]', async ()=>{
+      const x=await numberSheet({title:'Вес', sub:v.WK.hint, value:v.w||'', start:v.w||10, step:plWStep(v.WK), min:0, max:400, unit:'кг', decimals:plWStep(v.WK)<1?1:(plWStep(v.WK)===2.5?1:0), clear:plCanW(v.WK)?'Без веса':null});
+      if(x===null) return; putEdit('w', x===''?0:x);
+    });
+    on('[data-r]', async ()=>{
+      const x=await numberSheet({title:v.P.timed?'Секунды':'Повторы', value:v.r??'', start:v.P.lo||10, step:v.P.timed?5:1, min:0, max:v.P.timed?600:200, unit:v.P.timed?'сек':'повторов', decimals:0});
+      if(x===null || x==='') return; putEdit('r', x);
+    });
+    on('[data-done]', async ()=>{
+      let r=v.r;
+      if(r==null){
+        const x=await numberSheet({title:v.P.timed?'Сколько секунд?':'Сколько повторов?', value:'', start:v.P.lo||10, step:v.P.timed?5:1, min:0, max:v.P.timed?600:200, unit:v.P.timed?'сек':'повторов', decimals:0, verb:'Записать'});
+        if(x===null || x==='') return; r=x;
       }
-    }
+      plWrite(st.ex, st.si, v.w, r); vibe(25); plAdvance(true);
+    });
+    on('[data-next]',()=>plAdvance(false));
+    /* таймер темпа: включить, нажатие — следующий повтор, сам дальше, выключить */
+    on('[data-tpon]',()=>{ tmOn(); vibe(); });
+    on('[data-tpgo]',()=>{ tmCtx(); tmPress(); vibe(15); });
+    on('[data-tpauto]',()=>{ TM.auto=!TM.auto; plRender(); });
+    on('[data-tpoff]',()=>{ tmOff(); plRender(); });
+    on('[data-addset]',()=>{
+      const k=v.k, P=v.P, L=logs[k]||{n:st.ex.name, d:null, sets:[], rpe:null};
+      while(L.sets.length<P.sets) L.sets.push({w:'',r:''});
+      L.sets.push({w:'',r:''}); L.n=st.ex.name; logs[k]=L; saveLogs();
+      delete marks[key(PL.id,st.ex.id)]; saveMarks();
+      plRebuild(); toast(`Подход ${L.sets.length} добавлен`); plRender();
+    });
   }
-  if(PL.id && LIVE && LIVE.scn && vis){
-    const S=LIVE.scn, box=plBox(), a=box.querySelector('[data-scb]'), t=box.querySelector('[data-sct]');
-    if(a) a.textContent=plClock(Date.now()-S.bt0); if(t) t.textContent=plClock(Date.now()-S.t0);
+  if(st.k==='set'||st.k==='ex'){
+    on('[data-skipex]',()=>{
+      PL.passed.add('ex'+st.ex.id); PL.passed.add('rpe'+st.ex.id);
+      const j=PL.steps.findIndex((s,i)=>i>PL.i && s.ex && s.ex.id!==st.ex.id && (!st.mate || s.ex.id!==st.mate.id) && !plStepDone(s,e));
+      plGo(j>=0 ? j : PL.steps.length-1);
+      toast('Пропущено. Вернуться к нему можно через полоски вверху.');
+    });
   }
-  if(PL.hold){
-    const left=Math.ceil((PL.hold.end-Date.now())/1000);
-    if(left<=0) plHoldFinish(false);
-    else if(vis){ const b=plBox().querySelector('[data-hbig]'), bar=plBox().querySelector('[data-hbar]');
-      if(b) b.firstChild.nodeValue=mmss(left); if(bar) bar.style.width=(100*(1-left/PL.hold.sec)).toFixed(1)+'%'; }
+  if(st.k==='rpe'){
+    /* повторный тап по выбранной тяжести снимает её, как раньше */
+    box.querySelectorAll('[data-rpe]').forEach(b=>b.addEventListener('click',()=>{ const v=+b.dataset.rpe, L=plLog(st.ex);
+      if(L && L.rpe===v){ plSetRpe(st.ex, null); plRender(); toast('Тяжесть снята'); return; }
+      plSetRpe(st.ex, v); vibe(20); plAdvance(true); }));
+    on('[data-rpeskip]',()=>{ PL.passed.add('rpe'+st.ex.id); plAdvance(false); });
   }
-  if(!vis && (R || now-plLastMini>=1000)){ plLastMini=now; updateMini(); }
+  if(st.k==='ex'){
+    on('[data-exdone]',()=>{ const k=key(PL.id,st.ex.id); if(!marks[k]){ marks[k]=true; saveMarks(); vibe(25); } plAdvance(false); });
+    on('[data-timer]',()=>{ plStartRest(restSec(st.ex.rest), st.ex.name); plRender(); });
+    on('[data-shootnext]',()=>{ settings.shootStage=Math.min(4,shootStage()+1); saveSettings(); renderAll(); toast(`Бросок: этап ${shootStage()}`); });
+    on('[data-shootprev]',()=>{ settings.shootStage=Math.max(1,shootStage()-1); saveSettings(); renderAll(); toast(`Бросок: этап ${shootStage()}`); });
+    on('[data-ready]',()=>{ setReadyLow(!readyLow()); renderAll(); toast(readyLow()?'Лёгкий день: объём меньше, без отказа':'Обычный день'); });
+    on('[data-jump]',()=>{ closePlayer(); goTab('me'); openJumpTool(); });
+  }
+  if(st.k==='sum'){
+    const d=dayDate(e);
+    box.querySelectorAll('[data-feel]').forEach(b=>b.addEventListener('click',()=>{
+      const v=+b.dataset.feel; body[d]=body[d]||{};
+      if(num(body[d].feel)===v) delete body[d].feel; else body[d].feel=v;
+      if(!Object.keys(body[d]).length) delete body[d];
+      saveBody(); vibe(); plRender();
+    }));
+    box.querySelectorAll('[data-srpe]').forEach(b=>b.addEventListener('click',()=>{
+      const v=+b.dataset.srpe, G=gymLoadOf(d, PL.id), W=watch[watchKey(PL.id)]||{};
+      const m=watchMinutes(W.e?W:{s:W.s, e:nowHM()}) ?? dayMinutes(e.day, state.week);
+      setGymLoad(d, PL.id, G&&G.min || m, G&&G.rpe===v ? null : v); vibe(); plRender();
+    }));
+    box.querySelectorAll('[data-jumpex]').forEach(b=>b.addEventListener('click',()=>{ const ex=plExList(e).find(x=>x.id===b.dataset.jumpex); plGo(plGroupStart({ex},e)); }));
+    on('[data-watch]',()=>watchSheet(PL.id));
+    on('[data-finish]',plFinish);
+  }
 }
-/* Часто (2 раза в секунду) тикаем, только когда есть что считать: плеер на виду, идёт отдых или удержание.
-   Иначе раз в 15 секунд - для автозакрытия и плашки */
-const plBusy=()=>!plBox().hidden || !!PL.hold || !!(LIVE && (LIVE.restUntil || (LIVE.iv && !LIVE.iv.pause)));
-function plLoop(){ try{ plTick(); }catch(e){} setTimeout(plLoop, plBusy()?500:15000); }
-setTimeout(plLoop, 500);
-document.addEventListener('visibilitychange',()=>{
-  if(document.visibilityState==='visible'){ if(!plBox().hidden) plWakeOn(); plTick(); }
-});
-plBindOnce();
 
-/* ============ Лист «Заменить» по причине (программа v2): колено, поясница, плечо, кисть, занят тренажёр ============ */
-function plRepSheet(ex){
-  const A=ex.alts||[], whys=V2_ORDER.filter(w=>A.some(a=>a.why===w));
-  openSheet(`<h2>Заменить</h2><div class="sub">${esc(ex.name)} · выбери причину</div>
-    ${whys.map(w=>`<div class="sec" style="margin-top:12px">${esc(V2_WHY[w])}</div>${A.map((a,i)=>a.why!==w?'':`<button type="button" class="opt" data-i="${i}"><span class="grow"><b>${esc(a.tech?a.name:'Тот же вес, другой инструмент')}</b><span>${esc(a.note||(a.dose?a.dose:''))}</span></span></button>`).join('')}`).join('')}
+/* ---------- «⋯» в плеере ---------- */
+function plMenu(e){
+  const st=PL.steps[PL.i], ex=st.ex, ss=sessionState(PL.id);
+  const A=ex && ALTS[ex.name] && !plSkipDose(ex);
+  const o=[];
+  if(ex) o.push(['how','Как делать', ex.name]);
+  if(ex && ex.sub) o.push(['sub0',`Вернуть «${ex.sub.from}»`, 'замена больше не нужна']);
+  else if(A) o.push(['sub1',`Заменить на «${ALTS[ex.name].name}»`, `если ${ALTS[ex.name].why}`]);
+  o.push(['watch','Время, пульс и калории с часов', 'начало, конец, пульс']);
+  o.push(['nw','Не получается?', 'пропустил, физры не было, болею']);
+  if(ss==='run') o.push(['fin','Закончить тренировку', `идёт с ${(watch[watchKey(PL.id)]||{}).s}`]);
+  o.push(['sum','Итог', 'что сделано, самочувствие']);
+  openSheet(`<h2>${esc(e.day.title)}</h2>${o.map(([a,t,s])=>`<button type="button" class="opt" data-a="${a}"><span class="grow"><b>${esc(t)}</b><span>${esc(s)}</span></span></button>`).join('')}
     <button type="button" class="btn" style="margin-top:8px" data-close>Закрыть</button>`,
-    (el,close)=>el.querySelectorAll('[data-i]').forEach(b=>b.addEventListener('click',()=>{
-      const a=A[+b.dataset.i]; close();
-      live().rep[ex.id]={why:a.why, name:a.tech?a.name:null, tech:a.tech||null, dose:a.dose||null, note:a.tech?(a.note||''):(a.note||a.name)};
-      liveSave(); plRender(); toast(`Замена: ${a.tech?a.name:a.note||a.name}`);
+    (el,close)=>el.querySelectorAll('[data-a]').forEach(b=>b.addEventListener('click',()=>{
+      const a=b.dataset.a; close();
+      if(a==='how') techSheet(ex.tech, ex.name, ex);
+      else if(a==='sub0'||a==='sub1'){ const from=a==='sub0'?ex.sub.from:ex.name; setSub(from, a==='sub1'); renderAll(); toast(a==='sub1'?'Заменено — журнал этого упражнения отдельный':`Вернул «${from}»`, ()=>{ setSub(from, a!=='sub1'); renderAll(); }); }
+      else if(a==='watch') watchSheet(PL.id);
+      else if(a==='nw') notWorkingSheet(PL.id);
+      else if(a==='fin') plFinish();
+      else if(a==='sum'){ plStopRest(); plGo(PL.steps.length-1); }
     })));
 }
 
-/* ============ Интервалы ============ */
-const plHrRow=(label,val)=>`<div class="hrrow"><span>${esc(label)}</span><b>${esc(val)}</b></div>`;
-function plIvFocus(ex, tag){
-  const I=ex.iv, S=ivState(ex), rows=[];
-  for(let i=0;i<I.n;i++){
-    const done = S.st==='end' || (S.idx!=null && S.cur && (S.cur.k==='work' ? i<S.cur.i : i<=S.cur.i-0 && i<S.cur.i+1 && S.cur.i>=i));
-    const cur = S.st!=='idle' && S.st!=='end' && S.cur && S.cur.i===i && S.cur.k==='work';
-    const fin = S.st==='end' || (S.cur && (S.cur.i>i || (S.cur.i===i && S.cur.k==='easy')));
-    rows.push(`<div class="xrow"><span class="n">${i+1}</span><span class="v">Работа ${mmss(I.work)}</span>${fin?`<time>готово</time>`:cur?`<time>идёт</time>`:'<time></time>'}</div>`);
+/* ---------- «Как делать»: фото, текст, подводка, замена ---------- */
+function techSheet(tech, name, ex){
+  const t=TECH[tech]||{text:'<p>Описание будет добавлено.</p>'};
+  let sub='';
+  if(ex){
+    if(ex.sub) sub=`<div class="note i"><b>Замена для «${esc(ex.sub.from)}»</b>${esc(ex.sub.why)}. <button type="button" class="link" data-sub="${esc(ex.sub.from)}" data-on="0">Вернуть «${esc(ex.sub.from)}»</button></div>`;
+    else { const A=ALTS[ex.name]; if(A && !plSkipDose(ex)) sub=`<div class="note i"><b>Если ${esc(A.why)}</b><button type="button" class="link" data-sub="${esc(ex.name)}" data-on="1">заменить на «${esc(A.name)}»</button></div>`; }
   }
-  return plHeadHTML(tag, `Интервалы ${ex.dose}`, `${I.hr?`пульс ${I.hrNote||'на работе'} ${I.hr} · `:''}отдых ${ex.rest}`, ex.id)+`<div class="xcard">${rows.join('')}</div>`;
-}
-function plIvPanel(cur, rest){
-  const ex=cur.ex, I=ex.iv, S=ivState(ex), hr=I.hr?plHrRow(I.hrNote?`Пульс ${I.hrNote}`:'Пульс на работе', I.hr):'';
-  if(S.st==='idle') return `<div class="panel">${rest}<div class="plbl"><span>${I.n} × ${mmss(I.work)} · отдых ${mmss(I.easy)}</span></div>${hr}<button type="button" class="go" data-a="ivstart">Старт</button></div>`;
-  if(S.st==='end') return `<div class="panel">${rest}<div class="plbl"><span>Интервалы закончены</span></div>
-    <div class="estp" style="grid-template-columns:1fr"><div class="col"><div class="lab">Пульс в конце, необязательно</div><div class="fld"><input data-hrend class="inp0" type="text" inputmode="numeric" enterkeyhint="done" autocomplete="off" placeholder="уд/мин" aria-label="Пульс в конце"></div></div></div>
-    <div class="errtxt" data-err hidden></div><button type="button" class="go" data-a="ivsave">Записать</button></div>`;
-  const frac=1-S.left/S.cur.sec;
-  return `<div class="panel"><div class="phase"><div class="plbl" style="padding:0 0 4px"><span data-ivlbl>${esc(ivLabel(S))}${S.st==='pause'?' · пауза':''}</span></div>
-    <div class="big" data-ivbig>${mmss(S.left)}<small>осталось</small></div><div class="pbar"><i data-ivbar style="width:${(frac*100).toFixed(1)}%"></i></div></div>
-    ${hr}
-    ${S.st==='pause'?`<div class="two"><button type="button" class="go alt" data-a="ivfinish">Закончить</button><button type="button" class="go" data-a="ivresume">Дальше</button></div>`:`<button type="button" class="go" data-a="ivpause">Пауза</button>`}</div>`;
+  openSheet(`<h2>${esc(name||'')}</h2>${ex?`<div class="sub">${esc(ex.dose)}${ex.rest&&ex.rest!=='—'?` · отдых ${esc(ex.rest)}`:''}</div>`:''}
+    ${figFor(tech,name)}
+    ${ex&&ex.warm?`<div class="note" style="margin-top:12px"><b>Подводка</b>${ex.warm}</div>`:''}
+    <div class="tech" style="margin-top:12px">${t.text}</div>${sub}
+    <button type="button" class="btn big" style="margin-top:14px" data-close>Закрыть</button>`,
+    (el,close)=>{ const b=el.querySelector('[data-sub]'); if(b) b.addEventListener('click',()=>{
+      const from=b.dataset.sub, onv=b.dataset.on==='1'; setSub(from, onv); close(); renderAll();
+      toast(onv?'Заменено — журнал этого упражнения отдельный':`Вернул «${from}»`, ()=>{ setSub(from,!onv); renderAll(); }); }); });
 }
 
-/* ============ Сценарий четверга ============ */
-function plScnFocus(ex, tag){
-  const S=scnState(ex), B=scnBlocks(ex), rows=B.map((b,i)=>{
-    const st = !S ? '' : i<S.blk ? 'готово' : i===S.blk ? 'идёт' : '';
-    const sh = b.shoot ? shotsOf(b.id) : null;
-    const sub=[b.dose&&!b.shoot&&b.id!=='b1'?b.dose:'', b.rest&&b.rest!=='—'?`отдых ${b.rest}`:''].filter(Boolean).join(' · ');
-    return `<div class="xrow scn"><span class="n">${b.from}</span><span class="v">${esc(b.name)}${sub?`<small>${esc(sub)}</small>`:''}</span><time>${esc(st||`${b.from}–${b.to} мин`)}</time></div>`;
-  });
-  return plHeadHTML(tag, ex.name, 'по минутам, дальше - кнопкой', ex.id)+`<div class="xcard">${rows.join('')}</div>`;
-}
-const plClock=ms=>mmss(Math.max(0,Math.floor(ms/1000)));
-function plScnPanel(cur, rest){
-  const ex=cur.ex, B=scnBlocks(ex), S=scnState(ex);
-  if(!S) return `<div class="panel">${rest}<div class="plbl"><span>${B.length} блока · ${B[B.length-1].to} минут</span></div><button type="button" class="go" data-a="scstart">Начать сценарий</button></div>`;
-  const b=B[S.blk], last=S.blk===B.length-1, sh=b.shoot?shotsOf(b.id):null;
-  const ctr=(f,val,lab)=>`<div class="stp solo" data-sc="${f}"><button type="button" class="sb" data-a="scp" data-f="${f}" data-d="-1" aria-label="${lab} меньше">−</button><span class="num" data-scv="${f}">${val}<small>${lab}</small></span><button type="button" class="sb" data-a="scp" data-f="${f}" data-d="1" aria-label="${lab} больше">+</button></div>`;
-  return `<div class="panel">${rest}<div class="plbl"><span>Блок ${S.blk+1} из ${B.length} · ${b.from}–${b.to} мин</span></div>
-    ${sh?`<div class="steppers">${ctr('h',sh.h,'попал')}${ctr('n',sh.n,'бросил')}</div>`:''}
-    ${b.note?`<div class="small muted" style="padding:6px 4px 0">${esc(b.note)}</div>`:''}
-    <div class="hrrow"><span>В блоке <b data-scb style="display:inline;font-size:inherit">${plClock(Date.now()-S.bt0)}</b></span><span>Всего <b data-sct>${plClock(Date.now()-S.t0)}</b></span></div>
-    <button type="button" class="go" data-a="scnext">${last?'Сценарий закончен':'Дальше'}</button></div>`;
+/* ---------- «Не получается?»: пропуск, перенос, физры не было, болею ---------- */
+function notWorkingSheet(id){
+  const e=buildWeek().find(x=>x.id===id); if(!e) return;
+  const dropped=isDropped(id), moved=isMoved(id) && !dropped;
+  const snap=JSON.stringify(skips);
+  const undo=()=>{ skips=JSON.parse(snap); saveSkips(); renderAll(); };
+  const title=e.type==='gym'?e.day.title:e.title;
+  if(dropped){
+    openSheet(`<h2>${esc(title)}</h2><div class="sub">Отменено на этой неделе. ${DROP_ADVICE[id]||(e.type==='run'?DROP_ADVICE.run:DROP_ADVICE.d1)}</div>
+      <button type="button" class="btn big pri" data-un>Вернуть день</button><button type="button" class="btn" style="margin-top:10px" data-close>Закрыть</button>`,
+      (el,close)=>el.querySelector('[data-un]').addEventListener('click',()=>{ close(); unskip(id); toast('День возвращён', undo); }));
+    return;
+  }
+  const speed=id==='d2'||id==='d4', pe=id==='d2' && !isSession() && !summerMode();
+  const run=e.type==='run';
+  /* суббота: утром баскет в вузе — включается здесь же, у Силовой Б; у самого баскета — выключается */
+  const ballOpt = (id==='d7' || (id==='d3' && e.dow===6)) ? [{a:'ball', t:ballSat()?'Баскета не будет':'Утром баскет в вузе',
+    s:ballSat()?'Силовая Б снова днём, в 12:00':'утром вторая скоростная и игра, Силовая Б уедет на вечер, без стартов и прыжков'}] : [];
+  const opts = id==='d7' ? [...ballOpt, {a:'ill', t:'Болею', s:'пауза до конца недели, после — мягкое возвращение'}] : [
+    {a:'skip', t:moved?'Снова не сделал':'Пропустил',
+     s:run?'кардио не переносится — догонять не надо':moved?'отменить тренировку на этой неделе':(speed?'скоростная не переносится — просто отменится':'перенести на ближайший подходящий день')},
+    ...(moved?[{a:'back', t:'Вернуть в свой день', s:'перенос не нужен'}]:[]),
+    ...(pe?[{a:'pe', t:noPE()?'Физра всё-таки была':'Физры не было', s:noPE()?'вернуть скоростную после физры':'прыжки дома, выносливость — горкой на дорожке'}]:[]),
+    ...ballOpt,
+    {a:'ill', t:'Болею', s:'пауза до конца недели, после — мягкое возвращение'}
+  ];
+  openSheet(`<h2>${id==='d7'||(id==='d3'&&e.dow===6)?'Что меняется?':'Не получается?'}</h2><div class="sub">${esc(DOW_FULL[e.dow])} · ${esc(title)}</div>
+    ${opts.map(o=>`<button type="button" class="opt${o.a==='ill'?' danger':''}" data-a="${o.a}"><span class="grow"><b>${o.t}</b><span>${o.s}</span></span></button>`).join('')}
+    <button type="button" class="btn" style="margin-top:8px" data-close>Отмена</button>`,
+    (el,close)=>el.querySelectorAll('[data-a]').forEach(b=>b.addEventListener('click',async()=>{
+      const a=b.dataset.a; close();
+      if(a==='skip'){
+        if((speed||run) && !moved){ skips[skipKey(id)]=true; skips[dropKey(id)]=true; saveSkips(); renderAll(); toast(run?'Кардио пропущено — догонять не надо':'Отменено на этой неделе', undo); }
+        else { toggleSkip(id); toast(isDropped(id)?'Отменено на этой неделе':'Перенесено — новый день виден в неделе', undo); }
+      }
+      else if(a==='back'){ unskip(id); toast('Вернул в свой день', undo); }
+      else if(a==='pe'){ togglePE(); toast(noPE()?'Физры не было — прыжки дома':'Скоростная снова после физры', undo); }
+      else if(a==='ball'){ toggleBall(); toast(ballSat()?'Суббота: баскет утром, Силовая Б в 18:00':'Баскета нет — Силовая Б в 12:00', undo); }
+      else if(a==='ill'){
+        if(await confirmSheet('Пауза до конца недели?','Тренировки этой недели с этого дня отменятся. Вернуть любую можно кнопкой «Вернуть день». После паузы первая тренировка будет легче.','Поставить паузу',true)) pauseWeek(e.dow);
+      }
+    })));
 }
 
-/* ============ Тест: число и единица ============ */
-const plTestLast=ex=>{ const xs=tests.filter(x=>x.t===ex.test.t).sort((a,b)=>a.d<b.d?1:-1); return xs.length?`${String(xs[0].v).replace('.',',')} ${ex.test.u} · ${shortDate(xs[0].d)}`:'нет записей'; };
-function plTestPanel(cur, rest, lag){
-  const ex=cur.ex, v=plTestOf(ex);
-  return `<div class="panel">${rest}<div class="plbl"><span>${esc(lag?'Дальше: '+ex.name:ex.name)} · ${esc(ex.test.u)}</span></div>
-    <div class="estp" style="grid-template-columns:1fr"><div class="col"><div class="fld"><input data-tv class="inp0" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" placeholder="${esc(ex.test.u)}" value="${v!=null?esc(String(v).replace('.',',')):''}" aria-label="${esc(ex.name)}, ${esc(ex.test.u)}"></div></div></div>
-    <div class="errtxt" data-err hidden></div><button type="button" class="go" data-a="tsave">Записать</button></div>`;
+/* ---------- Время, пульс и калории с часов ---------- */
+function watchSheet(id){
+  const k=watchKey(id), W=watch[k]||{};
+  const f=(fld,lab,ph)=>`<div><div class="lab small t2" style="font-weight:700;margin-bottom:6px">${lab}</div><input class="inp small" data-f="${fld}" inputmode="numeric" placeholder="${ph}" value="${esc(W[fld])}" aria-label="${lab}"></div>`;
+  openSheet(`<h2>Время и пульс с часов</h2>
+    <div class="sub">«Начал» в начале и «Закончил» в конце: часы не должны идти дольше тренировки.</div>
+    <div class="grid2">
+      <div><div class="small t2" style="font-weight:700;margin-bottom:6px">Начало</div><input type="time" class="inp small" data-t="s" value="${esc(W.s)}" aria-label="Начало"><button type="button" class="btn" style="margin-top:6px" data-now="s">Начал сейчас</button></div>
+      <div><div class="small t2" style="font-weight:700;margin-bottom:6px">Конец</div><input type="time" class="inp small" data-t="e" value="${esc(W.e)}" aria-label="Конец"><button type="button" class="btn" style="margin-top:6px" data-now="e">Закончил сейчас</button></div>
+    </div>
+    <div class="btnrow three" style="margin-top:14px">${f('hr','Ср. пульс','уд/мин')}${f('mx','Макс. пульс','уд/мин')}${f('kc','Ккал','активные')}</div>
+    <div class="errtxt" hidden></div>
+    <div class="muted small" style="margin-top:10px" data-sum></div>
+    <button type="button" class="btn big pri" style="margin-top:14px" data-close>Готово</button>`,
+    el=>{
+      const sum=el.querySelector('[data-sum]'), err=el.querySelector('.errtxt');
+      const paint=()=>{ const w=watch[k]||{}, m=watchMinutes(w), p=[];
+        if(m!=null) p.push(`длительность ${fmtDur(m)}`);
+        if(num(w.hr)!=null) p.push(`пульс ${w.hr}${num(w.mx)!=null?'/'+w.mx:''}`);
+        if(num(w.kc)!=null) p.push(`${w.kc} ккал по часам`);
+        sum.textContent=p.join(' · '); };
+      const put=(fl,v)=>{ setWatch(id, fl, v===''||v==null?null:v); paint(); };
+      el.querySelectorAll('[data-now]').forEach(b=>b.addEventListener('click',()=>{ const fl=b.dataset.now, v=nowHM(); put(fl,v); el.querySelector(`[data-t="${fl}"]`).value=v; toast(fl==='s'?`Начало ${v}`:`Конец ${v}`); }));
+      el.querySelectorAll('[data-t]').forEach(i=>i.addEventListener('change',()=>put(i.dataset.t, i.value)));
+      el.querySelectorAll('[data-f]').forEach(i=>i.addEventListener('input',()=>{
+        const x=num(i.value), fl=i.dataset.f, max=fl==='kc'?5000:240, min=fl==='kc'?0:30;
+        const bad=i.value.trim()!=='' && (x==null || x<min || x>max);
+        i.classList.toggle('err',bad); err.hidden=!bad; if(bad){ err.textContent=fl==='kc'?'Калории от 0 до 5000':'Пульс от 30 до 240'; return; }
+        put(fl, x==null?'':x);
+      }));
+      paint();
+    }, {onClose:()=>{ renderAll(); }});
 }
+
+/* ---------- Полоска «Идёт тренировка» над вкладками ---------- */
+function runningEntry(){
+  if(PL.id && (PL.rest || sessionState(PL.id)==='run')){ const e=plEntry(); if(e) return e; }
+  if(!isNowWeek()) return null;
+  return buildWeek().find(e=>e.type==='gym' && sessionState(e.id)==='run') || null;
+}
+function updateMini(){
+  const m=$('#mini'); if(!m) return;
+  const e=$('#player').hidden ? runningEntry() : null;
+  if(!e){ m.hidden=true; document.body.classList.remove('has-mini'); return; }
+  const W=watch[watchKey(e.id)]||{}, min=W.s && !W.e ? watchMinutes({s:W.s, e:nowHM()}) : null;
+  const rest=PL.rest && PL.id===e.id;
+  m.hidden=false; document.body.classList.add('has-mini');
+  m.innerHTML=`<span class="grow"><b>${rest?'Отдых':'Идёт тренировка'}${min!=null?` · ${min} мин`:''}</b><span>${esc(e.day.title)}</span></span>${rest?`<span class="mt">${mmss(plLeft())}</span>`:`<span class="pl-cb" style="background:rgba(127,127,127,.25);color:inherit">${IC.play}</span>`}`;
+  m.onclick=()=>openPlayer(e.id);
+}
+setInterval(()=>{ if(!PL.rest) updateMini(); }, 30000);

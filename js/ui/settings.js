@@ -17,7 +17,7 @@ function periodRow(title, idFrom, idTo, from, to, hint, min){
 }
 
 function settingsHTML(){
-  const slots=listSlots(), latest=slots.map(x=>x.obj.saved).filter(Boolean).sort().pop();
+  const auto=asObj(store.get('planAutoBackup',null),null);
   const customDates = settings.start!==SETTINGS_DEFAULT.start || (settings.session|0)!==SETTINGS_DEFAULT.session;
   const last=store.get('planLastBackup', null), due=backupDue();
   const c=setCycle||state.cycle, mw=maxWeek(c);
@@ -29,7 +29,6 @@ function settingsHTML(){
   const th=settings.theme||'auto';
   const WS=winterSession(), SD=summerDates();
   return `
-    ${alertsHTML()}
     <div class="sec">Оформление</div>
     <div class="card"><div class="seg" data-theme>${[['auto','Как в iPhone'],['light','Светлая'],['dark','Тёмная']].map(([v,t])=>`<button type="button" class="${th===v?'on':''}" data-v="${v}">${t}</button>`).join('')}</div>
       <div class="small muted" style="margin-top:8px">«Как в iPhone» — тема переключается вместе с телефоном.</div></div>
@@ -97,7 +96,7 @@ function settingsHTML(){
       <p class="t2">Приложение на экране «Домой» и сайт в Safari хранят данные <b>раздельно</b>. Отмечай всё в приложении, а раз в неделю сохраняй копию: она спасёт при смене телефона или удалении иконки.</p>
       <div class="btnrow"><button type="button" class="btn pri" data-backup>Сохранить копию</button><button type="button" class="btn" data-restore>Восстановить</button></div>
       <input type="file" data-file accept="application/json,.json" hidden>
-      ${slots.length?`<div class="small muted" style="margin-top:10px">Автокопий: ${slots.length}, последняя от ${esc(latest?new Date(latest).toLocaleString('ru-RU',{day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'}):'')}. <button type="button" class="link" data-auto-back>Вернуть копию…</button></div>`:''}
+      ${auto?`<div class="small muted" style="margin-top:10px">Автокопия от ${esc(new Date(auto.saved).toLocaleString('ru-RU',{day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'}))} — ${esc(auto.reason||'')}. <button type="button" class="link" data-auto-back>Вернуть её</button></div>`:''}
       <div class="small muted" style="margin-top:10px">«Сохранить копию» открывает меню iPhone: выбери «Сохранить в Файлы» или отправь себе в Telegram. «Восстановить» — выбери этот файл, текущие данные заменятся.</div>
       ${badgeSupported() && isStandalone && 'Notification' in window && Notification.permission==='default' ? `<button type="button" class="btn" style="margin-top:12px" data-badge>Значок на иконке, когда пора сохранить копию</button>` : ''}
       <button type="button" class="btn danger" style="margin-top:12px" data-wipe>Удалить все данные с телефона</button></div>
@@ -135,17 +134,15 @@ function openSettings(focus){
       el.querySelectorAll('[data-dailyat] [data-v]').forEach(x=>x.classList.toggle('on',x===b)); renderAll(); toast('Место зарядки в ленте изменено'); }));
     on('[data-unshift]','click',()=>{
       const f=store.get('planShiftFix',null); if(!f) return;
-      if(shiftDataBy(-f.delta)<0){ toast(shiftMessage()); return; }
-      store.set('planShiftFix', null); renderAll(); redraw();
+      shiftDataBy(-f.delta); store.set('planShiftFix', null); renderAll(); redraw();
       toast(`Записи возвращены, сдвиг на ${Math.abs(f.delta)} дн. снят`);
     });
     on('[data-rebind]','click',()=>{
       const old=(el.querySelector('[data-oldstart]')||{}).value;
       if(!old || old===settings.start) return toast('Старый старт совпадает с нынешним — менять нечего');
       const delta=daysBetween(settings.start, old), n=shiftDataBy(delta);
-      if(n<0){ toast(shiftMessage()); return; }
       renderAll(); redraw();
-      toast(`Записи (${n}) встали на свои числа: сдвиг на ${Math.abs(delta)} дн.`, ()=>{ if(shiftDataBy(-delta)<0) toast(shiftMessage()); renderAll(); redraw(); });
+      toast(`Записи (${n}) встали на свои числа: сдвиг на ${Math.abs(delta)} дн.`, ()=>{ shiftDataBy(-delta); renderAll(); redraw(); });
     });
     on('[data-start]','change',b=>{
       if(!b.value || b.value===settings.start) return;
@@ -232,16 +229,18 @@ function openSettings(focus){
     on('[data-restore]','click',()=>inp.click());
     inp.addEventListener('change',async()=>{
       const f=inp.files[0]; inp.value=''; if(!f) return;
-      if(await confirmSheet('Восстановить из файла?','Текущие данные заменятся данными из копии. Перед этим приложение сохранит копию текущих данных и проверит её. Не получится сохранить — ничего не изменится. Копию можно вернуть здесь же.','Восстановить',true)) importBackup(f);
+      if(await confirmSheet('Восстановить из файла?','Текущие данные заменятся данными из копии. Перед этим приложение сохранит автокопию — её можно вернуть здесь же.','Восстановить',true)) importBackup(f);
     });
-    on('[data-auto-back]','click',()=>slotsSheet());
+    on('[data-auto-back]','click',async()=>{
+      const auto=asObj(store.get('planAutoBackup',null),null); if(!auto) return;
+      if(await confirmSheet('Вернуть автокопию?','Текущие данные заменятся данными из автокопии.','Вернуть',true)) afterRestore(restoreData(auto, null));
+    });
     on('[data-wipe]','click',async()=>{
-      if(!await confirmSheet('Удалить все данные?','Тренировки, еда, замеры, настройки. Перед удалением приложение сохранит копию и проверит её. Не получится сохранить — данные не удалятся. Копию можно будет вернуть здесь же.','Удалить всё',true)) return;
-      const res=wipeData();
-      if(res==='ok'){ toast('Данные удалены'); setTimeout(()=>location.reload(),700); }
-      else opFailSheet('Данные не удалены', opFailText(res,'Удаление'));
+      if(!await confirmSheet('Удалить все данные?','Тренировки, еда, замеры, настройки. Перед удалением приложение сохранит автокопию — её можно будет вернуть здесь же.','Удалить всё',true)) return;
+      snapshot('перед удалением всех данных');
+      [...DATA_KEYS, ...LEGACY_KEYS, 'planTab','planOnboarded','planLastBackup'].forEach(k=>{ try{ localStorage.removeItem(k); }catch(e){} });
+      toast('Данные удалены'); setTimeout(()=>location.reload(),700);
     });
-    bindAlerts(el);
     /* календарь: webcal:// — подписка в Календаре iPhone */
     const sub=el.querySelector('[data-sub]');
     if(location.protocol==='https:') sub.href='webcal://'+location.host+location.pathname.replace(/[^/]*$/,'')+'plan.ics';
@@ -249,26 +248,4 @@ function openSettings(focus){
     on('[data-onb]','click',()=>{ store.set('planOnboarded',false); onbForce=true; closePage(true); goTab('now'); renderAll(); });
     if(focus==='week'){ const t=el.querySelector('#set-week'); if(t) requestAnimationFrame(()=>t.scrollIntoView({block:'start'})); }
   });
-}
-
-/* Операция с данными не выполнена: лист с причиной и кнопкой «Сохранить файл копии» */
-function opFailSheet(title, text){
-  openSheet(`<h2>${esc(title)}</h2><div class="sub">${esc(text)}</div>
-    <button type="button" class="btn big pri" data-save>Сохранить файл копии</button>
-    <button type="button" class="btn" style="margin-top:10px" data-close>Закрыть</button>`,
-    el=>el.querySelector('[data-save]').addEventListener('click',()=>exportBackup()));
-}
-/* «Вернуть копию»: выбор из имеющихся слотов с датами. Текущие данные перед возвратом сами уходят в слот
-   «Копия перед…», так что возврат тоже можно отменить */
-function slotsSheet(){
-  const L=listSlots();
-  if(!L.length){ toast('Автокопий пока нет'); return; }
-  openSheet(`<h2>Вернуть копию</h2><div class="sub">Выбери копию. Текущие данные перед этим сохранятся отдельно, и их можно будет вернуть так же.</div>
-    <div class="card" style="padding:4px 16px">${L.map((x,i)=>`<button type="button" class="secrow" data-slot="${i}"><span><b>${esc(x.title)}</b><br><small class="muted">${esc(x.sub)}</small></span><span class="chev" style="flex:none">›</span></button>`).join('')}</div>
-    <button type="button" class="btn" style="margin-top:10px" data-close>Отмена</button>`,
-    (el,close)=>el.querySelectorAll('[data-slot]').forEach(b=>b.addEventListener('click',async()=>{
-      const x=L[+b.dataset.slot]; close();
-      if(await confirmSheet('Вернуть эту копию?',`${esc(x.title)}, ${esc(x.sub)}. Текущие данные заменятся. Перед этим приложение сохранит их копию и проверит: не получится — ничего не изменится.`,'Вернуть',true))
-        afterRestore(restoreData(x.obj, 'перед возвратом копии', {src:{key:x.key, str:x.str}}));
-    })));
 }

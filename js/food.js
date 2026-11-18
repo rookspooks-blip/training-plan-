@@ -55,7 +55,7 @@ function mealTiming(d){
   const kind = gym ? ((gym.id==='d2'||gym.id==='d4') && !summerMode() && !(gym.day && gym.day.swap) ? 'pe' : 'gym')
              : run ? 'cardio' : 'rest';
 
-  const T=nutritionTarget(d);
+  const T=nutritionTarget();
   const P=T.p;
   /* подъём — от первой пары или утренней тренировки этого дня (сон по дням, plan-extra) */
   const W=wakeAt(state.cycle,state.week,d).wake;
@@ -331,10 +331,10 @@ function totalsOfDay(d){
    Дни ±150 от цели — норма, среднее ±100 — попадание. Меньше двух
    заполненных дней — сравнивать нечего */
 function weekFoodStats(){
-  const T=nutritionTarget('avg'), rows=[], filled=[];
+  const T=nutritionTarget(), rows=[], filled=[];
   for(let d=0; d<7; d++){
     const on=dayFilled(d), t=on ? totalsOfDay(d) : null;
-    const diff=t ? t.k-nutritionTarget(d).k : null;
+    const diff=t ? t.k-T.k : null;
     rows.push({d, on, t, diff, cls: !t ? 'empty' : Math.abs(diff)<=150 ? 'ok' : (diff>0 ? 'over' : 'under')});
     if(on && t) filled.push({d, k:t.k, diff});
   }
@@ -374,7 +374,7 @@ const pad = (t,n) => String(t).padEnd(n,' ');
 const lpad = (t,n) => String(t).padStart(n,' ');
 
 function buildReport(){
-  const T=nutritionTarget('avg'), info=weekInfo(), week=buildWeek();
+  const T=nutritionTarget(), info=weekInfo(), week=buildWeek();
   const L=[];
 
   L.push(`ОТЧЁТ ЗА НЕДЕЛЮ`);
@@ -391,7 +391,7 @@ function buildReport(){
     const t=dayFilled(d) ? totalsOfDay(d) : null;
     if(!t){ L.push(`${pad(DOW_IDX[d],3)} —`); continue; }
     sk+=t.k; sp+=t.p; sf+=t.f; sc+=t.c; n++;
-    const diff=t.k-nutritionTarget(d).k;
+    const diff=t.k-T.k;
     L.push(`${pad(DOW_IDX[d],3)} ${lpad(t.k,5)} ккал  Б${lpad(t.p,3)} Ж${lpad(t.f,3)} У${lpad(t.c,3)}  ${diff>0?'+':''}${diff}`);
   }
   if(n){

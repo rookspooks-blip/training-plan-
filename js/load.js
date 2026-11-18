@@ -26,9 +26,9 @@ function removeLoad(iso, rec){
 }
 /* оценка тренировки по плану: одна запись на день плана, перезаписывается */
 const gymLoadOf=(iso,id)=>loadEntries(iso).find(r=>r.k==='gym' && r.id===id)||null;
-function setGymLoad(iso, id, min, rpe, extra){
+function setGymLoad(iso, id, min, rpe){
   const L=(loadLog[iso]||[]).filter(r=>!(r.k==='gym' && r.id===id));
-  if(rpe!=null) L.push({k:'gym', id, min:Math.max(10,min||60), rpe, ...(extra||{})});   /* extra - новые поля только добавлением (интервалы: iv) */
+  if(rpe!=null) L.push({k:'gym', id, min:Math.max(10,min||60), rpe});
   if(L.length) loadLog[iso]=L; else delete loadLog[iso];
   saveLoad();
 }

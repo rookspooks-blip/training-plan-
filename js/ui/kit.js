@@ -10,7 +10,6 @@ const svgI=p=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke
 const IC={
   check:svgI('<path pathLength="1" d="M5 12.5l4.5 4.5L19 7.5"/>'),
   plus:svgI('<path d="M12 5v14M5 12h14"/>'),
-  up:svgI('<path d="M12 19V5M6 11l6-6 6 6"/>'),
   minus:svgI('<path d="M5 12h14"/>'),
   close:svgI('<path d="M6 6l12 12M18 6L6 18"/>'),
   more:svgI('<circle cx="5" cy="12" r="1.3" fill="currentColor"/><circle cx="12" cy="12" r="1.3" fill="currentColor"/><circle cx="19" cy="12" r="1.3" fill="currentColor"/>'),
@@ -265,6 +264,7 @@ function countUp(el, ms){
   const f=t=>{ const p=Math.min(1,(t-t0)/d); show(to*(1-Math.pow(1-p,3))); if(p<1) requestAnimationFrame(f); else show(to); };
   requestAnimationFrame(f);
 }
+/* Вкладка появилась: карточки всплывают по очереди, кольца и линии рисуются, числа набегают */
 /* Кольцо заполняется от from (0–1) до своего значения. Через Web Animations, а не CSS:
    Safari на iPhone не всегда понимает var() внутри @keyframes, и кольцо просто появлялось готовым */
 function fillRing(el, from, ms, delay){
@@ -273,13 +273,15 @@ function fillRing(el, from, ms, delay){
   if(!(c>0)) return;
   const start=c*(1-Math.max(0,Math.min(1,from||0)));
   if(Math.abs(start-to)<0.5) return;
-  el.animate([{strokeDashoffset:start},{strokeDashoffset:to}], {duration:ms||200, delay:delay||0, easing:'cubic-bezier(.2,.8,.2,1)', fill:'backwards'});
+  el.animate([{strokeDashoffset:start},{strokeDashoffset:to}], {duration:ms||1100, delay:delay||0, easing:'cubic-bezier(.2,.8,.2,1)', fill:'backwards'});
 }
-/* Вкладка появилась (E3.2): содержимое на месте сразу, вкладка проявляется за 150 мс. Ни ступенчатого «доезжания», ни набегающих чисел */
 function enterFx(box){
+  /* перезапуск нужен, только если прошлое появление ещё идёт: иначе принудительный пересчёт раскладки — лишний кадр работы */
   if(box.classList.contains('enter')){ box.classList.remove('enter'); void box.offsetWidth; }
   box.classList.add('enter');
-  clearTimeout(box._fx); box._fx=setTimeout(()=>box.classList.remove('enter'), 200);
+  box.querySelectorAll('.rfill').forEach(el=>fillRing(el, 0, 1100, 150));
+  box.querySelectorAll('[data-count]').forEach(el=>countUp(el));
+  clearTimeout(box._fx); box._fx=setTimeout(()=>box.classList.remove('enter'), 1100);
 }
 /* Отметка, поставленная этим нажатием, «выскакивает» и дорисовывается */
 function popNewChecks(box, prev){

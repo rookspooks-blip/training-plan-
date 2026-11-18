@@ -7,10 +7,7 @@ let state={cycle:1,week:1};
 const SETTINGS_DEFAULT={auto:true, start:'2026-10-05', session:4, theme:'auto'};
 let settings={...SETTINGS_DEFAULT, kcalAdj:{}};
 /* Цикл 1: недели 1–12 сушка, дальше — сессионный блок (зима, экзамены) */
-const isSession=(c,w)=>{ c=c??state.cycle; w=w??state.week;
-  const P2=v2Pos(planWeekDate(settings.start, settings.session, c, w));   /* v2: сессия - блоки 2 и 3 */
-  if(P2) return P2.block>1;
-  return c===1 && w>12; };
+const isSession=(c,w)=>{ c=c??state.cycle; w=w??state.week; return c===1 && w>12; };
 let loadLog={}; // нагрузка: "YYYY-MM-DD" → [{k, min, rpe, id?}], см. load.js
 let marks={};    // галочки: "дата понедельника-день-упражнение"
 let grams={};    // граммовки выбранного дня (ссылка внутрь foodLog): "блюдо-продукт"
@@ -62,14 +59,10 @@ function clearDay(d){
    Ошибку записи не глотаем молча: раз за сеанс показываем подсказку */
 let storeWarned=false;
 let dataGen=0;   /* номер версии данных в памяти: растёт при каждой записи */
-/* Ключи, чьё значение в хранилище повреждено и сырую строку которого не вышло сохранить (safe.js: guardBadData).
-   Поверх них в этом сеансе ничего не пишем, чтобы не затереть единственный экземпляр */
-const blockedKeys=new Set();
 const store={
   get(k,fb){ try{ const r=localStorage.getItem(k); return r?JSON.parse(r):fb; }catch(e){ return fb; } },
   set(k,v){
     dataGen++;   /* данные поменялись — расчёты по истории пересчитаются */
-    if(blockedKeys.has(k)) return false;
     try{ localStorage.setItem(k,JSON.stringify(v)); return true; }
     catch(e){
       if(!storeWarned && typeof toast==='function'){
@@ -89,9 +82,42 @@ const asArr=(v,fb)=>Array.isArray(v) ? v : fb;
 /* Все ключи данных приложения. planSchema — версия формата */
 const DATA_KEYS=['planMarks','planSkips','planFood','planPos','planTodo','planLog','planSet',
                  'planBody','planCirc','planTests','planFav','planWatch','planCook','planArchive','planLoad'];
-const SCHEMA=5;
+const SCHEMA=4;
 const LEGACY_KEYS=['planGrams','planCustom'];   /* формат 1: еда лежала вне дней */
-/* snapshot, migrate, автокопии и откат — в safe.js */
+
+/* Снимок всех данных в отдельный ключ: перед миграцией и перед восстановлением */
+function snapshot(reason){
+  const data={};
+  [...DATA_KEYS, ...LEGACY_KEYS].forEach(k=>{
+    try{ const v=localStorage.getItem(k); if(v!=null) data[k]=JSON.parse(v); }catch(e){}
+  });
+  if(!Object.keys(data).length) return;
+  store.set('planAutoBackup', {app:'tri-cikla', schema:store.get('planSchema',1), reason, saved:new Date().toISOString(), data});
+}
+
+/* Миграции формата по шагам. Каждая — только вперёд */
+function migrate(){
+  let v=store.get('planSchema',1);
+  if(v>=SCHEMA) return;
+  snapshot(`миграция ${v}→${SCHEMA}`);
+  if(v<2){
+    /* граммовки и своя еда давно хранятся внутри дней planFood —
+       старые общие ключи больше никто не читает */
+    LEGACY_KEYS.forEach(k=>{ try{ localStorage.removeItem(k); }catch(e){} });
+    v=2;
+  }
+  if(v<3){
+    /* формат 3 — новый дизайн: старые ключи читаются как есть, добавляется
+       planCook (контейнеры недели) и пах в утреннем замере. Ничего не переписывается */
+    v=3;
+  }
+  if(v<4){
+    /* формат 4 — записи привязаны к числу: «цикл-неделя-…» → «дата понедельника недели-…» */
+    convertLegacyKeys();
+    v=4;
+  }
+  store.set('planSchema',v);
+}
 /* Зимняя сессия: период по датам. Сушка идёт ровно 12 недель, поэтому сессия начинается не раньше
    понедельника после неё; недели между концом сушки и «с» — те же поддерживающие тренировки.
    Длина в неделях (settings.session) считается из даты «по» и хранится как раньше — так план,
@@ -132,8 +158,7 @@ function applyAuto(){
 }
 
 function loadAll(){
-  guardBadData();   /* повреждённое значение — в planBad до любой записи */
-  const migrated=migrate();
+  migrate();
   marks  =asObj(store.get('planMarks',{}),{});
   skips  =asObj(store.get('planSkips',{}),{});
   foodLog=asObj(store.get('planFood',{}),{});
@@ -150,25 +175,14 @@ function loadAll(){
   if(p){ state.cycle=[1,2,3].includes(p.cycle)?p.cycle:1; state.week=Math.max(1,p.week|0); }
   if(state.week>maxWeek(state.cycle) && state.cycle!==3) state.week=maxWeek(state.cycle);   /* в цикле 3 после 24-й — повтор блока */
   /* один раз: если журнал показывает, что записи сидят не на своих числах (старт менялся до привязки к числам), сдвигаем */
-  /* Миграция 4→5 не прошла: данные формата 4 уже привязаны к числам, проверку сдвига не запускаем
-     (флаг выставит сама миграция, когда дойдёт до конца) */
-  if(!store.get('planShiftChecked',false) && (migrated || schemaOf(ls.get('planSchema'))<4)){
+  if(!store.get('planShiftChecked',false)){
     store.set('planShiftChecked', true);
     const d=detectDateShift();
-    if(d){
-      const n=shiftDataBy(d.delta);
-      if(n>=0) store.set('planShiftFix', {delta:d.delta, n:d.n, total:d.total, at:isoDay()});
-      else{
-        /* копия не записалась — проверка повторится при следующем запуске; коллизия — сдвига не будет, о нём скажем */
-        if(shiftError==='copy') store.set('planShiftChecked', false);
-        addAlert('shift', shiftMessage(), 'y');
-      }
-    }
+    if(d){ shiftDataBy(d.delta); store.set('planShiftFix', {delta:d.delta, n:d.n, total:d.total, at:isoDay()}); }
   }
   applyAuto();
   foodDay=todayIdx();
   loadFoodDay();
-  autoRotate();   /* ежедневная автокопия: раз в день, после того как данные загружены и выровнены */
 }
 const saveMarks=()=>store.set('planMarks',marks);
 const saveFood=()=>store.set('planFood',foodLog);   // все данные дня — одна запись
@@ -198,57 +212,36 @@ const weekTag=(c, w)=> weekTagForce && c==null ? weekTagForce : planWeekDate(set
 function withTag(tag, fn){ const sv=weekTagForce; weekTagForce=tag; try{ return fn(); } finally{ weekTagForce=sv; } }
 const TAG_RE=/^(\d{4}-\d\d-\d\d)(-.+)?$/;
 const LEGACY_RE=/^([123])-(\d+)(-.+)?$/;
-/* Старые ключи «цикл-неделя-…» → дата понедельника недели по нынешнему старту. Повторный запуск ничего не меняет.
-   Возвращает true, только если всё записано. Всё считается в памяти, пока ничего не записано; архив очищается
-   лишь после того, как перенос подтверждён; значения, которым не нашлось места из-за совпавшего ключа, не теряются:
-   их строка уходит в planBad (и лежит в planPre5) */
+/* Старые ключи «цикл-неделя-…» → дата понедельника недели по нынешнему старту. Повторный запуск ничего не меняет */
 function convertLegacyKeys(){
   const S=Object.assign({}, SETTINGS_DEFAULT, asObj(store.get('planSet',{}),{}));
-  const conflicts=[];
-  const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
-  const conv=(obj,name)=>{
+  const conv=obj=>{
     const out={}; let n=0;
-    const keys=Object.keys(obj), exist=new Set(keys.filter(k=>!LEGACY_RE.test(k)));
-    keys.forEach(k=>{
+    Object.keys(obj).forEach(k=>{
       const m=LEGACY_RE.exec(k);
-      if(!m){ out[k]=obj[k]; return; }
-      n++;
+      if(!m){ if(!(k in out)) out[k]=obj[k]; return; }
       const nk=planWeekDate(S.start, S.session, +m[1], +m[2])+(m[3]||'');
-      /* запись, уже стоящая на числе, главнее: она новее формата */
-      if(exist.has(nk)){ if(!same(obj[nk],obj[k])) conflicts.push({key:name, nk, lost:obj[k]}); return; }
-      if(nk in out){ if(!same(out[nk],obj[k])) conflicts.push({key:name, nk, lost:obj[k]}); return; }
-      out[nk]=obj[k];
+      if(!(nk in out)) out[nk]=obj[k]; n++;
     });
     return n ? out : null;
   };
-  const names=['planMarks','planSkips','planFood','planLog','planWatch','planCook'];
-  const cur={}, changed=new Set();
-  names.forEach(k=>{ cur[k]=asObj(store.get(k,{}),{}); const c=conv(cur[k],k); if(c){ cur[k]=c; changed.add(k); } });
+  const sets=[['planMarks'],['planSkips'],['planFood'],['planLog'],['planWatch'],['planCook']];
+  sets.forEach(([key])=>{ const o=asObj(store.get(key,{}),{}); const c=conv(o); if(c) store.set(key,c); });
   /* досрочные разгрузки лежат в настройках под тем же видом ключа */
   const ps=asObj(store.get('planSet',{}),{});
-  if(ps.earlyDl){ const c=conv(ps.earlyDl,'planSet.earlyDl'); if(c){ ps.earlyDl=c; changed.add('planSet'); } }
+  if(ps.earlyDl){ const c=conv(ps.earlyDl); if(c){ ps.earlyDl=c; store.set('planSet',ps); } }
   /* архив прошлой версии: записи возвращаются на свои числа */
   const arch=asObj(store.get('planArchive',{}),{});
-  const hasArch=Object.keys(arch).length>0;
-  if(hasArch){
+  if(Object.keys(arch).length){
     const into={marks:'planMarks', skips:'planSkips', foodLog:'planFood', logs:'planLog', watch:'planWatch', cook:'planCook'};
     Object.keys(arch).forEach(iso=>Object.keys(into).forEach(name=>{
-      const part=arch[iso] && arch[iso][name]; if(!part || typeof part!=='object') return;
-      const key=into[name], o=cur[key];
-      Object.keys(part).forEach(rest=>{ const nk=iso+rest;
-        if(!(nk in o)){ o[nk]=part[rest]; changed.add(key); }
-        else if(!same(o[nk],part[rest])) conflicts.push({key, nk, lost:part[rest], from:'planArchive'}); });
+      const part=arch[iso] && arch[iso][name]; if(!part) return;
+      const o=asObj(store.get(into[name],{}),{});
+      Object.keys(part).forEach(rest=>{ const nk=iso+rest; if(!(nk in o)) o[nk]=part[rest]; });
+      store.set(into[name], o);
     }));
+    store.set('planArchive', {});
   }
-  /* сначала сохраняем то, что не войдёт, и только потом пишем */
-  if(conflicts.length){
-    if(!saveBad('conflict', JSON.stringify({note:'значения, не вошедшие при переносе старых ключей: ключ уже занят другой записью', items:conflicts}))) return false;
-    addAlert('conflict', `При переносе старых записей ${conflicts.length} значений оказались на уже занятых ключах. Они не потеряны: лежат отдельно (planBad:conflict) и в копии planPre5.`, 'y');
-  }
-  let ok=true;
-  changed.forEach(k=>{ if(k==='planSet') ok=store.set('planSet',ps)&&ok; else ok=store.set(k,cur[k])&&ok; });
-  if(ok && hasArch) ok=store.set('planArchive',{});   /* только когда перенос подтверждён */
-  return ok;
 }
 /* Старт плана уже менялся до привязки к числам: записи сидят на датах, посчитанных от нового старта.
    Сдвигаем все метки недель на разницу между старым и нынешним стартом */
@@ -283,42 +276,13 @@ function misalignCandidate(){
   return fut>=3 && !dates.some(d=>addDays(d,delta)>lim) ? {delta, fut, total:dates.length, from:def} : null;
 }
 function shiftDataDates(oldStart){ return shiftDataBy(daysBetween(settings.start, oldStart)); }
-/* Почему сдвиг не выполнен (см. shiftDataBy) */
-let shiftError=null;   /* 'copy' | 'collision' | 'write' */
-const shiftMessage=()=>shiftError==='copy' ? 'Не хватило памяти на копию перед сдвигом дат. Ничего не сдвинуто, записи на месте.'
-  : shiftError==='collision' ? 'Сдвиг дат остановлен: после него записи легли бы на одни и те же ключи. Ничего не сдвинуто.'
-  : 'Сдвиг дат не записался до конца. Записи возвращены как были.';
-/* Сдвиг дат всех записей на delta дней. Возвращает число сдвинутых ключей; -1 — сдвига не было (причина в shiftError,
-   данные те же). Порядок: проверка коллизий до записи → копия в planPreOp (обязательна) → запись → при сбое возврат */
 function shiftDataBy(delta){
-  shiftError=null;
   if(!delta) return 0;
-  let n=0, clash=false;
-  const mv=obj=>{
-    const out={};
-    Object.keys(obj).forEach(k=>{
-      const m=TAG_RE.exec(k); let nk=k;
-      if(m){ nk=addDays(m[1],delta)+(m[2]||''); n++; }
-      if(nk in out || /NaN/.test(nk)) clash=true;   /* совпавший или не получившийся ключ — сдвиг отменяется */
-      out[nk]=obj[k];
-    });
-    return out;
-  };
-  const old={marks, skips, foodLog, logs, watch, cook, earlyDl:settings.earlyDl};
-  const nu={marks:mv(marks), skips:mv(skips), foodLog:mv(foodLog), logs:mv(logs), watch:mv(watch), cook:mv(cook), earlyDl:settings.earlyDl?mv(settings.earlyDl):settings.earlyDl};
-  if(clash){ shiftError='collision'; return -1; }
-  if(!snapshot('перед сдвигом дат')){ shiftError='copy'; return -1; }
-  const keys=['planMarks','planSkips','planFood','planLog','planWatch','planCook','planSet'];
-  const before={}; keys.forEach(k=>{ const v=ls.get(k); if(v!=null) before[k]=v; });
-  ({marks, skips, foodLog, logs, watch, cook}=nu); if(settings.earlyDl) settings.earlyDl=nu.earlyDl;
-  const ok=[saveMarks(), saveSkips(), saveFood(), saveLogs(), saveWatch(), saveCook(), saveSettings()].every(x=>x===true);
-  if(!ok){
-    /* сбой посередине: возвращаем записанные ключи как были и память тоже */
-    keys.forEach(k=>{ if(k in before) ls.put(k,before[k]); else ls.del(k); });
-    ({marks, skips, foodLog, logs, watch, cook}=old); settings.earlyDl=old.earlyDl;
-    loadFoodDay();
-    shiftError='write'; return -1;
-  }
+  let n=0;
+  const mv=obj=>{ const out={}; Object.keys(obj).forEach(k=>{ const m=TAG_RE.exec(k); if(m){ out[addDays(m[1],delta)+(m[2]||'')]=obj[k]; n++; } else out[k]=obj[k]; }); return out; };
+  marks=mv(marks); skips=mv(skips); foodLog=mv(foodLog); logs=mv(logs); watch=mv(watch); cook=mv(cook);
+  if(settings.earlyDl) settings.earlyDl=mv(settings.earlyDl);
+  saveMarks(); saveSkips(); saveFood(); saveLogs(); saveWatch(); saveCook(); saveSettings();
   loadFoodDay();
   return n;
 }

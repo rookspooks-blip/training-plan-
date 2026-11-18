@@ -93,15 +93,12 @@ function drawPage(){
 function closePage(all){ if(all) pageStack.length=0; else pageStack.pop(); drawPage(); }
 document.addEventListener('keydown',e=>{ if(e.key==='Escape' && !sheetStack.length && pageStack.length) closePage(); });
 
-/* ---------- Подсказка установки (E3.2): только iPhone в Safari, не установлено и не больше одного раза.
-   Крестик запоминается навсегда; без крестика подсказка показывается только в том запуске, где её увидели впервые */
+/* ---------- Подсказка установки: только iPhone в Safari и только пока не установлено ---------- */
 function renderInstallHint(){
   const box=$('#installSlot'); if(!box) return;
   const ios=/iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
-  let again=false; try{ again=sessionStorage.getItem('hintShown')==='1'; }catch(e){}
-  if(isStandalone || !ios || store.get('planHintOff',false) || location.protocol==='file:' || (store.get('planHintSeen',false) && !again)){ box.innerHTML=''; return; }
-  store.set('planHintSeen',true); try{ sessionStorage.setItem('hintShown','1'); }catch(e){}
-  box.innerHTML=`<div class="install"><div class="grow">Поставь план на экран «Домой»: ${IC.share} <b>Поделиться</b> внизу Safari, потом <b>«На экран Домой»</b>. Так он работает без интернета.</div>
+  if(isStandalone || !ios || store.get('planHintOff',false) || location.protocol==='file:'){ box.innerHTML=''; return; }
+  box.innerHTML=`<div class="install"><div class="grow">Поставь план на экран «Домой» — откроется как приложение и будет работать без интернета: нажми ${IC.share} <b>Поделиться</b> внизу Safari, потом <b>«На экран Домой»</b>.</div>
     <button type="button" class="del" data-x aria-label="Скрыть">×</button></div>`;
   box.querySelector('[data-x]').addEventListener('click',()=>{ store.set('planHintOff',true); box.innerHTML=''; });
 }
@@ -116,10 +113,20 @@ function renderOnboard(){
   box.innerHTML=`<div class="onb"><h3>Как пользоваться</h3><ol>
       <li>${settings.auto?`<b>Неделя выбирается по дате.</b> Старт плана — ${planDates().start}.`:'<b>Неделя выбрана вручную.</b> По дате — включи в настройках.'} Поменять — «Я» → «Настройки и данные».</li>
       <li><b>В день тренировки</b> нажми «Начать тренировку». Плеер покажет подход и вес — жми «Готово». Вес на следующий раз подберётся сам.</li>
-      <li><b>Утром</b> — впиши вес одной строкой. Пульс, сон и оценки колена, поясницы, паха — по тапу на «Вес утром».</li></ol>
+      <li><b>Утром</b> — замер здесь же: вес, пульс, колено, поясница и пах 0–10. По ним план подстраивается.</li></ol>
     <button type="button" class="btn big" data-ok>Понятно</button></div>`;
   box.querySelector('[data-ok]').addEventListener('click',()=>{ store.set('planOnboarded',true); onbForce=false; box.innerHTML=''; });
 }
+
+/* ---------- Кнопка «+»: быстрая запись с любой вкладки ---------- */
+function quickAddSheet(){
+  const items=[['m','Утренний замер','вес, пульс, колено, сон'],['load','Баскетбол или игра','в нагрузку недели'],['food','Еда','что съел'],['test','Тест','прыжок, спринт, касание…'],['daily','Зарядка для колен','отметить упражнения']];
+  openSheet(`<h2>Записать</h2><div class="card" style="padding:4px 16px">${items.map(([k,t,s])=>`<button type="button" class="secrow" data-q="${k}"><span><b>${t}</b><br><small class="muted">${s}</small></span><span class="chev" style="flex:none">›</span></button>`).join('')}</div>`,
+    (el,close)=>el.querySelectorAll('[data-q]').forEach(b=>b.addEventListener('click',()=>{ close(); const k=b.dataset.q;
+      if(k==='m') morningSheet(); else if(k==='load') loadAddSheet('ball'); else if(k==='food') foodQuickSheet(); else if(k==='test') testRecordSheet(); else dailySheet(todayIdx()); })));
+}
+{ const f=document.createElement('button'); f.type='button'; f.id='fab'; f.setAttribute('aria-label','Записать'); f.textContent='+';
+  f.addEventListener('click',quickAddSheet); document.body.appendChild(f); }
 
 /* ---------- Старт ---------- */
 loadAll();
@@ -139,10 +146,8 @@ function maybeAskShift(){
     <button type="button" class="btn big pri" data-yes>Да, сдвинуть на ${Math.abs(c.delta)} дн.</button>
     <button type="button" class="btn" data-no>Нет, оставить как есть</button>`, el=>{
     el.querySelector('[data-yes]').addEventListener('click',()=>{
-      const n=shiftDataBy(c.delta); closeSheets();
-      if(n<0){ toast(shiftMessage()); return; }   /* вопрос не помечаем отвеченным: спросим снова, когда будет место */
-      store.set('planShiftAsked',true); renderAll();
-      toast(`Записи (${n}) встали на свои числа`, ()=>{ if(shiftDataBy(-c.delta)<0) toast(shiftMessage()); renderAll(); });
+      store.set('planShiftAsked',true); const n=shiftDataBy(c.delta); closeSheets(); renderAll();
+      toast(`Записи (${n}) встали на свои числа`, ()=>{ shiftDataBy(-c.delta); renderAll(); });
     });
     el.querySelector('[data-no]').addEventListener('click',()=>{ store.set('planShiftAsked',true); closeSheets(); });
   });

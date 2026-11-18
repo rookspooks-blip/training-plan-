@@ -6,8 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const { chromium, webkit, devices } = await import(process.env.PW || 'playwright');
-const engine = process.env.BR === 'webkit' ? webkit : chromium;   /* BR=webkit — движок Safari */
+const { chromium, devices } = await import(process.env.PW || 'playwright');
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const TYPES = { '.html':'text/html', '.js':'text/javascript', '.css':'text/css', '.webmanifest':'application/manifest+json', '.png':'image/png', '.jpg':'image/jpeg', '.svg':'image/svg+xml' };
 const server = http.createServer((req, res) => {
@@ -23,7 +22,7 @@ const URL0 = `http://localhost:${server.address().port}/`;
 
 let fails = 0;
 const check = (name, ok, extra='') => { console.log(`${ok ? 'OK  ' : 'FAIL'} ${name}${extra ? ' — ' + extra : ''}`); if (!ok) fails++; };
-const browser = await engine.launch();
+const browser = await chromium.launch();
 async function at(time, data = {}) {
   const ctx = await browser.newContext({ ...devices['iPhone 15 Pro'], reducedMotion: 'reduce', serviceWorkers: 'block' });
   const p = await ctx.newPage();
@@ -63,16 +62,16 @@ const sheetOpt = async (p, a) => { await p.click(`.sheet [data-a="${a}"]`); awai
   check('план: «Неделя 2 из 12», цикл 1 · сушка, 7 дней, статус пуст', r.t === 'Неделя 2 из 12' && /Цикл 1 · сушка/.test(r.k) && r.notes === 0 && r.tiles === 7, JSON.stringify(r));
   await ctx.close();
 }
-/* 3. Тренировка в плеере (E3.1): начать → подход «Готово» → отдых полосой → закончить сейчас → итог со шкалой тяжести */
+/* 3. Тренировка в плеере: начать → подход «Готово» → отдых → итог с самочувствием */
 {
   const { ctx, p } = await at('2026-10-12T17:00:00', { planOnboarded: true });
   check('пустых подсказок колена/поясницы нет', !(await p.evaluate(() => /Утром оцени, как она/.test(document.body.innerText))));
-  check('«Зарядка для колен» в ленте и в день тренировки', await p.evaluate(() => [...document.querySelectorAll('#scr-now .nrow .nm')].some(e => e.textContent === 'Зарядка для колен')));
+  check('«Зарядка для колен» в ленте и в день тренировки', await p.evaluate(() => [...document.querySelectorAll('#scr-now .it .nm')].some(e => e.textContent === 'Зарядка для колен')));
   await p.click('#scr-now [data-start]');
-  check('плеер открыт, время начала записано', (await visible(p, '#player .panel')) && await p.evaluate(() => watch['2026-10-12-d1'].s === '17:00'));
+  check('плеер открыт, время начала записано', (await visible(p, '#player .pl-dock')) && await p.evaluate(() => watch['2026-10-12-d1'].s === '17:00'));
   /* пары: подход A → подход B → отдых */
   const pair = await p.evaluate(() => {
-    /* день с парами «в паре с …» - ищем по году */
+    /* день с парами «в паре с …» — ищем по году */
     for (const [c, w] of [[1, 3], [1, 5], [1, 9], [2, 2], [3, 2]]) {
       const r = withWeek(c, w, () => { const e = buildWeek().find(x => x.type === 'gym' && x.day.ex.some(y => /^в паре/.test(y.rest)));
         if (!e) return null; const keep = PL.id; PL.id = e.id; const st = plBuild(e); PL.id = keep;
@@ -83,38 +82,32 @@ const sheetOpt = async (p, a) => { await p.click(`.sheet [data-a="${a}"]`); awai
     return false;
   });
   check('пары чередуются: подход A, затем подход B', pair);
-  /* до первого подхода без пары: разминка, готовность, старты - по главной кнопке панели */
-  for (let i = 0; i < 12; i++) {
-    const c = await p.evaluate(() => { const s = plCur(plEntry()); return s.k === 'set' && !s.mate ? null : s.k + '|' + s.t; });
-    if (c === null) break;
-    await p.click(c.startsWith('warm') ? '#player [data-a=warmdone]' : c.endsWith('ready') ? '#player [data-a=ready][data-v="1"]' : c.startsWith('ex') ? '#player [data-a=count]' : '#player [data-a=done]');
-    await p.clock.runFor(700);
-  }
-  const before = await p.evaluate(() => { const s = plCur(plEntry()); return { k: logKey('d1', s.ex.id), si: s.si }; });
-  await p.click('#player [data-a=done]');
+  await p.evaluate(() => plGo(PL.steps.findIndex(s => s.k === 'set' && !s.mate)));
+  const before = await p.evaluate(() => { const s = PL.steps[PL.i]; return { k: logKey('d1', s.ex.id), si: s.si }; });
+  await p.click('#player [data-done]');
   const L = await p.evaluate(b => logs[b.k], before);
   check('«Готово» записал подход в журнал', L && L.sets[before.si] && L.sets[before.si].r !== '' && L.d === '2026-10-12' && L.wk, JSON.stringify(L));
-  check('после подхода отдых полосой над панелью, панель на месте', (await visible(p, '#player .rest')) && (await visible(p, '#player [data-a=done]')));
+  check('после подхода — отдых на весь экран', await visible(p, '#player .bigring'));
   await p.clock.runFor(4 * 60 * 1000);
-  check('отдых кончился - полоса серая, считает вверх, подход тот же', await p.evaluate(() => !!document.querySelector('#player .rest.over') && /^\+/.test(document.querySelector('#player [data-rt]').textContent)));
-  await p.clock.runFor(21 * 60 * 1000);
+  check('отдых кончился — снова подход', !(await visible(p, '#player .bigring')));
+  await p.clock.runFor(41 * 60 * 1000);
   await p.evaluate(() => { marks[key('d1', 'a1')] = true; saveMarks(); });
-  await p.click('#player [data-a=menu]'); await sheetOpt(p, 'fin');
+  await p.click('#player [data-menu]'); await sheetOpt(p, 'fin');
   const r = await p.evaluate(() => ({ w: watch['2026-10-12-d1'], txt: document.querySelector('#player').innerText }));
-  check('итог: время, подходы, закончено сейчас', r.w && r.w.s === '17:00' && r.w.e === '17:25' && /25 мин/.test(r.txt) && /подход/.test(r.txt), JSON.stringify(r.w));
-  await p.click('#player [data-a=srpe][data-v="7"]');
-  check('тяжесть тренировки сохранена в нагрузку недели', await p.evaluate(() => gymLoadOf('2026-10-12', 'd1').rpe === 7));
-  await p.click('#player [data-a=min]');
-  check('плеер закрыт', !(await visible(p, '#player .panel')));
+  check('итог: время и счёт упражнений', r.w && r.w.s === '17:00' && r.w.e === '17:45' && /0:45/.test(r.txt) && /Тренировка сделана/.test(r.txt), JSON.stringify(r.w));
+  await p.click('#player [data-feel="7"]');
+  check('самочувствие сохранено в день', await p.evaluate(() => body['2026-10-12'].feel === 7));
+  await p.click('#player [data-min]');
+  check('плеер закрыт', !(await visible(p, '#player .pl-dock')));
   await ctx.close();
 }
-/* 3б. Свернуть посреди тренировки - плашка с упражнением и подходом, тап - обратно */
+/* 3б. Свернуть посреди тренировки — полоска «Идёт тренировка», тап — обратно */
 {
   const { ctx, p } = await at('2026-10-12T17:00:00', { planOnboarded: true });
-  await p.click('#scr-now [data-start]'); await p.click('#player [data-a=min]');
-  check('плашка над вкладками: тренировка и текущий шаг', await p.evaluate(() => !document.querySelector('#mini').hidden && /Силовая А · Разминка/.test(document.querySelector('#mini').innerText)));
+  await p.click('#scr-now [data-start]'); await p.click('#player [data-min]');
+  check('полоска «Идёт тренировка» над вкладками', await p.evaluate(() => !document.querySelector('#mini').hidden && /Идёт тренировка/.test(document.querySelector('#mini').innerText)));
   await p.click('#mini');
-  check('тап по плашке - плеер', await visible(p, '#player .panel'));
+  check('тап по полоске — плеер', await visible(p, '#player .pl-dock'));
   await ctx.close();
 }
 /* удержание дня на «Плане» — карточка дня (короткое нажатие открывает день на «Сейчас») */
@@ -170,8 +163,8 @@ const hold = async (p, sel) => { const bb = await (await p.$(sel)).boundingBox()
   check('удаление спрашивает подтверждение', await visible(p, '.sheet [data-ok]'));
   await p.click('.sheet [data-ok]');
   await p.waitForTimeout(1200);
-  const r = await p.evaluate(() => ({ m: localStorage.getItem('planMarks'), auto: JSON.parse(localStorage.getItem('planPreOp') || 'null') }));
-  check('данные удалены, копия перед удалением есть', r.m === null && r.auto && JSON.parse(r.auto.raw.planMarks)['2026-10-12-d1-a1'] === true, JSON.stringify(r).slice(0, 120));
+  const r = await p.evaluate(() => ({ m: localStorage.getItem('planMarks'), auto: JSON.parse(localStorage.getItem('planAutoBackup') || 'null') }));
+  check('данные удалены, автокопия есть', r.m === null && r.auto && r.auto.data.planMarks['2026-10-12-d1-a1'] === true, JSON.stringify(r).slice(0, 120));
   check('ошибок нет', p.errs.length === 0, p.errs.join(' | '));
   await ctx.close();
 }

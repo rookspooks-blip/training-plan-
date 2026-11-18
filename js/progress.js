@@ -7,8 +7,6 @@ let circ=[];    // [{d, a, b, h}] талия узкая / по пупку / бе
 let tests=[];   // [{d, t, v}]
 const TESTS={
   jump:{n:'Прыжок с места', u:'см', better:1},
-  yoyo:{n:'Yo-Yo IR1', u:'м', better:1},
-  battery:{n:'Бросковая батарея', u:'из 50', better:1},
   sprint34:{n:'Спринт 3/4 площадки', u:'с', better:-1},
   m60:{n:'60 м', u:'с', better:-1},
   pull:{n:'Подтягивания', u:'раз', better:1},
