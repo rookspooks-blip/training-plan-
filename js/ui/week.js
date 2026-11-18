@@ -13,6 +13,8 @@ const KIND_RU={build:'рабочая', hyper:'рабочая', deload:'разг�
 /* Объём недели по плану: подходы силовых и скоростных (без мяча и теста). Считается из тех же дней, что показывает приложение */
 const isExamWeek=(c,w)=> summerModeOf(c,w)==='exam';   /* летняя сессия */
 function weekVolume(c,w){
+  const P2=v2Pos(planWeekDate(settings.start, settings.session, c, w));
+  if(P2){ let n=0; Object.values(buildV2Days(P2)).forEach(d=>{ if(d) d.ex.forEach(x=>{ if(/пропустить/.test(x.dose) || x.step || x.badge[0]==='Мяч' || x.badge[0]==='Тест' || x.badge[0]==='Кардио') return; n+=parseDose(x.dose).sets; }); }); return n; }
   const days=[...buildDays(c,w)];
   /* летняя сессия — как зимняя: две короткие силовые и прыжки, без дней верха */
   if(isExamWeek(c,w)) days.forEach(d=>{ if(d && (d.id==='d1'||d.id==='d2'||d.id==='d3')) examDay(d); });
@@ -119,7 +121,7 @@ function daySheet(x){
       <div class="t2" style="margin-bottom:10px">${day.note}</div>
       ${dayNotesHTML(e)}
       ${dropped?'':`
-      ${!day.noWarm?`<div class="muted small" style="margin:4px 0 6px">Разминка ${warmupOf(day,state.week).dur} · ${warmupOf(day,state.week).label}</div>`:'<div class="muted small" style="margin:4px 0 6px">Разминка не нужна — после физры</div>'}
+      ${!day.noWarm?`<div class="muted small" style="margin:4px 0 6px">Разминка ${warmupOf(day,state.week).dur} · ${warmupOf(day,state.week).label}</div>`:`<div class="muted small" style="margin:4px 0 6px">${e.id==='d2'||e.id==='d4'?'Разминка не нужна — после физры':''}</div>`}
       <div class="card" style="padding:4px 16px">${day.ex.map(ex=>{ const on=!!marks[key(e.id,ex.id)], skip=plSkipDose(ex);
         return `<div class="row"><button type="button" class="ck${on?' on':''}" data-exck="${ex.id}" aria-label="${esc(ex.name)}" ${skip?'disabled style="opacity:.3"':''}>${IC.check}</button>
           <button type="button" class="grow" style="text-align:left" data-tech="${ex.id}"><div class="nm">${esc(ex.name)}${ex.sub?' <small class="muted">замена</small>':''}</div><div class="ds">${esc(doseShown(e.id, ex))}${ex.rest&&ex.rest!=='—'?` · отдых ${esc(ex.rest)}`:''}</div></button></div>`; }).join('')}</div>`}
@@ -129,14 +131,14 @@ function daySheet(x){
   });
   const di=(dow+6)%7, kn=dailyCount(di), knAll=kn===DAILY.length;
   openSheet(`<div class="kick" style="margin-bottom:6px">${isToday?'Сегодня':DOW_FULL[dow]} · ${shortDate(iso)}</div>${parts.join('<div style="height:22px"></div>')}
-    ${dow===6?`<button type="button" class="btn" style="margin-top:14px;width:100%" data-ballsat>${ballSat()?'Баскета в эту субботу не будет':'Утром баскет в вузе'}</button>
+    ${dow===6&&!v2On()?`<button type="button" class="btn" style="margin-top:14px;width:100%" data-ballsat>${ballSat()?'Баскета в эту субботу не будет':'Утром баскет в вузе'}</button>
       <div class="small muted" style="margin-top:6px">${ballSat()?'Силовая Б вернётся в 12:00.':'Утром вторая скоростная (прыжки, старты) и 10–15 минут игры, Силовая Б уедет на 18:00 — без стартов и прыжков.'}</div>`:''}
-    <div class="card" style="padding:4px 16px;margin-top:18px"><button type="button" class="row" style="width:100%;text-align:left" data-knee>
-      <span class="ck${knAll?' on':''}">${IC.check}</span><span class="grow"><div class="nm">Зарядка для колен</div><div class="ds">${knAll?'сделана':kn?`${kn} из ${DAILY.length}`:'не отмечена'} · ≈${dailyMinutes()} мин</div></span><span class="chev">›</span></button></div>
+    ${!dailyOn()?'':`<div class="card" style="padding:4px 16px;margin-top:18px"><button type="button" class="row" style="width:100%;text-align:left" data-knee>
+      <span class="ck${knAll?' on':''}">${IC.check}</span><span class="grow"><div class="nm">Зарядка для колен</div><div class="ds">${knAll?'сделана':kn?`${kn} из ${DAILY.length}`:'не отмечена'} · ≈${dailyMinutes()} мин</div></span><span class="chev">›</span></button></div>`}
     ${isToday?'':`<button type="button" class="btn big" style="margin-top:12px" data-goday>Открыть этот день на «Сейчас»</button>`}
     <button type="button" class="btn" style="margin-top:10px" data-close>Закрыть</button>`,
     (el,close)=>{
-      el.querySelector('[data-knee]').addEventListener('click',()=>{ close(); dailySheet(di); });
+      const kb=el.querySelector('[data-knee]'); if(kb) kb.addEventListener('click',()=>{ close(); dailySheet(di); });
       const bs=el.querySelector('[data-ballsat]');
       if(bs) bs.addEventListener('click',()=>{ close(); toggleBall();
         toast(ballSat()?'Суббота: баскет утром, Силовая Б в 18:00':'Баскета нет — Силовая Б в 12:00', ()=>{ toggleBall(); }); });
@@ -184,7 +186,7 @@ function habitRows(){
   return [
     {t:'Лёг в одно и то же время', v:old('sl1')?'✓ за неделю':`${n('sl1')} из 7`, s:'галочка в «Итогах дня» или отбой 00:30–01:30 в утреннем замере'},
     {t:'Не пропустил ни одного приёма пищи', v:old('sl2')?'✓ за неделю':`${n('sl2')} из 7`, s:'отмечается вечером в «Итогах дня»'},
-    {t:'Сделал зарядку для колен', v:`${dailyN} из 7`, s:`день засчитан, когда отмечены все ${DAILY.length} упражнений`},
+    ...(dailyOn() ? [{t:'Сделал зарядку для колен', v:`${dailyN} из 7`, s:`день засчитан, когда отмечены все ${DAILY.length} упражнений`}] : []),
     {t:'Взвесился утром натощак', v:`${weighN} из 7`, s:'по утренним взвешиваниям, нужно минимум 3'},
     {t:'Записал рабочие веса', v:gyms.length?`${loggedN} из ${gyms.length}`:'—', s:'по записанным подходам'}
   ];
@@ -438,6 +440,7 @@ function renderWeekTab(){
     <div class="sec">Неделя · ${KIND_RU[info.kind]||''}<span class="aux">${toDl}</span></div>
     <div class="wk">${tiles}</div>
     ${/^(Рабочая|Разгрузочная|Тестовая) неделя$/.test(info.label)?'':`<div class="small t2" style="margin-top:8px">${esc(info.label)}</div>`}
+    ${v2On()?`<div class="sec">Дальше по календарю</div><div class="card">${V2_CAL.filter(b=>b.block>=3).map(b=>`<div class="hab"><span><b>${esc(b.title)}</b><small>${esc(b.text)}</small></span></div>`).join('')}<div class="small muted" style="margin-top:8px">Состава дней у этих блоков пока нет: он задаётся после тестов недели 7 и даты операции.</div></div>`:''}
     ${weekSummaryHTML()}
   `;
 

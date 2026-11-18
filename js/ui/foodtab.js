@@ -1,8 +1,8 @@
 "use strict";
 /* ############################################################
-   «ЕДА» — сколько ещё и из чего.
-   Кольцо «осталось» → контейнеры недели → как обычно в это время →
-   съедено по времени → режим дня. Всё остальное — в «⋯».
+   «ЕДА» (E3.2, макет А «Лента»): компактное кольцо и БЖУ сверху, лента записей дня,
+   внизу закреплённая панель: фишки «как обычно в это время» и строка «Своё: шаурма 650».
+   Контейнеры недели, каталог, «Собрать день», фастфуд, режим дня - в меню «⋯».
    Данные те же: дневник дня (блюда, граммы, своё, время) и готовка недели.
    ############################################################ */
 const isFoodToday=()=>foodDay===todayIdx() && isNowWeek();
@@ -21,8 +21,12 @@ function quickPill(u,i){
   if(u.kind==='dish'){ const d=dishById(u.id); return `<button type="button" class="pill" data-q="${i}">${esc(d.name)} <small>${dishTotals(d).k}</small></button>`; }
   return `<button type="button" class="pill${u.x.bad?' bad':''}" data-q="${i}">${esc(u.x.name)} <small>${esc(u.x.k)}</small></button>`;
 }
+function quickChip(u,i){
+  const nm=u.kind==='dish' ? dishById(u.id).name : u.x.name, k=u.kind==='dish' ? dishTotals(dishById(u.id)).k : u.x.k, bad=u.kind!=='dish' && u.x.bad;
+  return `<button type="button" class="fchip${bad?' bad':''}" data-q="${i}">${esc(nm)}<small>${k}</small></button>`;
+}
 function addCustom(x){
-  const it={name:x.name, k:x.k, p:x.p, f:x.f, c:x.c, t:nowHM()};
+  const it={name:x.name, k:x.k, p:x.p, f:x.f, c:x.c, t:x.t||nowHM()};
   custom.push(it); saveFood(); renderAll();
   toast(FOOD_MSG.add(x.name), ()=>{ const i=custom.indexOf(it); if(i>=0) custom.splice(i,1); saveFood(); renderAll(); });
 }
@@ -42,25 +46,50 @@ function eatContainer(item, fromNow){
   toast(`Порция: ${dishById(item.m).name} — записано${isFoodToday()?', '+nowHM():''}`, ()=>{ uneatDish(added); renderAll(); });
 }
 
-/* ---------- Листы ---------- */
-function ownFoodSheet(){
-  openSheet(`<h2>Своё блюдо</h2><div class="sub">Знаешь только калории — впиши их, остальное оставь пустым.</div>
-    <input class="inp small" data-n placeholder="Что это было" aria-label="Название">
+/* ---------- Ввод своей еды ---------- */
+const strictNum=s=>/^\d+([.,]\d+)?$/.test(s) ? num(s) : null;
+/* «шаурма 650», «Шаурма, 650 ккал»: название и калории из одной строки. Буквы вместо калорий и пустые калории не проходят */
+function parseOwn(s){
+  s=String(s||'').trim().replace(/\s+/g,' ');
+  if(/^\d+$/.test(s)) return {err:'Впиши название и калории: шаурма 650'};
+  const m=/^(.*?)[\s,;:=]+(\d+(?:[.,]\d+)?)\s*(?:ккал|кал|к|kcal)?\.?$/i.exec(s);
+  if(!m) return {err:'В конце строки нужны калории числом: шаурма 650'};
+  const name=m[1].trim(), k=Math.round(+m[2].replace(',','.'));
+  if(!name) return {err:'Впиши название и калории: шаурма 650'};
+  if(!(k>=1) || k>5000) return {err:'Калории от 1 до 5000'};
+  return {name, k};
+}
+function foodFormHTML(x){
+  x=x||{};
+  const v=f=>x[f]!=null&&x[f]!==''&&x[f]!==0 ? esc(String(x[f])) : '';
+  return `<input class="inp small" data-n placeholder="Что это было" aria-label="Название" value="${esc(x.name||'')}">
     <div class="btnrow" style="grid-template-columns:repeat(4,1fr)">
-      <input class="inp small" data-k inputmode="numeric" placeholder="ккал" aria-label="Калории">
-      <input class="inp small" data-p inputmode="numeric" placeholder="Б, г" aria-label="Белки">
-      <input class="inp small" data-f inputmode="numeric" placeholder="Ж, г" aria-label="Жиры">
-      <input class="inp small" data-c inputmode="numeric" placeholder="У, г" aria-label="Углеводы"></div>
-    <div class="errtxt" hidden></div>
+      <input class="inp small" data-k inputmode="numeric" placeholder="ккал" aria-label="Калории" value="${v('k')}">
+      <input class="inp small" data-p inputmode="numeric" placeholder="Б, г" aria-label="Белки" value="${v('p')}">
+      <input class="inp small" data-f inputmode="numeric" placeholder="Ж, г" aria-label="Жиры" value="${v('f')}">
+      <input class="inp small" data-c inputmode="numeric" placeholder="У, г" aria-label="Углеводы" value="${v('c')}"></div>
+    <div class="set-row"><span class="grow"><b>Время</b><span>когда съел</span></span><input type="time" data-t value="${esc(x.t||'')}" aria-label="Время приёма"></div>
+    <div class="errtxt" hidden></div>`;
+}
+/* Читает форму. Названия и калорий достаточно, Б, Ж, У можно пустыми. null - ошибка уже показана */
+function readFoodForm(el){
+  const err=el.querySelector('.errtxt'); let msg='';
+  const q=f=>el.querySelector(`[data-${f}]`), mark=(f,bad,text)=>{ q(f).classList.toggle('err',bad); if(bad && !msg) msg=text; };
+  const name=q('n').value.trim(); mark('n', !name, 'Впиши название');
+  const k=strictNum(q('k').value.trim()); mark('k', k==null || k<1 || k>5000, 'Калории: число от 1 до 5000');
+  const g={};
+  ['p','f','c'].forEach(f=>{ const s=q(f).value.trim(), x=s===''?0:strictNum(s); mark(f, x==null || x>500, 'Граммы: число от 0 до 500'); g[f]=Math.round(x||0); });
+  if(msg){ err.hidden=false; err.textContent=msg; return null; }
+  err.hidden=true;
+  return {name, k:Math.round(k), ...g, t:q('t').value||''};
+}
+function ownFoodSheet(pre){
+  openSheet(`<h2>Своё блюдо</h2><div class="sub">Название и калории обязательны, Б, Ж, У можно не заполнять.</div>
+    ${foodFormHTML(pre)}
     <button type="button" class="btn big pri" style="margin-top:14px" data-add>Добавить в день</button>`,
     (el,close)=>el.querySelector('[data-add]').addEventListener('click',()=>{
-      const name=el.querySelector('[data-n]').value.trim(), err=el.querySelector('.errtxt');
-      const vals={}; let bad=false;
-      ['k','p','f','c'].forEach(f=>{ const i=el.querySelector(`[data-${f}]`), s=i.value.trim(), x=s===''?0:num(s);
-        const b=x==null || x<0 || x>(f==='k'?5000:500); i.classList.toggle('err',b); if(b) bad=true; vals[f]=Math.round(x||0); });
-      if(bad){ err.hidden=false; err.textContent='Проверь числа: калории до 5000, граммы до 500'; return; }
-      if(!name && !vals.k){ err.hidden=false; err.textContent='Впиши хотя бы название или калории'; return; }
-      close(); addCustom({name:name||'Без названия', ...vals});
+      const v=readFoodForm(el); if(!v) return;
+      close(); foodDraft=''; addCustom(v);
     }));
 }
 function fastFoodSheet(){
@@ -120,15 +149,19 @@ function dishSheet(id){
 }
 function customSheet(i){
   const x=custom[i]; if(!x) return;
-  openSheet(`<h2>${esc(x.name)}</h2><div class="sub">${x.k} ккал · Б ${x.p} · Ж ${x.f} · У ${x.c}</div>
-    <div class="set-row"><span class="grow"><b>Время</b><span>когда съел</span></span><input type="time" data-t value="${esc(x.t)}" aria-label="Время приёма"></div>
-    <div class="btnrow"><button type="button" class="btn" data-fav>☆ В избранное</button><button type="button" class="btn danger" data-del>Удалить</button></div>
-    <button type="button" class="btn big" style="margin-top:10px" data-close>Готово</button>`,
+  openSheet(`<h2>${esc(x.name)}</h2><div class="sub">Правка записи: название, калории, Б, Ж, У и время.</div>
+    ${foodFormHTML(x)}
+    <button type="button" class="btn big pri" style="margin-top:14px" data-save>Сохранить</button>
+    <div class="btnrow"><button type="button" class="btn" data-fav>☆ В избранное</button><button type="button" class="btn danger" data-del>Удалить</button></div>`,
     (el,close)=>{
-      el.querySelector('[data-t]').addEventListener('change',e=>{ if(e.target.value) x.t=e.target.value; else delete x.t; saveFood(); });
+      el.querySelector('[data-save]').addEventListener('click',()=>{
+        const v=readFoodForm(el); if(!v) return;
+        x.name=v.name; x.k=v.k; x.p=v.p; x.f=v.f; x.c=v.c; if(v.t) x.t=v.t; else delete x.t;
+        saveFood(); close(); renderAll(); toast('Запись сохранена');
+      });
       el.querySelector('[data-fav]').addEventListener('click',()=>{ const f=getFavs(); if(f.some(y=>y.name===x.name)){ toast('Уже в избранном'); return; } f.unshift({name:x.name,k:x.k,p:x.p,f:x.f,c:x.c}); setFavs(f); toast('Добавлено в избранное'); });
       el.querySelector('[data-del]').addEventListener('click',()=>{ close(); const at=custom.indexOf(x); custom.splice(at,1); saveFood(); renderAll();
-        toast(`${x.name} — удалено`, ()=>{ custom.splice(at,0,x); saveFood(); renderAll(); }); });
+        toast(`${x.name} - удалено`, ()=>{ custom.splice(at,0,x); saveFood(); renderAll(); }); });
     }, {onClose:()=>renderAll()});
 }
 
@@ -139,7 +172,7 @@ function cookSheet(){
   const draw=el=>{
     const list=cookList();
     el.querySelector('[data-have]').innerHTML = list.length ? list.map((c,i)=>`<div class="row"><span class="grow"><div class="nm">${esc(dishById(c.m).name)}${c.g?` + ${esc(dishById(c.g).name.toLowerCase())}`:''}</div><div class="ds">осталось ${cookLeft(c)} из ${c.n} · ${containerTotals(c).k} ккал порция</div></span>
-      <span class="stepper"><button type="button" data-cn="${i}" data-d="-1" aria-label="Меньше порций">−</button><b class="n">${c.n}</b><button type="button" data-cn="${i}" data-d="1" aria-label="Больше порций">+</button></span><button type="button" class="del" data-cdel="${i}" aria-label="Убрать">×</button></div>`).join('')
+      <button type="button" class="btn" style="width:auto" data-ceat="${i}" ${cookLeft(c)>0?'':'disabled'}>Съел</button><span class="stepper"><button type="button" data-cn="${i}" data-d="-1" aria-label="Меньше порций">−</button><b class="n">${c.n}</b><button type="button" data-cn="${i}" data-d="1" aria-label="Больше порций">+</button></span><button type="button" class="del" data-cdel="${i}" aria-label="Убрать">×</button></div>`).join('')
       : '<div class="t2">Пока ничего. Выбери блюдо и гарнир ниже.</div>';
     const sug=m && PAIR[m] ? PAIR[m] : [];
     el.querySelector('[data-meat]').innerHTML=meats.map(d=>`<button type="button" class="pill${m===d.id?' ghost':''}" style="${m===d.id?'outline:3px solid var(--acc)':''}" data-m="${d.id}">${esc(d.name)}</button>`).join('');
@@ -148,11 +181,12 @@ function cookSheet(){
     el.querySelector('[data-addc]').disabled=!m;
     el.querySelectorAll('[data-m]').forEach(b=>b.addEventListener('click',()=>{ m=b.dataset.m; if(g==null && PAIR[m]) g=PAIR[m][0]; draw(el); }));
     el.querySelectorAll('[data-g]').forEach(b=>b.addEventListener('click',()=>{ g=b.dataset.g; draw(el); }));
+    el.querySelectorAll('[data-ceat]').forEach(b=>b.addEventListener('click',()=>{ const c=cookList()[+b.dataset.ceat]; if(!c) return; closeSheets(); eatContainer(c); }));
     el.querySelectorAll('[data-cn]').forEach(b=>b.addEventListener('click',()=>{ const L=cookList(), c=L[+b.dataset.cn]; c.n=Math.max(1,Math.min(14,(c.n|0)+(+b.dataset.d))); cook[cookKey()]=L; saveCook(); draw(el); }));
     el.querySelectorAll('[data-cdel]').forEach(b=>b.addEventListener('click',()=>{ const L=cookList(), at=+b.dataset.cdel, x=L.splice(at,1)[0]; cook[cookKey()]=L; saveCook(); draw(el);
       toast('Убрано из готовки', ()=>{ const L2=cookList(); L2.splice(at,0,x); cook[cookKey()]=L2; saveCook(); renderAll(); }); }));
   };
-  openSheet(`<h2>Готовка на неделю</h2><div class="sub">Один заход на 30–40 минут. Порция контейнера — блюдо и гарнир; съел — «+» на «Еде».</div>
+  openSheet(`<h2>Готовка на неделю</h2><div class="sub">Один заход на 30–40 минут. Порция контейнера — блюдо и гарнир; съел — «Съел» в строке.</div>
     <div class="card" style="padding:4px 16px" data-have></div>
     <div class="sec">Мясо и соусы</div><div class="pills" data-meat></div>
     <div class="sec">Гарнир <span class="aux muted">★ — лучше всего подходит</span></div><div class="pills" data-carb></div>
@@ -183,18 +217,28 @@ function dishesPage(){
 }
 
 /* ---------- «⋯» ---------- */
+function dayPickSheet(){
+  const dayKcal=d=>{ const t=dayFilled(d)?totalsOfDay(d):null; return t?kfmt(t.k):'·'; };
+  openSheet(`<h2>Другой день</h2><div class="sub">Записи и фишки пойдут в выбранный день.</div>
+    <div class="days7" style="margin-top:8px">${DOW_IDX.map((n,i)=>`<button type="button" class="${i===foodDay?'on':''}${dayFilled(i)?' full':''}" data-fd="${i}" style="${i===todayIdx()&&isNowWeek()?'box-shadow:inset 0 -3px 0 var(--acc)':''}"><b>${n}</b><span class="n">${dayKcal(i)}</span></button>`).join('')}</div>
+    <button type="button" class="btn" style="margin-top:14px" data-close>Закрыть</button>`,
+    (el,close)=>el.querySelectorAll('[data-fd]').forEach(b=>b.addEventListener('click',()=>{ foodDay=+b.dataset.fd; loadFoodDay(); close(); renderFoodTab(); })));
+}
+/* ---------- «⋯» ---------- */
 function foodMenu(){
-  const o=[['cook','Готовка на неделю','что приготовил и сколько порций'],['all','Все блюда и рецепты','граммы, время, рецепт'],
+  const o=[['day','Другой день','записать или посмотреть день недели'],['cook','Контейнеры недели','что приготовил, сколько порций, «Съел»'],['all','Все блюда и рецепты','граммы, время, рецепт'],
     ['assemble','Собрать день','завтрак, два мяса с гарнирами, овощи — порции под цель'],['base','Базовый набор','стандартные блюда и граммовки'],
-    ['fav','Избранное','изменить список'],['timing','Режим дня','когда есть и сколько белка'],
+    ['ff','Фастфуд','цифры примерные'],['fav','Избранное','изменить список'],['timing','Режим дня','когда есть и сколько белка'],
     ['clear','Обнулить день','с «Отменить»'],['week','Очистить неделю','все 7 дней еды']];
   openSheet(`<h2>Еда · ${DOW_IDX[foodDay]}</h2>${o.map(([a,t,s])=>`<button type="button" class="opt${a==='week'?' danger':''}" data-a="${a}"><span class="grow"><b>${t}</b><span>${s}</span></span></button>`).join('')}
     <button type="button" class="btn" style="margin-top:8px" data-close>Закрыть</button>`,
     (el,close)=>el.querySelectorAll('[data-a]').forEach(b=>b.addEventListener('click',async()=>{
       const a=b.dataset.a; close();
-      if(a==='cook') cookSheet();
+      if(a==='day') dayPickSheet();
+      else if(a==='cook') cookSheet();
       else if(a==='all') dishesPage();
       else if(a==='fav') favSheet();
+      else if(a==='ff') fastFoodSheet();
       else if(a==='timing') timingSheet(foodDay);
       else if(a==='assemble'){ const u=snapDay(); assembleDay(); toast('День собран под цель', u); }
       else if(a==='base'){ const u=snapDay(); Object.keys(grams).forEach(k=>delete grams[k]); DISHES.forEach(d=>{ dishOn[d.id]=d.on; }); saveFood(); renderAll(); toast('Базовый набор', u); }
@@ -209,70 +253,59 @@ function foodMenu(){
 }
 
 /* ---------- Экран ---------- */
-let foodRingWas=null;   /* {d, f}: что кольцо показывало до перерисовки — от него и докручиваем */
+let foodRingWas=null;   /* {f}: что кольцо показывало до перерисовки - от него и докручиваем */
+let foodDraft='';       /* текст строки «Своё», пока не записан */
 function renderFoodTab(){
   const box=$('#scr-food'); if(!box) return;
-  const T=nutritionTarget(), D=dayTotals(), mt=mealTiming(foodDay), info=weekInfo(), ms=missedSessions();
-  const left=T.k-D.k, inTarget=D.k && Math.abs(left)<=120, over=D.k && left<-120;
-  const ringCol = !D.k ? 'var(--s3)' : over ? 'var(--wn)' : inTarget ? 'var(--ok)' : 'var(--kc)';
-  const center = !D.k ? `<div class="v n">${kfmt(T.k)}</div><div class="l">цель · отметь, что съел</div>`
-    : inTarget ? `<div class="v n" data-count="${D.k}" data-fmt="k">${kfmt(D.k)}</div><div class="l" style="color:var(--ok)">в цель</div>`
-    : over ? `<div class="v n" style="color:var(--wn)">+${kfmt(-left)}</div><div class="l">перебор, ккал</div>`
-    : `<div class="v n" data-count="${left}" data-fmt="k">${kfmt(left)}</div><div class="l">ккал осталось</div>`;
-  const rem=(a,b,n)=>{ const x=b-a; return x>=0 ? `<b class="n" data-count="${x}">${x}</b><span>${n} ещё, г</span>` : `<b class="n" style="color:var(--wn)">+${-x}</b><span>${n} сверх, г</span>`; };
-
-  const conts=cookList();
+  const old=box.querySelector('.fscroll'), keepY=old?old.scrollTop:0;
+  const T=nutritionTarget(foodDay), D=dayTotals(), mt=mealTiming(foodDay), ms=missedSessions();
+  const iso=dateOfCW(state.cycle, state.week, foodDay), over=D.k>T.k+120;
+  const kind={gym:'день с тренировкой', pe:'день с тренировкой', cardio:'день с велосипедом'}[mt.kind]||'день отдыха';
   const usual=usualNow(6);
-  /* съедено: блюда и своё по времени */
   const eaten=[
     ...DISHES.filter(d=>dishOn[d.id]).map(d=>({t:mealTimes[d.id]||'', nm:d.name, k:dishTotals(d).k, dish:d.id})),
-    ...custom.map((x,i)=>({t:x.t||'', nm:x.name, k:x.k, ci:i, bad:FASTFOOD.some(f=>f.name===x.name&&f.bad)||getFavs().some(f=>f.name===x.name&&f.bad)}))
+    ...custom.map((x,i)=>({t:x.t||'', nm:x.name, k:x.k, ci:i, own:true}))
   ].sort((a,b)=>(a.t||'99')<(b.t||'99')?-1:1);
-  const dayKcal=d=>{ const t=dayFilled(d)?totalsOfDay(d):null; return t?kfmt(t.k):'·'; };
-  const lede = ms.total ? `<div class="note i"><b>Пропущено сессий: ${ms.total}</b>Цель снижена — поправка небольшая, недоедать не надо.</div>`
-    : info.kind==='deload' ? `<div class="note"><b>Разгрузочная неделя</b>Калорий чуть меньше, белок тот же.</div>` : '';
+  const mac=(lab,v,t,col)=>`<div class="mrow"><div class="ml"><em>${lab}</em><span><b class="n">${v}</b> / ${t}</span></div><i><u style="width:${t?Math.min(100,Math.round(v/t*100)):0}%;background:${col}"></u></i></div>`;
+  const today=foodDay===todayIdx() && isNowWeek();
 
-  box.innerHTML=`
-    <div class="hd"><div class="tt"><div class="kick">${foodDay===todayIdx()&&isNowWeek()?'Сегодня':DOW_FULL[foodDay===6?0:foodDay+1]} · ${esc(mt.title)}</div><div class="h1">Еда</div></div>
+  box.innerHTML=`<div class="fscroll" id="fscroll">
+    <div class="hd"><div class="tt"><div class="h1">Еда</div><div class="hsub">${esc(ruDate(iso))} · ${kind}${ms.total?' · цель снижена':''}${today?'':' · <button type="button" class="link small" style="min-height:44px" data-fday>К сегодня</button>'}</div></div>
       <button type="button" class="icbtn" data-menu aria-label="Ещё">${IC.more}</button></div>
-    <div class="days7">${DOW_IDX.map((n,i)=>`<button type="button" class="${i===foodDay?'on':''}${dayFilled(i)?' full':''}" data-fd="${i}" style="${i===todayIdx()&&isNowWeek()?'box-shadow:inset 0 -3px 0 var(--acc)':''}"><b>${n}</b><span class="n">${dayKcal(i)}</span></button>`).join('')}</div>
-    <div class="card" style="margin-top:12px">
-      <div class="kring">${ringSVG(210,18,T.k?D.k/T.k:0,ringCol)}<div class="c">${center}</div></div>
-      <div class="mac">${D.k?`<div>${rem(D.p,T.p,'белка')}</div><div>${rem(D.f,T.f,'жира')}</div><div>${rem(D.c,T.c,'углев.')}</div>`
-        :`<div><b class="n">${T.p}</b><span>белок, г</span></div><div><b class="n">${T.f}</b><span>жиры, г</span></div><div><b class="n">${T.c}</b><span>углев., г</span></div>`}</div>
-      <div class="muted small" style="text-align:center;margin-top:8px">цель ${kfmt(T.k)} ккал · Б ${T.p} · Ж ${T.f} · У ${T.c}</div>
-    </div>
-    ${lede}
-    <div class="sec">Контейнеры недели<button type="button" class="aux link" data-cook>Готовка</button></div>
-    <div class="grid2">${conts.map((c,i)=>{ const l=cookLeft(c), t=containerTotals(c);
-      return l>0 ? `<div class="tile cont tap" data-cont="${i}"><div class="t">${esc(dishById(c.m).name)}</div><div class="s">${c.g?esc(dishById(c.g).name)+' · ':''}${t.k} ккал</div><span class="left">осталось ${l} из ${c.n}</span><button type="button" class="plus" data-eat="${i}" aria-label="Съел порцию">${IC.plus}</button></div>`
-        : `<button type="button" class="tile empty" data-cook><span>${esc(dishById(c.m).name)}: порции кончились<br><span class="link">Приготовить ещё?</span></span></button>`; }).join('')}
-      ${conts.length?'':`<button type="button" class="tile empty" data-cook>Что приготовил на неделю?</button>`}</div>
-    <div class="sec">Как обычно в это время</div>
-    <div class="pills">${usual.map((u,i)=>quickPill(u,i)).join('')}
-      <button type="button" class="pill ghost" data-own>${IC.plus} Своё</button><button type="button" class="pill ghost" data-ff>Фастфуд</button><button type="button" class="pill ghost" data-fav>☆ Избранное</button></div>
-    <div class="sec">Съедено<span class="aux">${D.k?`${kfmt(D.k)} ккал`:''}</span></div>
-    <div class="card" style="padding:4px 16px">${eaten.length ? eaten.map(x=>`<button type="button" class="row" style="width:100%;text-align:left" ${x.dish?`data-dish="${x.dish}"`:`data-ci="${x.ci}"`}>
-        <span class="n" style="width:52px;font-weight:800;color:var(--t2)">${x.t||'—'}</span><span class="grow"><div class="nm">${esc(x.nm)}${x.bad?' <small style="color:var(--wn)">●</small>':''}</div></span><span class="val n">${x.k}</span></button>`).join('')
-      : '<div class="t2" style="padding:14px 0">Пока ничего. Отмечай фишками выше или «+» у контейнера.</div>'}</div>
-    <button type="button" class="card tap" style="width:100%;text-align:left;display:flex;align-items:center;gap:10px" data-timing>
-      <span class="grow" style="flex:1"><b>Режим дня</b><div class="small t2">${esc(mt.title)} · ${mt.rows.filter(r=>r[2]).length} ${plural(mt.rows.filter(r=>r[2]).length,'приём','приёма','приёмов')} с белком</div></span><span class="chev">›</span></button>
-  `;
+    <div class="card fsum"><div class="fring">${ringSVG(130,13,T.k?D.k/T.k:0,over?'var(--wn)':'var(--kc)')}<div class="c"><b class="n"${over?' style="color:var(--wn)"':''}>${kfmt(D.k)}</b><span>из ${kfmt(T.k)}</span></div></div>
+      <div class="mcol">${mac('Белок',D.p,T.p,'var(--pr)')}${mac('Жиры',D.f,T.f,'var(--ft)')}${mac('Углеводы',D.c,T.c,'var(--cb)')}</div></div>
+    <div class="card flist">${eaten.length ? eaten.map(x=>`<button type="button" class="frow" ${x.dish?`data-dish="${x.dish}"`:`data-ci="${x.ci}"`}>
+        <span class="tm n">${x.t||'-'}</span><span class="nm">${esc(x.nm)}${x.own?' <small>своё</small>':''}</span><span class="val n">${x.k}</span></button>`).join('')
+      : '<div class="fempty">Пока ничего. Нажми фишку внизу или впиши своё.</div>'}</div>
+  </div>
+  <div class="fpanel" id="fpanel"><div class="plbl">Как обычно в это время</div>
+    <div class="fchips">${usual.map((u,i)=>quickChip(u,i)).join('')}</div>
+    <div class="fown"><input class="fin" data-line placeholder="Своё: название и калории" aria-label="Своё: название и калории" enterkeyhint="done" autocomplete="off" value="${esc(foodDraft)}">
+      <button type="button" class="fmore" data-more>ещё</button><button type="button" class="fgo" data-add aria-label="Записать своё">${IC.up}</button></div>
+    <div class="errtxt" data-lineerr hidden></div></div>`;
 
-  /* кольцо докручивается от прежнего значения: съел — дорисовалось, сменил день — перетекло */
-  const ringF=T.k?D.k/T.k:0, rf=box.querySelector('.kring .rfill');
-  if(rf && foodRingWas) fillRing(rf, foodRingWas.f, 700);
+  const sc=box.querySelector('.fscroll'); sc.scrollTop=keepY;
+  /* кольцо докручивается от прежнего значения: съел - дорисовалось, сменил день - перетекло */
+  const ringF=T.k?D.k/T.k:0, rf=box.querySelector('.fring .rfill');
+  if(rf && foodRingWas) fillRing(rf, foodRingWas.f, 200);
   foodRingWas={f:ringF};
   box.querySelector('[data-menu]').addEventListener('click',foodMenu);
-  box.querySelectorAll('[data-fd]').forEach(b=>b.addEventListener('click',()=>{ foodDay=+b.dataset.fd; loadFoodDay(); renderFoodTab(); }));
-  box.querySelectorAll('[data-cook]').forEach(b=>b.addEventListener('click',cookSheet));
-  box.querySelectorAll('[data-eat]').forEach(b=>b.addEventListener('click',ev=>{ ev.stopPropagation(); eatContainer(conts[+b.dataset.eat]); }));
-  box.querySelectorAll('[data-cont]').forEach(b=>b.addEventListener('click',()=>{ const c=conts[+b.dataset.cont]; dishSheet(c.m); }));
+  const fd=box.querySelector('[data-fday]'); if(fd) fd.addEventListener('click',()=>{ foodDay=todayIdx(); loadFoodDay(); renderFoodTab(); });
   box.querySelectorAll('[data-q]').forEach(b=>b.addEventListener('click',()=>eatQuick(usual[+b.dataset.q])));
-  box.querySelector('[data-own]').addEventListener('click',ownFoodSheet);
-  box.querySelector('[data-ff]').addEventListener('click',fastFoodSheet);
-  box.querySelector('[data-fav]').addEventListener('click',favSheet);
   box.querySelectorAll('[data-dish]').forEach(b=>b.addEventListener('click',()=>dishSheet(b.dataset.dish)));
   box.querySelectorAll('[data-ci]').forEach(b=>b.addEventListener('click',()=>customSheet(+b.dataset.ci)));
-  box.querySelector('[data-timing]').addEventListener('click',()=>timingSheet(foodDay));
+  /* строка «Своё»: «шаурма 650» - название и калории */
+  const line=box.querySelector('[data-line]'), err=box.querySelector('[data-lineerr]');
+  const addLine=()=>{
+    const r=parseOwn(line.value);
+    if(r.err){ line.classList.add('err'); err.hidden=false; err.textContent=r.err; return; }
+    foodDraft=''; addCustom({name:r.name, k:r.k, p:0, f:0, c:0});
+  };
+  line.addEventListener('input',()=>{ foodDraft=line.value; line.classList.remove('err'); err.hidden=true; });
+  line.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); addLine(); } });
+  box.querySelector('[data-add]').addEventListener('click',addLine);
+  box.querySelector('[data-more]').addEventListener('click',()=>{
+    const r=parseOwn(line.value), s=line.value.trim(), m=/^(.*?)[\s,;:=-]*(\d+)?\s*$/.exec(s);
+    ownFoodSheet(r.err ? {name:(m&&m[1]||s).trim()} : {name:r.name, k:r.k});
+  });
 }

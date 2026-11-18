@@ -121,6 +121,9 @@ function cycle3(week){
 }
 
 function weekKind(c,w){
+  /* программа v2 по дате недели (plan-v2.js): блок 1 - рабочие недели без плановой разгрузки, дальше сессия */
+  const P2=v2Pos(planWeekDate(settings.start, settings.session, c, w));
+  if(P2) return P2.block===1 ? 'build' : 'session';
   if(c===1 && w>12) return 'session';
   if(c===1) return (w===4||w===8)?'deload':(w===12?'test':'build');
   if(c===2) return C2[Math.min(w,12)].kind;
@@ -128,6 +131,8 @@ function weekKind(c,w){
 }
 
 function weekInfo(){
+  const P2=v2Pos(weekTag());
+  if(P2) return v2WeekInfo(P2);
   const c=state.cycle, w=state.week, kind=weekKind(c,w);
   const lw=loadWeek();                  /* веса могут отставать после пропусков */
   const sh=w-lw;

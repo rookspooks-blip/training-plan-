@@ -6,7 +6,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const { chromium, devices } = await import(process.env.PW || 'playwright');
+const { chromium, webkit, devices } = await import(process.env.PW || 'playwright');
+const engine = process.env.BR === 'webkit' ? webkit : chromium;   /* BR=webkit — движок Safari */
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const TYPES = { '.html':'text/html', '.js':'text/javascript', '.css':'text/css', '.webmanifest':'application/manifest+json', '.png':'image/png', '.jpg':'image/jpeg', '.svg':'image/svg+xml' };
 const server = http.createServer((req, res) => {
@@ -22,7 +23,7 @@ const URL0 = `http://localhost:${server.address().port}/`;
 
 let fails = 0;
 const check = (name, ok, extra='') => { console.log(`${ok ? 'OK  ' : 'FAIL'} ${name}${extra ? ' — ' + extra : ''}`); if (!ok) fails++; };
-const browser = await chromium.launch();
+const browser = await engine.launch();
 
 /* Открыть приложение «в дату» с подложенными данными */
 async function at(date, data = {}) {
@@ -35,6 +36,8 @@ async function at(date, data = {}) {
     localStorage.clear();
     localStorage.setItem('planSchema', '2');
     for (const k in d) localStorage.setItem(k, JSON.stringify(d[k]));
+    /* правила v1 на датах с 16.11: принудительно v1 (planSet.prog.v=1); программа v2 проверяется отдельно (v2:true) */
+    if (!d.v2) { const ps = JSON.parse(localStorage.getItem('planSet') || '{}'); ps.prog = { v: 1, from: '2026-11-09' }; localStorage.setItem('planSet', JSON.stringify(ps)); }
   }, data);
   await p.goto(URL0, { waitUntil: 'load' });
   await p.waitForTimeout(300);
@@ -309,7 +312,7 @@ const W7 = '2026-11-16';
 {
   const { ctx, p } = await at('2026-10-06', { planSet: { auto: true, start: '2026-10-05', session: 2, kcalAdj: {} } });
   const r = await p.evaluate(() => {
-    const ics = buildIcs(settings.start, settings.session);
+    const ics = buildIcs(settings.start, settings.session, undefined, true);   /* legacy: календарь v1 целиком, по умолчанию с 16.11 строится v2 */
     const txt = EXTRA.find(e => e[0] === 'Сессия и переход на набор')[1]();
     return { c2: ics.includes('DTSTART;VALUE=DATE:20270111'), txt: /2 нед\., с 28 декабря до 10 января/.test(txt) && /11 января/.test(txt) };
   });
@@ -573,6 +576,35 @@ const W7 = '2026-11-16';
   check('выбрал вторник → запись на 3.11 со временем и заметкой', r.picked === '2026-11-03' && r.rec && r.rec.t === '19:30' && r.rec.note === 'игра 5 на 5' && r.rec.min === 90 && /90 мин × 8 = 720/.test(r.rowTxt), JSON.stringify(r));
   check('стрелка назад — прошлая неделя 26.10', /^26\.10/.test(r.prevMon), r.prevMon);
   await ctx.close();
+}
+
+/* ===== E4. Программа v2 по датам: история до 16.11 не меняется, с 16.11 действует v2 ===== */
+{
+  /* неделя 1 (09.11) и раньше - v1 как было: подъезд, торможение, нордические, зарядка для колен */
+  const a = await at('2026-11-10', { v2: true });
+  const r1 = await a.p.evaluate(() => ({ v2: v2Pos(weekTag()), d1: buildWeek().find(e => e.id === 'd1').day.ex.map(x => x.id).join(), daily: dailyOn(), kind: weekInfo().kind }));
+  check('09.11-15.11: неделя 1 собирается по v1 (подъезд aT, зарядка есть)', r1.v2 === null && /aT/.test(r1.d1) && r1.daily === true, JSON.stringify(r1));
+  await a.ctx.close();
+  /* 23.11 - v2: неделя 3 блока 1, плановой разгрузки нет (в v1 это была разгрузка недели 8) */
+  const b = await at('2026-11-23', { v2: true });
+  const r2 = await b.p.evaluate(() => ({ pos: v2Pos(weekTag()), kind: weekKind(state.cycle, state.week), info: weekInfo().label, week: buildWeek().filter(e => e.type !== 'rest').map(e => e.id + '@' + e.dow).join(), daily: dailyOn(), k: [0, 3, 6].map(i => nutritionTarget(i).k).join() }));
+  check('23.11: v2, блок 1 неделя 3, не разгрузка', r2.pos && r2.pos.block === 1 && r2.pos.week === 3 && r2.kind === 'build' && /Блок 1 · неделя 3 из 7/.test(r2.info), JSON.stringify(r2));
+  check('неделя v2 по B.5: Пн А, Вт интервалы, Ср верх, Чт площадка, Пт физра, Сб Б, Вс велосипед', r2.week === 'd1@1,c-tue@2,d5@3,d2@4,d4@5,d3@6,c-sun@0', r2.week);
+  check('зарядки для колен в v2 нет; калории пн 2600, чт 2850, вс 2400', r2.daily === false && r2.k === '2600,2850,2400', r2.k);
+  /* перенос Силовой А на вторник: интервалы уезжают на воскресенье (правило 48 часов как раньше) */
+  await b.p.evaluate(() => { skips[skipKey('d1')] = true; saveSkips(); renderAll(); });
+  const r3 = await b.p.evaluate(() => buildWeek().filter(e => e.type !== 'rest').map(e => e.id + '@' + e.dow).join());
+  check('пропуск А: А на вторник, интервалы на воскресенье', /d1@2/.test(r3) && /c-tue@0/.test(r3), r3);
+  await b.ctx.close();
+  /* блок 2 сессия с 28.12, поддержание 2850; блок 3 только от planSet.opDay */
+  const c = await at('2027-01-05', { v2: true });
+  const r4 = await c.p.evaluate(() => ({ pos: v2Pos(weekTag()), kind: weekKind(state.cycle, state.week), ses: isSession(), k: nutritionTarget(0).k, ids: buildWeek().filter(e => e.type !== 'rest').map(e => e.id).join() }));
+  check('05.01.2027: блок 2 сессия, 2850, без среды и пятницы', r4.pos.block === 2 && r4.kind === 'session' && r4.ses && r4.k === 2850 && !/d5|d4/.test(r4.ids), JSON.stringify(r4));
+  await c.ctx.close();
+  const d = await at('2027-02-08', { v2: true, planSet: { opDay: '2027-02-10' } });
+  const r5 = await d.p.evaluate(() => v2Pos(weekTag()));
+  check('блок 3 включается от planSet.opDay', r5 && r5.block === 3, JSON.stringify(r5));
+  await d.ctx.close();
 }
 
 await browser.close();

@@ -47,7 +47,7 @@ function dayExport(iso){
   const dow=(dOf(iso).getDay()+6)%7;
   const pos=posForDate(iso);
   return withWeek(pos.cycle,pos.week,()=>{
-    const info=weekInfo(), T=nutritionTarget();
+    const info=weekInfo(), T=nutritionTarget(dow);
     const D={date:iso, weekday:WD_FULL[dow], cycle:pos.cycle, week:pos.week, weekLabel:info.label,
              preStart:!!pos.pre, target:{kcal:T.k, p:T.p, f:T.f, c:T.c}};
 

@@ -7,6 +7,9 @@
    Велосипед даёт пульс в зоне без ударной нагрузки на голень,
    одна беговая сессия остаётся, чтобы голень постепенно адаптировалась. */
 function cardioFor(){
+  const P2=v2Pos(weekTag());
+  /* v2: вторник - интервалы (отдельный день c-tue), воскресенье - велосипед спокойно, по желанию (nom 90, 114) */
+  if(P2) return {sun:{dur:P2.block===1?'30–40 мин':'20–30 мин', note:'Спокойно, по желанию. Или отдых', mode:'bike'}};
   const dl = weekInfo().kind==='deload';
   if(isSession()){
     return {
@@ -43,7 +46,7 @@ const dropKey  = id => `${weekTag()}-drop-${id}`;
 const peKey    = ()  => `${weekTag()}-nope`;
 const isMoved   = id => !!skips[skipKey(id)];
 const isDropped = id => !!skips[dropKey(id)];
-const isSkipped = id => isDropped(id) || (isMoved(id) && (id==='d2'||id==='d4'));  /* скоростные не переносятся */
+const isSkipped = id => isDropped(id) || (isMoved(id) && (id==='d2'||id==='d4'||id==='c-tue'));  /* скоростные не переносятся */
 const noPE = () => !!skips[peKey()];
 /* Баскет в субботу утром (секция в вузе) — отмечается на конкретную неделю */
 const ballKey  = ()  => `${weekTag()}-ball`;
@@ -205,6 +208,8 @@ function buildWeek(){
   return v;
 }
 function buildWeekRaw(){
+  const P2=v2Pos(weekTag());
+  if(P2) return buildWeekV2(P2);
   const S=buildDays(state.cycle,state.week), C=cardioFor();
   if(noPE() && !isSession()) S[1]=homeSpeedDay();          /* четверг: физры не было */
   /* пятница: данки в каникулы; в остальные недели дня нет */
@@ -338,6 +343,7 @@ function progressShiftRaw(){
 /* Неделя, от которой берутся веса. Календарная позиция
    (разгрузки, тестовая) при этом не двигается. */
 function loadWeek(){
+  if(v2Pos(weekTag())) return state.week;   /* v2: веса идут по журналу, сдвига прогрессии нет */
   const k=weekKind(state.cycle, state.week);
   if(k==='deload' || k==='test' || k==='session') return state.week;
   return Math.max(blockStart(state.cycle,state.week), state.week - progressShift());
@@ -386,8 +392,9 @@ function trainingTime(e){
   if(sm==='practice') return '18:30';
   if(sm==='vacation') return VAC_TIME[e.id] || '11:00';
   if(isSession() || sm==='exam') return e.dow===6 ? '12:00' : '17:00';
+  if(e.id==='c-tue') return '19:00';
   if(e.id==='d2') return e.day && e.day.swap ? '17:00' : '11:40';
-  if(e.id==='d4') return '11:40';
+  if(e.id==='d4') return v2Pos(weekTag()) ? '09:50' : '11:40';
   if(e.id==='d5' && e.dow===3 && denomWeek(dateOfCW(state.cycle,state.week,2))) return '08:30';
   if(e.id==='d5' || e.id==='d6') return '18:00';
   if(e.id==='d3') return '12:00';
@@ -405,13 +412,14 @@ const DOW_FULL=['Воскресенье','Понедельник','Вторни�
    (утром, в перерыве, вечером). Разминка перед тренировкой — другое.
    ############################################################ */
 const DAILY=[WP.wallsit, WP.groin, WP.shortfoot, WP.balance, WP.toetuck, WP.kneewall, WP.waddle];
+const dailyOn=()=> !v2Pos(weekTag());   /* в v2 отдельной зарядки для колен нет: пункты ушли в разминку */
 const dailyMinutes=()=>Math.round(DAILY.reduce((a,x)=>a+x.sec,0)*1.15/60);
 
 const BALL={id:'ball',name:'Мяч · дриблинг',badge:['Мяч','b-ball'],dose:'10–15 мин после велосипеда',rest:'—',tech:'dribble',
   warm:'Не нужна — ты разогрет велосипедом. Нужен пол, по которому можно стучать: зал у дома или двор.'};
 
 /* Какие упражнения пишутся в журнал: силовые, не скорость и не мяч */
-const isLogged = ex => !['Скорость','Выносливость','Мяч','Тест'].includes(ex.badge[0]);
+const isLogged = ex => !['Скорость','Выносливость','Мяч','Тест','Кардио'].includes(ex.badge[0]);
 
 /* Разбор дозировки: сколько подходов, какой диапазон, какой вес по таблице */
 function parseDose(dose){
@@ -440,9 +448,9 @@ const hasData = L => L && L.sets && L.sets.some(x=>num(x.r)!=null);
 /* Все записи этого упражнения (по названию), от свежих к старым. Метка недели — дата её понедельника,
    поэтому «раньше» — это просто меньшая дата */
 function logsOf(name, exceptKey){
-  const cur=weekTag();
+  const cur=weekTag(), names=[name, ...(V2_ALIAS[name]||[])];   /* v2 переименовала часть упражнений: история идёт под старым именем */
   return Object.keys(logs)
-    .filter(k=>k!==exceptKey && logs[k] && logs[k].n===name && hasData(logs[k]))
+    .filter(k=>k!==exceptKey && logs[k] && names.includes(logs[k].n) && hasData(logs[k]))
     .map(k=>{ const m=TAG_RE.exec(k); return {k, pos:m?m[1]:'', L:logs[k]}; })
     .filter(x=>x.pos && x.pos<=cur)
     .sort((a,b)=> (b.pos>a.pos?1:(b.pos<a.pos?-1:0)) || ((b.L.d||'')>(a.L.d||'') ? 1 : -1));
@@ -473,7 +481,8 @@ const START_W={
   'Сгибания на бицепс':10, 'Разгибания на трицепс':14, 'Тяга штанги в наклоне':40,
   'Подтягивания с весом':5, 'Брусья с весом':5, 'Болгарский сплит-присед':8,
   'Махи гантелями в стороны':4, 'Разведения в наклоне':3, 'Разгибания из-за головы':10,
-  'Румынская тяга в разноножке':8, 'Разгибания ног в тренажёре':25, 'Сгибания ног в тренажёре':20
+  'Румынская тяга в разноножке':8, 'Разгибания ног в тренажёре':25, 'Сгибания ног в тренажёре':20,
+  'Сгибание ног в тренажёре':20, 'Французский жим лёжа':10, 'Бицепс':10, 'Тяга гантели одной рукой':12   /* из v1 */
 };
 /* Первый вес на 5-й неделе цикла 1, кг одной гантели: сплит-присед — по 10
    в каждой руке; румынская — 4 кг, поясница на 12 кг уже ныла */

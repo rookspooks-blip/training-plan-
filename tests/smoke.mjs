@@ -6,7 +6,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const { chromium, devices } = await import(process.env.PW || 'playwright');
+const { chromium, webkit, devices } = await import(process.env.PW || 'playwright');
+const engine = process.env.BR === 'webkit' ? webkit : chromium;   /* BR=webkit — движок Safari */
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const TYPES = { '.html':'text/html', '.js':'text/javascript', '.css':'text/css', '.json':'application/json',
   '.webmanifest':'application/manifest+json', '.png':'image/png', '.jpg':'image/jpeg', '.svg':'image/svg+xml', '.ics':'text/calendar' };
@@ -25,7 +26,7 @@ const URL0 = `http://localhost:${server.address().port}/`;
 let fails = 0;
 const check = (name, ok, extra='') => { console.log(`${ok ? 'OK  ' : 'FAIL'} ${name}${extra ? ' — ' + extra : ''}`); if (!ok) fails++; };
 
-const browser = await chromium.launch();
+const browser = await engine.launch();
 async function page(opts = {}) {
   const ctx = await browser.newContext({ ...devices['iPhone 15 Pro'], reducedMotion: 'reduce', serviceWorkers: opts.sw ? 'allow' : 'block' });
   const p = await ctx.newPage();
@@ -45,7 +46,7 @@ async function page(opts = {}) {
   await p.evaluate(() => { openLibrary(); openLibGroup('tech'); closePage(true); openSettings(); closePage(true);
     const e = buildWeek().find(x => x.type === 'gym'); openPlayer(e.id); closePlayer(); openJumpTool(); closePage(true); });
   check('загрузка, вкладки, плеер, страницы без ошибок', p.errs.length === 0, p.errs.join(' | '));
-  check('формат данных записан', await p.evaluate(() => localStorage.getItem('planSchema')) === '4');
+  check('формат данных записан', await p.evaluate(() => localStorage.getItem('planSchema')) === '5');
   await ctx.close();
 }
 
@@ -62,15 +63,15 @@ async function page(opts = {}) {
   const r = await p.evaluate(() => ({
     schema: localStorage.getItem('planSchema'),
     grams: localStorage.getItem('planGrams'),
-    auto: JSON.parse(localStorage.getItem('planAutoBackup') || 'null'),
+    pre5: JSON.parse(localStorage.getItem('planPre5') || 'null'),
     marks: marks['2026-10-05-d1-a1'], legacy: Object.keys(marks).some(k => /^[123]-/.test(k)),
   }));
-  check('миграция 1→4', r.schema === '4' && r.grams === null && r.marks === true && !r.legacy);
-  check('автокопия перед миграцией', !!(r.auto && r.auto.data.planGrams && r.auto.data.planMarks));
+  check('миграция 1→5', r.schema === '5' && r.grams === null && r.marks === true && !r.legacy);
+  check('страховочная копия перед миграцией (сырые строки)', !!(r.pre5 && r.pre5.raw.planGrams && r.pre5.raw.planMarks && JSON.parse(r.pre5.raw.planMarks)['1-1-d1-a1'] === true));
   await ctx.close();
 }
 
-/* 2б. Формат 2 → 4: ключи «цикл-неделя» становятся датами понедельника, значения не меняются */
+/* 2б. Формат 2 → 5: ключи «цикл-неделя» становятся датами понедельника, значения не меняются */
 {
   const data = { planMarks: { '1-1-d1-a1': true }, planLog: { '1-1-d1-a4': { n: 'X', d: '2026-10-05', sets: [{ w: '6', r: '10' }], rpe: 8 } },
     planBody: { '2026-10-05': { w: 76.2, knee: 2 } }, planFood: { '1-1-0': { dishOn: { shake: true }, grams: {}, custom: [], times: { shake: '09:00' } } } };
@@ -83,7 +84,7 @@ async function page(opts = {}) {
   const r = await p.evaluate(keys => ({ schema: localStorage.getItem('planSchema'), vals: keys.map(k => JSON.parse(localStorage.getItem(k))) }), Object.keys(data));
   const dated = o => Object.keys(o).every(k => /^\d{4}-\d\d-\d\d(-|$)/.test(k));
   const same = Object.values(data).every((d, i) => JSON.stringify(Object.values(d)) === JSON.stringify(Object.values(r.vals[i])));
-  check('миграция 2→4: ключи стали датами, значения те же', r.schema === '4' && same && r.vals.slice(0, 2).every(dated) && dated(r.vals[3]) && Object.keys(r.vals[2]).join() === '2026-10-05', JSON.stringify(r).slice(0, 200));
+  check('миграция 2→5: ключи стали датами, значения те же', r.schema === '5' && same && r.vals.slice(0, 2).every(dated) && dated(r.vals[3]) && Object.keys(r.vals[2]).join() === '2026-10-05', JSON.stringify(r).slice(0, 200));
   await ctx.close();
 }
 
@@ -142,7 +143,7 @@ async function page(opts = {}) {
     marks = { b: true }; saveMarks();
     const res = restoreData(b, 'тест');
     return { res, marks: localStorage.getItem('planMarks'), watch: localStorage.getItem('planWatch'),
-             auto: JSON.parse(localStorage.getItem('planAutoBackup')).data.planMarks };
+             auto: JSON.parse(JSON.parse(localStorage.getItem('planPreOp')).raw.planMarks) };
   });
   check('восстановление из копии', r.res === 'ok' && r.marks === '{"a":true}' && r.watch === null && r.auto.b === true, JSON.stringify(r));
   check('не копия → отказ', await p.evaluate(() => restoreData({ app: 'other' }, 'x')) === 'bad');

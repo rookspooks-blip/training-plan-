@@ -3,9 +3,9 @@
    17 · IPHONE: ЗАДАЧИ, РЕЗЕРВНАЯ КОПИЯ, УСТАНОВКА, ОФЛАЙН
    ############################################################ */
 /* Версия — видна в «Настройках и данных», чтобы проверить, что обновление пришло */
-const APP_VERSION='новый дизайн: «Сейчас», плеер, контейнеры';
+const APP_VERSION='новый дизайн: «Сейчас», «Еда», плеер';
 /* Номер сборки — тот же, что VERSION в sw.js (тест сверяет). По нему приложение понимает, что открыта старая копия */
-const BUILD='v79';
+const BUILD='v83';
 
 /* Цели и цифры — из заметки sport.md (обновлено 30.09.2026) */
 const NOW={
@@ -46,11 +46,15 @@ const NOW={
 };
 let todo=store.get('planTodo',{});
 
-/* Резервная копия: всё, что приложение хранит, — ключи plan* */
+/* Резервная копия: всё, что приложение хранит, — ключи plan*. Значение, которое не разобралось как JSON,
+   не выбрасываем: его строка идёт отдельно в bad и вернётся при восстановлении как есть.
+   schema — номер формата, который реально стоит в хранилище (миграция могла не пройти) */
 function makeBackup(){
-  const data={};
-  DATA_KEYS.forEach(k=>{ try{ const v=localStorage.getItem(k); if(v!=null) data[k]=JSON.parse(v); }catch(e){} });
-  return {app:'tri-cikla', version:1, schema:SCHEMA, saved:new Date().toISOString(), data};
+  const data={}, bad={};
+  DATA_KEYS.forEach(k=>{ const v=ls.get(k); if(v==null) return; try{ data[k]=JSON.parse(v); }catch(e){ bad[k]=v; } });
+  const b={app:'tri-cikla', version:1, schema:schemaOf(ls.get('planSchema')), saved:new Date().toISOString(), data};
+  if(Object.keys(bad).length) b.bad=bad;
+  return b;
 }
 async function exportBackup(){
   const json=JSON.stringify(makeBackup());
@@ -78,30 +82,65 @@ function backupDue(){
   const d=daysBetween(last, isoDay());
   return d>=7 ? {days:d} : null;
 }
-/* Полная замена данных копией: ключей, которых нет в копии, после восстановления тоже нет */
-function restoreData(b, reason){
-  if(!b || b.app!=='tri-cikla' || !asObj(b.data)) return 'bad';
-  const keys=[...DATA_KEYS, ...LEGACY_KEYS].filter(k=>k in b.data);
-  if(!keys.length) return 'bad';
-  if(reason) snapshot(reason);   /* текущие данные — в автокопию, чтобы можно было откатить */
-  try{
-    [...DATA_KEYS, ...LEGACY_KEYS].forEach(k=>localStorage.removeItem(k));
-    keys.forEach(k=>localStorage.setItem(k, JSON.stringify(b.data[k])));
-    /* старая копия пройдёт миграцию при перезапуске */
-    localStorage.setItem('planSchema', JSON.stringify(b.schema||1));
-  }catch(e){ return 'full'; }
+/* Полная замена данных копией: ключей, которых нет в копии, после восстановления тоже нет.
+   Порядок: копия текущих данных в planPreOp (обязательна, проверяется чтением) → замена → при сбое посередине
+   автоматический возврат из planPreOp. Результат:
+   'ok'     — восстановлено;
+   'bad'    — это не копия;
+   'nocopy' — копию текущих данных записать не вышло, ничего не изменено;
+   'full'   — замена не дописалась, данные возвращены как были;
+   'broken' — замена не дописалась и возврат тоже; копия текущих данных лежит в planPreOp.
+   b — файл копии или слот автокопии; opts.src={key,str} — слот, из которого восстанавливаем */
+function restoreData(b, reason, opts){
+  if(!b || b.app!=='tri-cikla') return 'bad';
+  const src=slotRaw(b);
+  if(!src || !Object.keys(src).length) return 'bad';
+  const schema=normSchema(b.schema);
+  const pre=makePreOp(reason||'перед восстановлением', opts && opts.src && opts.src.key);
+  if(!pre.ok) return 'nocopy';
+  if(!applyRaw(src, String(schema))){
+    const back=rollbackRaw(pre);
+    /* слот, из которого восстанавливали, был planPreOp: он теперь занят копией текущих данных, возвращаем его содержимое */
+    if(back && opts && opts.src && opts.src.key===KEY_PREOP) ls.put(KEY_PREOP, opts.src.str);
+    return back ? 'full' : 'broken';
+  }
+  /* служебное состояние чужих данных: таймер, прошлый сдвиг. Данные формата 4 и новее уже привязаны к числам */
+  ls.del('planLive'); ls.del('planShiftFix');
+  if(schema>=4) ls.put('planShiftChecked','true');
   return 'ok';
+}
+/* Что сказать пользователю, когда операция с копией не выполнена (restoreData, wipeData) */
+function opFailText(res, what){
+  return res==='nocopy' ? `Не получилось записать копию текущих данных: в памяти телефона не хватает места. ${what} не выполнено, ничего не изменено. Сохрани файл копии, он не зависит от места в приложении.`
+    : res==='full' ? `${what} не дописалось: не хватило памяти телефона. Данные возвращены как были, ничего не потеряно.`
+    : `${what} не дописалось, и вернуть данные автоматически тоже не вышло. Копия текущих данных лежит в «Вернуть копию» (слот «Копия перед…»). Не удаляй приложение и не очищай данные Safari.`;
 }
 function afterRestore(res){
   if(res==='ok'){ toast('Данные восстановлены'); setTimeout(()=>location.reload(),700); }
-  else toast(res==='full' ? 'Не хватило памяти телефона для восстановления' : 'Это не файл резервной копии');
+  else if(res==='bad') toast('Это не файл резервной копии');
+  else opFailSheet('Восстановление не выполнено', opFailText(res,'Восстановление'));
+}
+/* «Удалить все данные»: тот же порядок, что у восстановления */
+function wipeData(){
+  const pre=makePreOp('перед удалением всех данных');
+  if(!pre.ok) return 'nocopy';
+  const ui=['planTab','planOnboarded','planLastBackup'], uiRaw={}; ui.forEach(k=>{ const v=ls.get(k); if(v!=null) uiRaw[k]=v; });
+  let ok=true;
+  [...ALL_KEYS(), ...ui].forEach(k=>{ if(!ls.del(k)) ok=false; });
+  if(!ok){
+    const back=rollbackRaw(pre);
+    Object.keys(uiRaw).forEach(k=>ls.put(k,uiRaw[k]));
+    return back ? 'full' : 'broken';
+  }
+  ls.del('planLive'); ls.del('planShiftFix');
+  return 'ok';
 }
 function importBackup(file){
   const r=new FileReader();
   r.onload=()=>{
     let b=null;
     try{ b=JSON.parse(r.result); }catch(e){}
-    afterRestore(restoreData(b, 'перед восстановлением'));
+    afterRestore(restoreData(b, 'перед восстановлением из файла'));
   };
   r.readAsText(file);
 }
@@ -158,5 +197,6 @@ document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==
 let lastDay=todayIdx();
 document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState!=='visible') return;
+  autoRotate();   /* приложение висит в памяти днями: ежедневная автокопия при возврате на экран */
   if(todayIdx()!==lastDay || applyAuto()){ lastDay=todayIdx(); foodDay=lastDay; selDow=new Date().getDay(); loadFoodDay(); renderAll(); }
 });

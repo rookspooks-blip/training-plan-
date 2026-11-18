@@ -6,7 +6,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const { chromium, devices } = await import(process.env.PW || 'playwright');
+const { chromium, webkit, devices } = await import(process.env.PW || 'playwright');
+const engine = process.env.BR === 'webkit' ? webkit : chromium;   /* BR=webkit — движок Safari */
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const TYPES = { '.html':'text/html', '.js':'text/javascript', '.css':'text/css', '.webmanifest':'application/manifest+json', '.png':'image/png', '.webp':'image/webp', '.svg':'image/svg+xml', '.ics':'text/calendar' };
 const server = http.createServer((req, res) => {
@@ -28,7 +29,7 @@ const ok = (n, cond, extra = '') => {
   if (!cond) { fails++; console.log(`FAIL ${n} ${extra}`); }
 };
 
-const browser = await chromium.launch();
+const browser = await engine.launch();
 /* Данные: журнал, замеры, еда, тесты — как у живого пользователя на 3-й неделе */
 const lg = (n, d, w, r, rpe, k = 3) => ({ n, d, sets: Array.from({ length: k }, () => ({ w: String(w), r: String(r) })), rpe, tr: r, th: r + 2, ns: k, wk: 'build' });
 const BASE = {
@@ -52,6 +53,9 @@ async function at(time, data = {}, opts = {}) {
     sessionStorage.setItem('seeded', '1');
     localStorage.clear(); localStorage.setItem('planSchema', '3');
     for (const k in d) localStorage.setItem(k, JSON.stringify(d[k]));
+    /* строки реестра описывают движок v1 (циклы, разгрузки, сессия): с 16.11.2026 по датам действует v2, поэтому v1 включается
+       принудительно (planSet.prog.v=1). Программа v2 проверяется в tests/player.mjs, tests/rules.mjs и tools/v2-check.mjs */
+    const ps = JSON.parse(localStorage.getItem('planSet') || '{}'); if (!ps.prog) ps.prog = { v: 1, from: '2026-11-09' }; localStorage.setItem('planSet', JSON.stringify(ps));
   }, data);
   await p.goto(URL0, { waitUntil: 'load' });
   await p.waitForTimeout(200);
@@ -81,7 +85,7 @@ const close = async p => { ok('_errors', p.errs.length === 0, p.errs.join(' | ')
   ok(20, await E(p, () => !marks['2026-10-19-daily-0']), '«Отменить» вернула');
   await p.click('#tabbar [data-go="now"]');
   t = await T(p);
-  ok(2, await E(p, () => document.querySelectorAll('#scr-now .rings .ring').length === 2), 'кольца дня: тренировки и еда');
+  ok(2, await E(p, () => !document.querySelector('#scr-now .rings') && !!document.querySelector('#scr-now .main') && document.querySelectorAll('#scr-now .nrow').length >= 3), 'E3.2: колец нет, главный пункт и список дня');
   ok(2, await E(p, () => /Разминка: \d+\/\d+/.test(dayText(dayExport('2026-10-19'))) || /разминка/i.test(dayText(dayExport('2026-10-19')))), 'счёт разминки — в выгрузке дня');
   /* настройки */
   await E(p, () => openSettings());
@@ -143,12 +147,12 @@ const close = async p => { ok('_errors', p.errs.length === 0, p.errs.join(' | ')
   /* хранение */
   ok(12, await E(p, () => DATA_KEYS.length === 15 && DATA_KEYS.includes('planLoad') && DATA_KEYS.includes('planCook') && DATA_KEYS.includes('planArchive')), '14 ключей (12 + готовка + архив записей по датам)');
   ok(12, await E(p, () => { const o = Storage.prototype.setItem; Storage.prototype.setItem = () => { throw new Error('q'); }; storeWarned = false; store.set('planMarks', marks); Storage.prototype.setItem = o; return /Не получилось сохранить/.test(document.querySelector('#toast').textContent); }), 'ошибка записи — тост');
-  ok(13, await E(p, () => SCHEMA === 4 && typeof migrate === 'function' && typeof snapshot === 'function'), 'миграция по шагам со снимком (формат 4: ключи — даты)');
+  ok(13, await E(p, () => SCHEMA === 5 && typeof migrate === 'function' && typeof snapshot === 'function'), 'миграция по шагам со снимком (формат 5: ключи — даты, снимок перед шагом)');
   /* новый день при возврате */
   await p.clock.setFixedTime(new Date('2026-10-22T09:00:00'));
   await E(p, () => { Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true }); document.dispatchEvent(new Event('visibilitychange')); });
   await p.click('#tabbar [data-go="now"]');
-  ok(10, /ЧТ ·|Чт ·/.test(await E(p, () => document.querySelector('#scr-now .kick').textContent)), 'новый день — экран перерисован');
+  ok(10, /чт,/.test(await E(p, () => document.querySelector('#scr-now .hsub').textContent)), 'новый день — экран перерисован');
   await close(p);
 }
 /* офлайн, обновление */
@@ -204,35 +208,35 @@ for (const [time, re, n] of [['2026-10-26T10:00:00', /Разгрузка/, 3], [
   await E(p, () => closeSheets());
   ok(53, await E(p, () => { const W = buildWeek(); const f = id => W.find(e => e.id === id); return f('d1').dow === 1 && f('d5').dow === 3 && f('d2').dow === 4 && f('d3').dow === 6 && f('c-tue').dow === 2 && f('c-sun').dow === 0 && trainingTime(f('d1')) === '17:00' && trainingTime(f('d5')) === '08:30' && trainingTime(f('d2')) === '11:40' && trainingTime(f('d3')) === '12:00' && trainingTime(f('c-tue')) === '19:00' && trainingTime(f('c-sun')) === '12:00'; }), 'неделя и время по календарю (Н5)');
   /* карточка тренировки: Силовая В сегодня */
-  t = await E(p, () => document.querySelector('#scr-now .hero').textContent);
-  ok(31, /Силовая В/.test(t) && /08:30/.test(t) && /≈\d+ мин/.test(t) && /дома/.test(t), 'карточка тренировки: название, время, место, минуты');
-  ok(38, await E(p, () => !!document.querySelector('#scr-now .hero [data-start]')), '«Начать тренировку»');
+  t = await E(p, () => document.querySelector('#scr-now .main').textContent);
+  ok(31, /Силовая В/.test(t) && /08:30/.test(t) && /\d+ мин/.test(t) && /дома/.test(t), 'карточка тренировки: название, время, место, минуты (E3.2: без «≈»)');
+  ok(38, await E(p, () => !!document.querySelector('#scr-now .main [data-start]')), '«Начать тренировку»');
   await E(p, () => daySheet('d5'));
   t = await T(p);
   ok(42, /гантель \d+ кг|кг/.test(t) && /отдых/.test(t), 'доза с весом недели и отдых видны без раскрытия');
   ok(97, /≈\d+ мин/.test(t), '≈ минут в карточке дня');
   await E(p, () => closeSheets());
-  ok(36, await E(p, () => [...document.querySelectorAll('#scr-now .it .nm')].some(e => e.textContent === 'Утренний замер')), 'замер в ленте «Сейчас»');
+  ok(36, await E(p, () => !!document.querySelector('#scr-now [data-w]') && !!document.querySelector('#scr-now [data-wopen]') && ![...document.querySelectorAll('#scr-now .nrow .nm')].some(e => e.textContent === 'Утренний замер')), 'замер на «Сейчас» - строка веса, без дубля в списке (E3.2)');
   await close(p);
 }
 { /* отдых */
   const p = await at('2026-10-14T13:00:00', BASE);
-  const t = await E(p, () => document.querySelector('#scr-now .hero').textContent);
-  ok(28, /Отдых/.test(t) && /Полный день без нагрузки между силовой и скоростной/.test(t) && /Следующая: Четверг/.test(t), 'день отдыха: смысл и следующая');
+  const t = await E(p, () => document.querySelector('#scr-now .hsub').textContent + ' ' + document.querySelector('#scr-now .hnote').textContent);
+  ok(28, /день отдыха/.test(t) && /Следующая: Четверг/.test(t), 'день отдыха: подпись и следующая (E3.2: без длинного пояснения)');
   await close(p);
 }
 { /* кардио */
   const p = await at('2026-10-20T10:00:00', BASE);
-  let t = await E(p, () => document.querySelector('#scr-now .hero.c-car') ? document.querySelector('#scr-now .hero.c-car').textContent : '');
-  ok(29, /Велосипед \+ мяч/.test(t) && await E(p, () => document.querySelectorAll('#scr-now .hero.c-car [data-ck]').length === 2), 'кардио: два кружка');
+  let t = await E(p, () => document.querySelector('#scr-now .main.cardio') ? document.querySelector('#scr-now .main.cardio').textContent : '');
+  ok(29, /Велосипед \+ мяч/.test(t) && await E(p, () => document.querySelectorAll('#scr-now .main.cardio [data-ck]').length === 2), 'кардио: два кружка');
   ok(30, /10–15 мин после велосипеда/.test(t), 'мяч: 10–15 мин после велосипеда');
   ok(100, /обороты|об\/мин|оборот/.test(t) || /пульс/.test(t), 'заметка кардио: обороты и пульс');
-  await p.click('#scr-now .hero.c-car [data-ck="ball"]');
+  await p.click('#scr-now .main.cardio [data-ck="ball"]');
   ok(30, await E(p, () => !!marks['2026-10-19-c-tue-ball']), 'мяч отмечается отдельно');
-  await p.click('#scr-now .hero.c-car [data-how]');
+  await p.click('#scr-now .main.cardio [data-how]');
   ok(29, /седл|Седл|обороты|Оборот/.test(await T(p)), 'настройка велосипеда');
   await E(p, () => closeSheets());
-  await p.click('#scr-now .hero.c-car [data-skip]');
+  await p.click('#scr-now .main.cardio [data-later]'); await p.click('.sheet [data-a="skip"]');
   ok(29, await E(p, () => isDropped('c-tue') && /догонять не надо/.test(document.querySelector('#toast').textContent)), 'пропуск — «догонять не надо»');
   await E(p, () => techSheet(BALL.tech, BALL.name, BALL));
   ok(30, /зал у дома или двор/.test(await T(p)), 'нужен пол: зал у дома или двор');
@@ -251,72 +255,77 @@ for (const [time, re, n] of [['2026-10-26T10:00:00', /Разгрузка/, 3], [
   await p.click('#scr-now [data-start]');
   ok(38, await E(p, () => watch['2026-10-19-d1'] && watch['2026-10-19-d1'].s === '17:00' && !document.querySelector('#player').hidden), 'начало записано, открыт плеер');
   t = await E(p, () => document.querySelector('#player').textContent);
-  ok(41, /Разминка/.test(t) && /\d:\d\d ·/.test(t) && /Вся сделана/.test(t), 'разминка: пункты с таймерами, «Вся сделана»');
+  ok(41, /Разминка/.test(t) && /\d:\d\d/.test(t) && /Разминка сделана/.test(t), 'разминка: пункты с таймерами, «Разминка сделана» (E3.1: вместо «Вся сделана»)');
   ok(79, await E(p, () => warmupOf(buildWeek().find(e => e.id === 'd1').day, 3).list.map(s => s.name).join('|').includes('Скакалка или велосипед')), 'разминка А');
-  await p.click('#player [data-warm]');
-  ok(41, await E(p, () => warmupOf(buildWeek().find(e => e.id === 'd1').day, 3).list.every(s => marks[key('d1', s.id)])), '«Вся сделана» отмечает все пункты');
-  ok(39, await E(p, () => PL.steps[PL.i].k === 'ex' && PL.steps[PL.i].ex.id === 'aJ'), 'плеер сам открывает следующее упражнение (первой — проверка готовности)');
+  const T1 = async sel => { await p.click(sel); await p.clock.runFor(700); };   /* 700 мс: окно защиты от двойного «Готово» - 600 мс */
+  await T1('#player [data-a=warmdone]');
+  ok(41, await E(p, () => warmupOf(buildWeek().find(e => e.id === 'd1').day, 3).list.every(s => marks[key('d1', s.id)])), '«Разминка сделана» отмечает все пункты');
+  ok(39, await E(p, () => { const c = plCur(plEntry()); return c.k === 'ex' && c.id === 'aJ'; }), 'плеер сам открывает следующее упражнение (первой - проверка готовности)');
   /* готовность */
-  await E(p, () => plGo(PL.steps.findIndex(s => s.ex && s.ex.action === 'ready')));
   t = await E(p, () => document.querySelector('#player').textContent);
-  ok(48, /Не достал метку 2 из 3 → лёгкий день/.test(t), 'кнопка готовности');
-  await p.click('#player [data-ready]');
-  ok(48, await E(p, () => readyLow() && /Метку достал — вернуть обычный день/.test(document.querySelector('#player').textContent)), 'лёгкий день и обратная кнопка');
+  ok(48, /Достал метку/.test(t) && /Не достал/.test(t) && /не достал 2 из 3/.test(t), 'кнопки готовности: «Достал метку», «Не достал» (E3.1)');
+  await T1('#player [data-a=ready][data-v="0"]');
+  ok(48, await E(p, () => readyLow() && !!marks['2026-10-19-d1-aJ']), 'лёгкий день по прыжку');
+  await p.click('#player [data-a=past][data-id=aJ]'); await p.waitForTimeout(50);
+  ok(48, /Метку достал - вернуть обычный день/.test(await E(p, () => document.querySelector('.sheet').textContent)), 'обратная кнопка - в листе свёрнутой строки');
+  await E(p, () => closeSheets());
   ok(92, await E(p, () => { const d = buildWeek().find(e => e.id === 'd1').day; return /Это не откат/.test(d.alert ? d.alert.html : '') && d.ex.some(x => / · на 80 %/.test(x.dose)); }), 'ноги на подход меньше, старты на 80 %, «это не откат»');
   ok(35, /Лёгкий день по прыжку/.test(await E(p, () => { daySheet('d1'); const t = document.querySelector('.sheet').textContent; closeSheets(); return t; })), 'строка поправки в карточке дня');
-  await p.click('#player [data-ready]');
-  /* подход */
-  await E(p, () => plGo(PL.steps.findIndex(s => s.k === 'set' && s.ex.id === 'a1')));
+  await p.click('#player [data-a=past][data-id=aJ]'); await p.waitForTimeout(50);
+  await p.click('.sheet [data-low]'); await p.waitForTimeout(50);
+  /* подход: до болгарского */
+  while ((await E(p, () => plCur(plEntry()).id)) !== 'a1') await T1('#player [data-a=count]');
+  await p.click('#player .exh'); await p.waitForTimeout(50);
+  ok(45, await E(p, () => !!document.querySelector('.sheet [data-a=addset]')), '«+ подход» (E3.1: «Ещё один подход» в листе упражнения)');
+  await p.click('.sheet [data-a=how]'); await p.waitForTimeout(80);
+  t = await E(p, () => document.querySelector('.sheet').textContent);
+  ok(43, /свой вес не пишется/.test(t) && /Сегодня/.test(t), 'лист «Как делать»: что писать в «кг», «Сегодня» (E3.1: с рабочего экрана ушло сюда)');
+  ok(198, /Сегодня(цель|все подходы|тот же вес)|Сегодня.*(цель|все подходы|тот же вес)/.test(t), 'источник веса в подсказке (в листе «Как делать»)');
+  ok(197, /Подводка/.test(t), 'строка «Подводка» (в листе «Как делать»)');
+  ok(42, await E(p, () => !!document.querySelector('.sheet img, .sheet svg, .sheet .fig')), 'фото или схема - в листе «Как делать»');
+  await E(p, () => closeSheets());
   t = await E(p, () => document.querySelector('#player').textContent);
-  ok(43, /В прошлый раз \(12\.10\): 11 · 11 · 11 · 11 · тяжесть 8/.test(t) && /Сегодня:/.test(t) && /свой вес не пишется/.test(t), '«В прошлый раз», «Сегодня», что писать в «кг»');
-  ok(198, /Сегодня: (цель|все подходы|тот же вес)/.test(t), 'источник веса в подсказке');
-  ok(197, /Подводка/.test(t), 'строка «Подводка»');
+  ok(43, /В прошлый раз/.test(t) && /11, 11, 11, 11/.test(t), '«В прошлый раз»: подходы прошлой недели в ленте');
   ok(83, await E(p, () => typeof warmupOf === 'function'), '');
-  ok(42, await E(p, () => !!document.querySelector('#player .pl-photo, #player .pl-fig') && /Подход 1 из 4/.test(document.querySelector('#player').textContent)), 'фото/схема, подход n из N');
-  await p.click('#player [data-done]');
+  ok(42, await E(p, () => !document.querySelector('#player img, #player .pl-photo')) && /Подход 1 из 4/.test(await E(p, () => document.querySelector('#player .panel').textContent)), 'подход n из N; фото на рабочем экране нет (решение 7, SPORT_APP.md)');
+  await T1('#player [data-a=done]');
   const L = await E(p, () => logs['2026-10-19-d1-a1']);
   ok(45, L && L.sets[0].r !== '' && L.d === '2026-10-19', '«Готово» записывает подход как показан (В4)');
   ok(46, L && L.tr && L.th && L.ns && L.wk === 'build', 'с записью сохраняется план');
-  t = await E(p, () => document.querySelector('#player').textContent);
-  ok(47, /Отдых/.test(t) && /2:00/.test(t) && /экран не погаснет/.test(t), 'отдых 2:00 во весь экран');
-  await p.click('#player [data-plus]');
-  ok(47, /2:30/.test(await E(p, () => document.querySelector('#player .bigring').textContent)), '+30 сек');
+  t = await E(p, () => document.querySelector('#player .rest').textContent);
+  ok(47, /Отдых/.test(t) && /[12]:\d\d/.test(t), 'отдых полосой над панелью, время из «отдых»; ни «+30», ни «✕» (решение 1, SPORT_APP.md)');
+  ok(47, await E(p, () => !document.querySelector('#player [data-plus], #player [data-rskip]')), 'кнопок «+30» и «Пропустить» нет');
   await p.clock.runFor(160000);
-  ok(47, await E(p, () => !PL.rest), 'отдых кончился, считает от времени окончания');
-  for (let i = 1; i < 4; i++) { if (await p.$('#player [data-rskip]')) await p.click('#player [data-rskip]'); await p.click('#player [data-done]'); }
+  ok(47, await E(p, () => { const r = plRest(); return r && r.over; }), 'отдых кончился, считает от времени окончания и идёт вверх');
+  for (let i = 1; i < 4; i++) await T1('#player [data-a=done]');
   ok(46, await E(p, () => !!marks['2026-10-19-d1-a1']), 'все подходы → упражнение отмечено');
-  if (await p.$('#player [data-rskip]')) await p.click('#player [data-rskip]');
-  if (!(await p.$('#player [data-rpe]'))) console.log('шаг перед тяжестью:', await E(p, () => JSON.stringify({ k: PL.steps[PL.i].k, ex: PL.steps[PL.i].ex && PL.steps[PL.i].ex.id, si: PL.steps[PL.i].si, rest: !!PL.rest, sets: logs['2026-10-19-d1-a1'].sets })));
   t = await E(p, () => document.querySelector('#player').textContent);
-  ok(44, /Как тяжело было в последнем подходе/.test(t) && await E(p, () => document.querySelectorAll('#player [data-rpe]').length === 5) && /Легко, запас 4/.test(t) && /Предел/.test(t), '5 строк 6–10 с подписями');
-  await p.click('#player [data-rpe="8"]');
-  ok(44, await E(p, () => logs['2026-10-19-d1-a1'].rpe === 8), 'тяжесть записана');
-  await E(p, () => plGo(PL.steps.findIndex(s => s.k === 'rpe' && s.ex.id === 'a1')));
-  await p.click('#player [data-rpe="8"]');
+  ok(44, await E(p, () => document.querySelectorAll('#player .zc').length === 4) && /Запас повторов/.test(t), 'запас повторов: фишки 0 · 1 · 2 · 3+ (E3.1: вместо экрана «Как тяжело?»)');
+  await p.click('#player .zc[data-v="8"]');
+  ok(44, await E(p, () => logs['2026-10-19-d1-a1'].rpe === 8), 'запас 2 записан как 8 (10 минус запас)');
+  await p.click('#player .zc[data-v="8"]');
   ok(44, await E(p, () => logs['2026-10-19-d1-a1'].rpe === null), 'повторный тап снимает');
-  ok(45, await E(p, () => { plGo(PL.steps.findIndex(s => s.k === 'set' && s.ex.id === 'a2' && s.si === s.n - 1)); return !!document.querySelector('#player [data-addset]'); }), '«+ подход»');
   /* пары */
-  ok(59, await E(p, () => { const i = PL.steps.findIndex(s => s.k === 'set' && s.mate); return i >= 0 && PL.steps[i + 1].ex.id === PL.steps[i].mate.id; }), 'пары чередуются');
+  ok(59, await E(p, () => { const st = plBuild(plEntry()); const i = st.findIndex(s => s.k === 'set' && s.mate); return i >= 0 && st[i + 1].ex.id === st[i].mate.id; }), 'пары чередуются');
   /* часы */
   await E(p, () => watchSheet('d1'));
   t = await T(p);
   ok(40, /Начал сейчас/.test(t) && /Закончил сейчас/.test(t) && /Ср\. пульс/.test(t) && /Макс\. пульс/.test(t) && /Ккал/.test(t) && /часы не должны идти дольше тренировки/.test(t) && !/\+300/.test(t), 'часы: время, пульс, ккал; без «к еде +300» (С7)');
   await E(p, () => closeSheets());
-  /* итог */
-  await p.clock.runFor(40 * 60000);
-  await E(p, () => { plGo(PL.steps.length - 1); plFinish(); });
+  /* итог: закрывается сама, когда записан последний шаг; «Закончить» не нужно */
+  await p.clock.runFor(10 * 60000);
+  await E(p, () => { plFinishNow(plEntry()); plRender(); });
   t = await E(p, () => document.querySelector('#player').textContent);
-  ok(38, /Тренировка сделана/.test(t) && /упражнений/.test(t) && /кг поднято/.test(t) && /Самочувствие после, 1–10/.test(t), 'итог: время, упражнения, тоннаж, самочувствие');
-  await p.click('#player [data-feel="7"]');
-  ok(38, await E(p, () => body['2026-10-19'].feel === 7), 'самочувствие пишется в день');
+  ok(38, /подход/.test(t) && await E(p, () => document.querySelectorAll('#player .sumv .sc button').length === 10) && await E(p, () => !!watch['2026-10-19-d1'].e), 'итог: время, подходы, одна шкала тяжести 1-10; «Закончить» и «самочувствие после» убраны (решение 4, SPORT_APP.md)');
+  await p.click('#player [data-a=srpe][data-v="7"]');
+  ok(38, await E(p, () => gymLoadOf('2026-10-19', 'd1').rpe === 7), 'тяжесть пишется в нагрузку недели');
   await close(p);
 }
 { /* тест прыжка в плеере → «Прыжок по видео» */
   const p = await at('2026-10-24T13:00:00', BASE);
   const has = await E(p, () => buildWeek().find(e => e.id === 'd3').day.ex.find(x => x.action === 'jump'));
   if (has) {
-    await E(p, () => { openPlayer('d3'); plGo(PL.steps.findIndex(s => s.ex && s.ex.action === 'jump')); });
-    await p.click('#player [data-jump]');
+    await E(p, () => { openPlayer('d3'); plExAction('jump', 'c0'); });
     ok(49, await E(p, () => !document.querySelector('#page').hidden && /Прыжок по видео/.test(document.querySelector('#page').textContent)), 'тест прыжка → «Прыжок по видео»');
   } else ok(49, await E(p, () => withWeek(1, 4, () => buildWeek().find(e => e.id === 'd3').day.ex.some(x => x.action === 'jump'))), 'тест прыжка в неделях 1, 4, 8, 12');
   await close(p);
@@ -418,10 +427,12 @@ for (const n of [54, 75, 78, 83, 84, 86, 87, 88, 89, 91, 94, 96, 101, 102, 103, 
   const p = await at('2026-10-19T13:05:00', BASE);
   await p.click('#tabbar [data-go="food"]');
   let t = await T(p);
-  ok(117, await E(p, () => document.querySelectorAll('#scr-food .days7 [data-fd]').length === 7 && !!document.querySelector('#scr-food .days7 .full')), 'дни недели, заполненный день отмечен');
-  ok(120, /ккал осталось|в цель|перебор/.test(t) && /белка ещё|белок/.test(t), 'кольцо «осталось», Б/Ж/У');
+  await p.click('#scr-food [data-menu]'); await p.click('.sheet [data-a="day"]');
+  ok(117, await E(p, () => document.querySelectorAll('.sheet .days7 [data-fd]').length === 7 && !!document.querySelector('.sheet .days7 .full')), 'дни недели, заполненный день отмечен (E3.2: лист «Другой день» из «⋯»)');
+  await E(p, () => closeSheets());
+  ok(120, /из \d/.test(t) && /Белок/.test(t) && /Жиры/.test(t) && /Углеводы/.test(t), 'кольцо «съедено из цели», Б/Ж/У (E3.2)');
   ok(115, await E(p, () => missedSessions().total === 0), 'пропусков нет — лида нет');
-  await p.click('#scr-food [data-timing]');
+  await p.click('#scr-food [data-menu]'); await p.click('.sheet [data-a="timing"]');
   t = await T(p);
   ok(118, /Силовая А в 17:00/.test(t) && /за 1\.5 часа до зала/.test(t) && /г белка/.test(t), 'режим дня под тренировку в 17:00 (С6)');
   ok(119, /Синтез мышечного белка/.test(t) && /Вода: 2\.5–3 литра/.test(t) && /Вечерние углеводы не вредят/.test(t), 'тексты про белок, углеводы, воду');
@@ -431,8 +442,8 @@ for (const n of [54, 75, 78, 83, 84, 86, 87, 88, 89, 91, 94, 96, 101, 102, 103, 
   ok(131, /Один заход на 30–40 минут/.test(await T(p)), '«Один заход на 30–40 минут»');
   await p.click('.sheet [data-m="curry"]'); await p.click('.sheet [data-addc]'); await E(p, () => closeSheets());
   ok(123, await E(p, () => cookList().length === 1), 'контейнеры недели (Н3)');
-  await p.click('#scr-food [data-eat="0"]');
-  ok(124, await E(p, () => dishOn.curry && mealTimes.curry === '13:05'), '«+» — в день со временем');
+  await p.click('#scr-food [data-menu]'); await p.click('.sheet [data-a="cook"]'); await p.click('.sheet [data-ceat="0"]');
+  ok(124, await E(p, () => dishOn.curry && mealTimes.curry === '13:05'), '«Съел» в листе контейнеров - в день со временем (E3.2: «+» убран с экрана)');
   await p.click('#toast button');
   await E(p, () => dishesPage());
   t = await T(p);
@@ -456,7 +467,9 @@ for (const n of [54, 75, 78, 83, 84, 86, 87, 88, 89, 91, 94, 96, 101, 102, 103, 
   await E(p, () => closeSheets());
   await E(p, () => ownFoodSheet());
   await p.fill('.sheet [data-k]', '300'); await p.click('.sheet [data-add]');
-  ok(127, await E(p, () => custom.some(x => x.name === 'Без названия' && x.k === 300 && x.t)), 'своё: можно только ккал, время записи');
+  ok(127, await E(p, () => !custom.some(x => x.k === 300) && !document.querySelector('.sheet .errtxt').hidden), 'своё: без названия не сохраняется (E3.2: название обязательно)');
+  await p.fill('.sheet [data-n]', 'Без названия'); await p.click('.sheet [data-add]');
+  ok(127, await E(p, () => custom.some(x => x.name === 'Без названия' && x.k === 300 && x.t)), 'своё: название и ккал, время записи');
   await p.click('#scr-food [data-ci]');
   ok(125, await E(p, () => !!document.querySelector('.sheet [data-fav]') && !!document.querySelector('.sheet [data-del]')), '☆ в избранное, удаление');
   await E(p, () => closeSheets());
@@ -490,7 +503,7 @@ for (const n of [54, 75, 78, 83, 84, 86, 87, 88, 89, 91, 94, 96, 101, 102, 103, 
 /* ===== 6. Замеры, выводы, тесты ===== */
 {
   const p = await at('2026-10-22T08:10:00', BASE);
-  let t = await E(p, () => document.querySelector('#morning').textContent);
+  let t = await E(p, () => { morningSheet(); const t = document.querySelector('.sheet').textContent; closeSheets(); return t; });
   ok(132, /Вес натощак/.test(t) && /Пульс лёжа/.test(t) && /Колено/.test(t) && /Поясница/.test(t) && /Пах/.test(t) && !/Самочувствие/.test(t), 'замер: вес, пульс, колено, поясница, пах (Н4); самочувствие — только после тренировки (В3)');
   ok(133, /каждое утро натощак, минимум 3 раза в неделю/.test(await E(p, () => { morningSheet(); const t = document.querySelector('.sheet').textContent; closeSheets(); return t; })), 'частота взвешивания (С1)');
   await p.click('#tabbar [data-go="me"]');
@@ -502,7 +515,7 @@ for (const n of [54, 75, 78, 83, 84, 86, 87, 88, 89, 91, 94, 96, 101, 102, 103, 
   ok(169, /120–135 × 5/.test(t) && /\+10–15 %/.test(t), 'цели года');
   ok(170, /8 чистых \(было 5\)/.test(t) && /28 мин, ср\. пульс 143/.test(t), 'последние результаты');
   ok(171, await E(p, () => document.querySelectorAll('#scr-me [data-todo]').length === 8) && /осталось \d из 8/.test(t), '8 задач с галочками');
-  ok(148, await E(p, () => document.querySelectorAll('#scr-me .tst').length === 8) && /Подтягивания/.test(t) && /60 м/.test(t), 'карточки тестов');
+  ok(148, await E(p, () => document.querySelectorAll('#scr-me .tst').length === 10)   /* +Yo-Yo IR1 и бросковая батарея (v2) */ && /Подтягивания/.test(t) && /60 м/.test(t), 'карточки тестов');
   ok(178, /Прыжок с места/.test(t) && /52/.test(t), 'прыжок — первым блоком «Я»');
   ok(182, /хорошо 57–60/.test(t) && /отлично 62/.test(t), 'шкала прыжка +10–15 % / +20 %');
   ok(144, await E(p, () => document.querySelectorAll('#scr-me .zone').length === 4), 'светофоры — на карте тела');
@@ -515,7 +528,7 @@ for (const n of [54, 75, 78, 83, 84, 86, 87, 88, 89, 91, 94, 96, 101, 102, 103, 
   ok(146, await E(p, () => body['2026-10-20'].w === 76.1), 'вернул');
   await E(p, () => closeSheets());
   await E(p, () => testRecordSheet('pull'));
-  ok(149, await E(p, () => document.querySelector('.sheet [data-d]').value === '2026-10-22' && document.querySelectorAll('.sheet [data-t]').length === 6), 'ввод: тест, результат, дата сегодня');
+  ok(149, await E(p, () => document.querySelector('.sheet [data-d]').value === '2026-10-22' && document.querySelectorAll('.sheet [data-t]').length === 8)   /* +Yo-Yo IR1 и бросковая батарея (v2) */, 'ввод: тест, результат, дата сегодня');
   await p.fill('.sheet [data-v]', 'abc'); await p.click('.sheet [data-ok]');
   ok(149, await E(p, () => !document.querySelector('.sheet .errtxt').hidden), 'не число — ошибка');
   await p.fill('.sheet [data-v]', '10'); await p.click('.sheet [data-ok]');
@@ -587,7 +600,8 @@ for (const n of [54, 75, 78, 83, 84, 86, 87, 88, 89, 91, 94, 96, 101, 102, 103, 
 /* ===== 7–8. Сон, восстановление, справка ===== */
 {
   const p = await at('2026-10-22T21:30:00', BASE);
-  const t = await E(p, () => document.querySelector('#scr-now .hero').textContent);
+  await E(p, () => eveningSheet());
+  const t = await E(p, () => document.querySelector('.sheet').textContent);
   ok(162, /Душ: контрастный можно/.test(t), 'вечерняя карточка: душ по типу дня');
   ok(157, /Лёг в одно и то же время/.test(t) && /Не пропустил ни одного приёма пищи/.test(t), 'две привычки кружками в итоге дня');
   ok(153, /Сон: отбой 01:00, подъём 08:00 — 7 ч/.test(t) && /добери днём/.test(t), 'сон сегодня: в пятницу физра — подъём 08:00, неделя тяжёлая');

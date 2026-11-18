@@ -40,16 +40,18 @@
 | `css/app.css` | все стили |
 | `js/figures.js` · `js/tech.js` | схемы движений и техника упражнений |
 | `js/photos.js` · `img/ex/` | фото «начало → конец» для 38 упражнений ([free-exercise-db](https://github.com/yuhonas/free-exercise-db), Unlicense) |
-| `js/plan.js` · `js/plan-extra.js` | план: разминка, веса, тренировки по неделям, кардио, справка |
+| `js/plan.js` · `js/plan-extra.js` | план v1: разминка, веса, тренировки по неделям, кардио, справка (недели до 16.11.2026) |
+| `js/plan-v2.js` | программа v2 по таблице `docs/v2-map.csv`: недели с 16.11.2026, блоки 1-3, замены при боли, питание по типу дня. Сверка: `node tools/v2-check.mjs` |
 | `js/food-data.js` · `js/food.js` | блюда и рецепты · дневник и калькулятор питания |
 | `js/store.js` | состояние, хранение, версия формата данных и миграции |
+| `js/safe.js` | сохранность данных: сырые копии, миграция формата 4→5, ротация автокопий, откат восстановления |
 | `js/training.js` | расписание, переносы, журнал подходов, прогрессия весов |
 | `js/rules.js` | правила поверх плана: замены, колено, перерыв, усталость |
 | `js/ui.js` · `js/iphone.js` | общие экраны, модалки, копия данных, установка, офлайн |
 | `js/progress.js` · `js/export.js` | вкладка «Прогресс» и выгрузка дней |
 | `js/calendar.js` | календарь .ics из дат плана (кнопка в приложении и `plan.ics`) |
 | `js/main.js` | запуск |
-| `tests/` | проверки в эмуляции iPhone (Playwright): `smoke.mjs`, `rules.mjs`, `flows.mjs` |
+| `tests/` | проверки в эмуляции iPhone (Playwright): `smoke.mjs`, `rules.mjs`, `flows.mjs`, `registry.mjs`, `data.mjs` (`BR=webkit` — движок Safari) |
 | `plan.ics` | расписание для Календаря iPhone — собирается `node tools/make-ics.mjs`, руками не править |
 | `manifest.webmanifest` | название и иконка для экрана «Домой» |
 | `sw.js` | офлайн-режим (при изменении файлов подними `VERSION`) |
